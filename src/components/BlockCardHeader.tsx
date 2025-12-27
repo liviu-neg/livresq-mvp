@@ -1,4 +1,3 @@
-import React from 'react';
 import type { BlockType } from '../types';
 
 interface BlockCardHeaderProps {
@@ -7,7 +6,7 @@ interface BlockCardHeaderProps {
 }
 
 const blockLabels: Record<BlockType, string> = {
-  text: 'Text',
+  text: 'Texta',
   header: 'Header',
   image: 'Image',
   quiz: 'Quiz',

@@ -70,7 +70,7 @@ export const plainTheme: Theme = {
   name: 'Plain',
   colors: {
     bg: '#ffffff',
-    surface: '#ffffff',
+    surface: '#fafafa',
     text: '#1a1a1a',
     mutedText: '#666666',
     border: '#e0e0e0',

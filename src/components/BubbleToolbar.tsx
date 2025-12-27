@@ -46,50 +46,6 @@ export function BubbleToolbar({ editor }: BubbleToolbarProps) {
     isAiModalOpenRef.current = showAiPopover;
   }, [showAiPopover]);
 
-  // Listen for custom event to trigger AI assistant programmatically
-  useEffect(() => {
-    const handleTriggerAI = (event: Event) => {
-      const customEvent = event as CustomEvent<{ from: number; to: number; text: string }>;
-      const { from, to, text } = customEvent.detail;
-      
-      if (text && from !== undefined && to !== undefined) {
-        // First, ensure selection is set and highlighted
-        editor.chain()
-          .setTextSelection({ from, to })
-          .setAiHighlight()
-          .run();
-        
-        // Then set state and open popover
-        setAiSelection({ from, to, text });
-        setShowAiPopover(true);
-        
-        // Re-apply selection multiple times to ensure it sticks
-        setTimeout(() => {
-          editor.chain()
-            .setTextSelection({ from, to })
-            .setAiHighlight()
-            .run();
-        }, 100);
-        setTimeout(() => {
-          editor.chain()
-            .setTextSelection({ from, to })
-            .setAiHighlight()
-            .run();
-        }, 300);
-      }
-    };
-
-    const editorDom = editor.view.dom;
-    // Listen on both editor DOM and document
-    editorDom.addEventListener('trigger-ai-assistant', handleTriggerAI as EventListener);
-    document.addEventListener('trigger-ai-assistant', handleTriggerAI as EventListener);
-
-    return () => {
-      editorDom.removeEventListener('trigger-ai-assistant', handleTriggerAI as EventListener);
-      document.removeEventListener('trigger-ai-assistant', handleTriggerAI as EventListener);
-    };
-  }, [editor]);
-
   // Helper function to get font size from current selection
   const getCurrentFontSize = (): string => {
     // First check if fontSize is in textStyle mark
@@ -390,58 +346,51 @@ export function BubbleToolbar({ editor }: BubbleToolbarProps) {
           setAiSelection(null);
         }}
         onApply={(action, text) => {
-          // Use the stored selection values instead of current selection
-          const from = aiSelection.from;
-          const to = aiSelection.to;
+          const { from, to } = editor.state.selection;
           
-          // Re-apply the selection to ensure it's correct
-          editor
-            .chain()
-            .focus()
-            .setTextSelection({ from, to })
-            .run();
+          // Verify selection is still valid
+          if (from !== aiSelection.from || to !== aiSelection.to) {
+            alert('Selection changed. Please try again.');
+            setShowAiPopover(false);
+            setAiSelection(null);
+            return;
+          }
 
-          // Use requestAnimationFrame to ensure DOM is ready
-          requestAnimationFrame(() => {
-            if (action === 'replace') {
-              // Replace the selected text
-              editor
-                .chain()
-                .focus()
-                .setTextSelection({ from, to })
-                .unsetAiHighlight()
-                .deleteSelection()
-                .insertContent(text)
-                .run();
-            } else if (action === 'insert-below') {
-              // Insert as a new paragraph below
-              const $to = editor.state.doc.resolve(to);
-              const insertPos = $to.after($to.depth);
-              editor
-                .chain()
-                .focus()
-                .unsetAiHighlight()
-                .setTextSelection(insertPos)
-                .insertContent(`<p>${text}</p>`)
-                .run();
-            } else if (action === 'continue') {
-              // Append after selection and keep focus
-              editor
-                .chain()
-                .focus()
-                .unsetAiHighlight()
-                .setTextSelection(to)
-                .insertContent(` ${text}`)
-                .setTextSelection(to + text.length + 1)
-                .run();
-            }
+          if (action === 'replace') {
+            // Replace the selected text
+            editor
+              .chain()
+              .focus()
+              .setTextSelection({ from, to })
+              .unsetAiHighlight()
+              .deleteSelection()
+              .insertContent(text)
+              .run();
+          } else if (action === 'insert-below') {
+            // Insert as a new paragraph below
+            const $to = editor.state.doc.resolve(to);
+            const insertPos = $to.after($to.depth);
+            editor
+              .chain()
+              .focus()
+              .unsetAiHighlight()
+              .setTextSelection(insertPos)
+              .insertContent(`<p>${text}</p>`)
+              .run();
+          } else if (action === 'continue') {
+            // Append after selection and keep focus
+            editor
+              .chain()
+              .focus()
+              .unsetAiHighlight()
+              .setTextSelection(to)
+              .insertContent(` ${text}`)
+              .setTextSelection(to + text.length + 1)
+              .run();
+          }
 
-            // Close popover after action is complete
-            setTimeout(() => {
-              setShowAiPopover(false);
-              setAiSelection(null);
-            }, 100);
-          });
+          setShowAiPopover(false);
+          setAiSelection(null);
         }}
       />,
       document.body
