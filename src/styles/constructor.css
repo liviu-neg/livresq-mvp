@@ -1,0 +1,68 @@
+/* Constructor (Row/Cell/Resource) Styles */
+
+.constructor-row {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md, 8px);
+  transition: border 0.2s ease;
+}
+
+/* Row hover: only when NOT hovering over cell or resource */
+.constructor-row:hover:not(:has(.constructor-cell:hover)) {
+  border: 1px dashed #94A3AC;
+}
+
+.constructor-row-cells {
+  display: flex;
+  flex-direction: row;
+  gap: 10px;
+  width: 100%;
+}
+
+.constructor-cell {
+  flex: 1;
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md, 8px);
+  transition: border 0.2s ease;
+}
+
+/* Cell hover: only when NOT hovering over resource */
+.constructor-cell:hover:not(:has(.constructor-resource:hover)) {
+  border: 1px dotted #F19E39;
+}
+
+.constructor-cell.drag-over {
+  background-color: var(--color-focus-ring, rgba(138, 43, 226, 0.1));
+  border: 2px dashed var(--color-accent, #8a2be2);
+}
+
+.constructor-resource {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  min-height: 40px;
+  padding: 10px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md, 8px);
+  transition: border 0.2s ease;
+}
+
+.constructor-resource-empty-placeholder {
+  color: #D4A574;
+  font-size: 14px;
+  padding: 20px;
+  text-align: center;
+  background: #F5E6D3;
+  border: none;
+  border-radius: var(--radius-md, 8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100px;
+  width: 100%;
+}
+

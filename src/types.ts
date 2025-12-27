@@ -79,6 +79,60 @@ export interface TwoColumnSection extends BaseSection {
 
 export type Section = SimpleSection | TwoColumnSection;
 
+/**
+ * Row/Cell/Resource Model
+ * Row (Constructor) = horizontal container
+ * Cell = inside row, horizontal flow
+ * Resource = inside cell, vertical flow (contains blocks)
+ * Constructor can be nested (row inside cell)
+ */
+export interface Resource {
+  id: string;
+  blocks: Block[]; // Vertical flow of blocks
+}
+
+export interface Cell {
+  id: string;
+  resource: Resource; // Each cell contains one resource
+}
+
+export interface Row {
+  id: string;
+  cells: Cell[]; // Horizontal flow of cells
+}
+
+// Constructor = Row + Cell
+export type Constructor = Row;
+
+export interface LessonV2 {
+  rows: Row[]; // Top-level rows on canvas
+}
+
+export function createResource(blocks: Block[] = []): Resource {
+  return {
+    id: nanoid(),
+    blocks,
+  };
+}
+
+export function createCell(resource?: Resource): Cell {
+  return {
+    id: nanoid(),
+    resource: resource || createResource(),
+  };
+}
+
+export function createRow(cells: Cell[] = []): Row {
+  if (cells.length === 0) {
+    // Default: create row with one empty cell
+    cells = [createCell()];
+  }
+  return {
+    id: nanoid(),
+    cells,
+  };
+}
+
 export function createBlock(type: BlockType): Block {
   const id = nanoid();
   const base: BaseBlock = { id, type, title: 'Untitled' };
@@ -87,7 +141,7 @@ export function createBlock(type: BlockType): Block {
     case 'text':
       return { 
         ...base, 
-        body: '<p>When we show up to the present moment with all of our senses, we invite the world to fill us with joy. The pains of the past are behind us. The future has yet to unfold. But the now is full of beauty simply waiting for our attention.</p>' 
+        body: '<p style="font-size: 20px;">When we show up to the present moment with all of our senses, we invite the world to fill us with joy. The pains of the past are behind us. The future has yet to unfold. But the now is full of beauty simply waiting for our attention.</p>' 
       };
     case 'header':
       return { 

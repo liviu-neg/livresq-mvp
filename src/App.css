@@ -96,6 +96,31 @@ body {
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
+.properties-panel-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  background: white;
+  cursor: pointer;
+  color: #333;
+  transition: all 0.15s ease;
+}
+
+.properties-panel-toggle:hover {
+  background: #f5f5f5;
+  border-color: #d0d0d0;
+}
+
+.properties-panel-toggle svg {
+  width: 16px;
+  height: 16px;
+}
+
 .preview-toggle {
   padding: 8px 16px;
   background: #8b5cf6;
@@ -321,7 +346,7 @@ body {
 .main-content {
   flex: 1;
   overflow-y: auto;
-  background: #fafafa !important;
+  background: #F2F2F2 !important;
   padding: 24px;
 }
 
@@ -394,6 +419,13 @@ body {
   min-height: 100%;
   background: var(--color-surface);
   padding: var(--spacing-xl) var(--spacing-lg);
+  border-radius: 8px;
+  box-shadow: 0px 6px 10px 0px rgba(0, 0, 0, 0.05);
+  transition: max-width 0.3s ease;
+}
+
+.lesson-canvas.panel-hidden {
+  max-width: 1200px;
 }
 
 .empty-state {
@@ -409,7 +441,7 @@ body {
 /* Canvas Block - Uses theme variables (responds to theme switching) */
 .canvas-block {
   background: var(--color-bg);
-  border: 1px solid var(--color-border);
+  border: 1px solid transparent !important;
   border-radius: var(--radius-md);
   cursor: pointer;
   transition: all 0.2s;
@@ -419,15 +451,45 @@ body {
 }
 
 .canvas-block:hover {
-  border-color: var(--color-accent);
+  border: 1px solid var(--color-accent) !important;
   box-shadow: 0 2px 8px rgba(59, 130, 246, 0.15);
 }
 
 .canvas-block.selected {
-  border-color: var(--color-accent);
-  border-width: 2px;
+  border: 2px solid var(--color-accent) !important;
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1), 0 2px 8px rgba(59, 130, 246, 0.2);
   cursor: move;
+}
+
+/* Text/Header block selected state - 3px border with #326CF6 */
+.canvas-block.text-block-no-header.selected {
+  border: 3px solid #326CF6 !important;
+  box-shadow: none;
+}
+
+/* Image block selected state - 3px border with #326CF6 (same as text/header) */
+.canvas-block.image-block-toolbar.selected {
+  border: 3px solid #326CF6 !important;
+  box-shadow: none;
+}
+
+/* Image block in columns - same styling as main canvas */
+.column-block-item.image-block-toolbar.selected {
+  border: 3px solid #326CF6 !important;
+  box-shadow: none;
+  background: transparent;
+  padding: 0;
+}
+
+.column-block-item.image-block-toolbar {
+  background: transparent;
+  border: 1px solid transparent !important;
+  padding: 0;
+}
+
+.column-block-item.image-block-toolbar:hover {
+  border: 1px solid transparent !important;
+  box-shadow: none;
 }
 
 .canvas-block.selected.editing {
@@ -498,6 +560,8 @@ body {
 .block-card-content {
   padding: var(--spacing-xl);
   overflow: visible;
+  box-shadow: none !important;
+  border-radius: 0px;
 }
 
 .block-card-header-draggable {
@@ -511,34 +575,91 @@ body {
 /* Rich Text Editor Styles */
 .rich-text-editor-container {
   width: 100%;
-  min-height: 0;
+  min-height: 0 !important;
+  height: fit-content !important;
+  display: flex;
+  flex-direction: column;
+  padding: 0 !important;
+  margin: 0 !important;
 }
 
 .rich-text-editor {
   width: 100%;
   outline: none;
+  min-height: 0 !important;
+  height: fit-content !important;
+  display: flex;
+  flex-direction: column;
+  padding: 0 !important;
+  margin: 0 !important;
 }
 
 /* Rich Text Editor - Uses theme variables for text color (responds to theme switching) */
 .rich-text-editor .ProseMirror {
   outline: none;
   font-family: var(--font-sans);
-  font-size: var(--font-size-base-scale);
   line-height: var(--line-height-normal);
-  color: var(--color-text);
-  padding: 0;
-  margin: 0;
-  min-height: 0;
-  height: auto;
+  color: var(--color-text) !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  min-height: 0 !important;
+  height: fit-content !important;
+  display: block;
+  /* Base font-size - only applies when no inline styles exist on children */
+  font-size: var(--font-size-base-scale);
+  box-sizing: border-box;
 }
 
+/* Remove any default ProseMirror spacing */
+.rich-text-editor .ProseMirror > *:first-child {
+  margin-top: 0 !important;
+  padding-top: 0 !important;
+}
+
+.rich-text-editor .ProseMirror > *:last-child {
+  margin-bottom: 0 !important;
+  padding-bottom: 0 !important;
+}
+
+/* Inline styles automatically have highest specificity - no CSS needed to preserve them */
+
 .rich-text-editor .ProseMirror p {
-  margin: 0;
-  padding: 0;
+  margin: 0 !important;
+  padding: 0 !important;
+  line-height: inherit;
+  /* Base font-size - will be overridden by inline styles if present */
+  font-size: var(--font-size-base-scale);
+  min-height: 0 !important;
+}
+
+.rich-text-editor .ProseMirror span {
+  /* Spans inherit from parent - inline styles on spans will override */
+  font-size: inherit;
 }
 
 .rich-text-editor .ProseMirror p + p {
   margin-top: 0.5em;
+}
+
+/* Remove height from empty paragraphs */
+.rich-text-editor .ProseMirror p.is-editor-empty:first-child::before,
+.rich-text-editor .ProseMirror p.is-empty:first-child::before {
+  content: '';
+  height: 0;
+  display: inline-block;
+}
+
+/* Ensure empty paragraphs don't add height */
+.rich-text-editor .ProseMirror p.is-editor-empty,
+.rich-text-editor .ProseMirror p.is-empty {
+  min-height: 0 !important;
+  height: auto !important;
+}
+
+/* Remove height from line breaks */
+.rich-text-editor .ProseMirror br {
+  line-height: 0;
+  height: 0;
 }
 
 .rich-text-editor .ProseMirror ul,
@@ -556,18 +677,61 @@ body {
 /* Rich Text Readonly - Uses theme variables for text color (responds to theme switching) */
 .rich-text-readonly {
   font-family: var(--font-sans);
-  font-size: var(--font-size-base-scale);
   line-height: var(--line-height-normal);
-  color: var(--color-text);
+  color: var(--color-text) !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  min-height: 0 !important;
+  height: fit-content !important;
+  display: block;
+  /* Base font-size - only applies when no inline styles exist on children */
+  font-size: var(--font-size-base-scale);
+  box-sizing: border-box;
 }
 
+/* Remove any default spacing */
+.rich-text-readonly > *:first-child {
+  margin-top: 0 !important;
+  padding-top: 0 !important;
+}
+
+.rich-text-readonly > *:last-child {
+  margin-bottom: 0 !important;
+  padding-bottom: 0 !important;
+}
+
+/* Inline styles automatically have highest specificity - no CSS needed to preserve them */
+
 .rich-text-readonly p {
-  margin: 0;
-  padding: 0;
+  margin: 0 !important;
+  padding: 0 !important;
+  line-height: inherit;
+  /* Base font-size - will be overridden by inline styles if present */
+  font-size: var(--font-size-base-scale);
+  min-height: 0 !important;
+}
+
+.rich-text-readonly span {
+  /* Spans inherit from parent - inline styles on spans will override */
+  font-size: inherit;
 }
 
 .rich-text-readonly p + p {
   margin-top: 0.5em;
+}
+
+/* Remove height from empty paragraphs */
+.rich-text-readonly p:empty {
+  min-height: 0 !important;
+  height: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+/* Remove height from line breaks */
+.rich-text-readonly br {
+  line-height: 0;
+  height: 0;
 }
 
 .rich-text-readonly ul,
@@ -1160,18 +1324,22 @@ body {
 
 .text-block-view {
   position: relative;
-  min-height: 0;
+  min-height: 0 !important;
+  height: fit-content !important;
+  display: flex;
+  flex-direction: column;
+  padding: 0 !important;
+  margin: 0 !important;
 }
 
 .text-block-view .block-body {
-  line-height: 1.5;
-  font-size: 1rem;
-  color: #333;
-  white-space: pre-wrap;
-  word-wrap: break-word;
-  overflow-wrap: break-word;
-  margin: 0;
-  padding: 0;
+  line-height: var(--line-height-normal);
+  font-size: var(--font-size-base-scale);
+  color: var(--color-text);
+  margin: 0 !important;
+  padding: 0 !important;
+  min-height: 0 !important;
+  height: fit-content !important;
 }
 
 .text-block-drag-handle {
@@ -1499,13 +1667,8 @@ body {
 }
 
 /* Columns Block */
-.columns-container {
-  background: white;
-  border: 1px solid #EAEAEA;
-  border-radius: 12px;
-  padding: 16px;
-  margin-bottom: 1rem;
-  transition: all 0.2s;
+.columns-block-view {
+  width: 100%;
 }
 
 .columns-drag-preview {
@@ -1515,17 +1678,6 @@ body {
   border: 1px solid #EAEAEA;
   border-radius: 12px;
   padding: 16px;
-}
-
-.columns-container:hover {
-  border-color: #007bff;
-  box-shadow: 0 2px 8px rgba(0, 123, 255, 0.15);
-}
-
-.columns-container.selected {
-  border-color: #007bff;
-  border-width: 2px;
-  box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1), 0 2px 8px rgba(0, 123, 255, 0.2);
 }
 
 .columns-columns-wrapper {
@@ -1538,13 +1690,17 @@ body {
 .columns-column {
   min-height: 100px;
   padding: 12px;
-  border: 2px dashed #E0E0E0;
+  border: 1px solid transparent;
   border-radius: 8px;
   background: #FAFAFA;
   transition: all 0.2s;
   display: flex;
   flex-direction: column;
   gap: 8px;
+}
+
+.columns-column:hover {
+  border: 1px dotted #F19E39;
 }
 
 .columns-column.empty {
@@ -1560,11 +1716,18 @@ body {
 }
 
 .column-empty-placeholder {
-  color: #999;
+  color: #D4A574;
   font-size: 14px;
   text-align: center;
   padding: 20px;
-  font-style: italic;
+  background: #F5E6D3;
+  border: none;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100px;
+  width: 100%;
 }
 
 .column-block-item {
@@ -1646,11 +1809,6 @@ body {
 
   .block-card-drag-handle {
     color: #666;
-  }
-
-  .columns-container {
-    background: #1a1a1a;
-    border-color: #333;
   }
 
   .columns-column {
@@ -2313,4 +2471,105 @@ body {
 
 .image-fill-modal-ok:active {
   background: #6d28d9;
+}
+
+/* Text Block Toolbar */
+.text-block-toolbar-wrapper {
+  position: fixed;
+  z-index: 1000;
+}
+
+.text-block-toolbar {
+  display: flex;
+  align-items: center;
+  height: 50px;
+  background: white;
+  border: 3px solid #326CF6;
+  border-radius: 4px;
+  box-shadow: 0px 10px 10px 0px rgba(0, 0, 0, 0.15);
+  overflow: hidden;
+}
+
+.text-block-toolbar-button {
+  width: 54px;
+  height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  border-right: 1px solid #E6E6E6;
+  cursor: pointer;
+  padding: 0;
+  color: #333;
+  transition: background-color 0.2s;
+  position: relative;
+}
+
+.text-block-toolbar-button:last-of-type {
+  border-right: none;
+}
+
+.text-block-toolbar-button:hover {
+  background: #F5F5F5;
+}
+
+.text-block-toolbar-button svg {
+  width: 24px;
+  height: 24px;
+  color: currentColor;
+}
+
+/* AI Button with Gradient */
+.text-block-toolbar-button-ai {
+  position: relative;
+  overflow: visible;
+}
+
+.text-block-toolbar-button-ai-gradient {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 32px;
+  height: 32px;
+  background: linear-gradient(45deg, #808DF5 0%, #CD82ED 100%);
+  border-radius: 4px;
+  pointer-events: none;
+}
+
+.text-block-toolbar-button-ai svg {
+  position: relative;
+  z-index: 1;
+  color: white;
+}
+
+.text-block-toolbar-label {
+  padding: 0 16px;
+  font-size: 16px;
+  font-weight: bold;
+  color: white;
+  background: #326CF6;
+  border-left: 1px solid #E6E6E6;
+  margin-left: auto;
+  white-space: nowrap;
+  height: 100%;
+  display: flex;
+  align-items: center;
+}
+
+/* AI Edit Popover - Update styling to match design */
+.ai-edit-popover {
+  position: fixed;
+  z-index: 1001;
+  background: white !important;
+  border: 1px solid #e6e6e6 !important;
+  border-radius: 12px;
+  box-shadow: 0px 10px 10px 0px rgba(0, 0, 0, 0.15);
+  width: clamp(320px, 90vw, 640px);
+  max-height: calc(100vh - 120px);
+  display: flex;
+  flex-direction: column;
+  animation: aiPopoverFadeIn 0.15s ease-out;
+  overflow: hidden;
 }

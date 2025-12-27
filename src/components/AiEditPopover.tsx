@@ -46,6 +46,8 @@ export function AiEditPopover({
   const inputRef = useRef<HTMLInputElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
   const suggestionsRef = useRef<HTMLDivElement>(null);
+  const openedAtRef = useRef<number>(Date.now());
+  const isApplyingActionRef = useRef<boolean>(false);
 
 
   // Focus input when entering idle or result state
@@ -65,9 +67,18 @@ export function AiEditPopover({
       setSelectedSuggestionIndex(null);
 
       try {
-        // Verify selection is still valid
+        // Re-apply the selection to ensure it matches what we stored
+        editor
+          .chain()
+          .setTextSelection({ from: selectionFrom, to: selectionTo })
+          .setAiHighlight()
+          .run();
+
+        // Verify selection is still valid (with small tolerance for whitespace differences)
         const currentSelection = editor.state.selection;
-        if (currentSelection.from !== selectionFrom || currentSelection.to !== selectionTo) {
+        const tolerance = 2; // Allow small differences due to formatting
+        if (Math.abs(currentSelection.from - selectionFrom) > tolerance || 
+            Math.abs(currentSelection.to - selectionTo) > tolerance) {
           setError('Selection changed. Please try again.');
           setState('idle');
           return;
@@ -138,13 +149,56 @@ export function AiEditPopover({
     }
   }, [selectedSuggestionIndex]);
 
+  // Reset openedAtRef when popover opens (when component mounts)
+  useEffect(() => {
+    openedAtRef.current = Date.now();
+    
+    // Re-apply selection immediately when popover opens and keep re-applying
+    const reapplySelection = () => {
+      editor
+        .chain()
+        .setTextSelection({ from: selectionFrom, to: selectionTo })
+        .setAiHighlight()
+        .run();
+    };
+    
+    // Apply immediately
+    reapplySelection();
+    
+    // Keep re-applying for the first second to ensure it sticks
+    const intervals = [50, 100, 200, 300, 500, 1000];
+    intervals.forEach(delay => {
+      setTimeout(reapplySelection, delay);
+    });
+  }, [editor, selectionFrom, selectionTo]);
+
   // Handle click outside and selection changes
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
+      // Don't close if an action is being applied
+      if (isApplyingActionRef.current) {
+        return;
+      }
+      
+      // Ignore clicks for the first 2 seconds after opening to prevent immediate close
+      if (Date.now() - openedAtRef.current < 2000) {
+        return;
+      }
+      
+      // Don't close if we're in loading or result state
+      if (state === 'loading' || state === 'result') {
+        return;
+      }
+      
+      // Don't close if clicking on action buttons
+      const target = e.target as HTMLElement;
+      if (target.closest('.ai-action-button') || target.closest('.ai-suggestion-button')) {
+        return;
+      }
+      
       if (popoverRef.current && !popoverRef.current.contains(e.target as Node)) {
         // Don't close if clicking on the editor or bubble toolbar
-        const target = e.target as HTMLElement;
-        if (!target.closest('.ProseMirror') && !target.closest('.bubble-toolbar')) {
+        if (!target.closest('.ProseMirror') && !target.closest('.bubble-toolbar') && !target.closest('.text-block-toolbar')) {
           onClose();
         }
       }
@@ -152,11 +206,50 @@ export function AiEditPopover({
 
     // Check if selection becomes empty
     const checkSelection = () => {
+      // Don't check selection if an action is being applied
+      if (isApplyingActionRef.current) {
+        return;
+      }
+      
+      // Don't check selection if we're in loading or result state
+      if (state === 'loading' || state === 'result') {
+        return;
+      }
+      
+      // Ignore ALL selection changes for the first 5 seconds after opening to prevent immediate close
+      const timeSinceOpen = Date.now() - openedAtRef.current;
+      if (timeSinceOpen < 5000) {
+        // During grace period, always re-apply selection to keep it stable
+        const { from, to } = editor.state.selection;
+        if (from !== selectionFrom || to !== selectionTo) {
+          // Re-apply the original selection
+          editor
+            .chain()
+            .setTextSelection({ from: selectionFrom, to: selectionTo })
+            .setAiHighlight()
+            .run();
+        }
+        return; // Never close during grace period
+      }
+      
+      // After grace period, only close if selection is completely empty (from === to)
       const { from, to } = editor.state.selection;
-      if (from === to || from !== selectionFrom || to !== selectionTo) {
-        // Selection changed or became empty
-        if (from === to) {
-          onClose();
+      if (from === to) {
+        // Selection became empty - close the dialog
+        onClose();
+      } else {
+        // Selection exists but might have changed - re-apply original if different
+        const tolerance = 10; // Large tolerance
+        const selectionChanged = Math.abs(from - selectionFrom) > tolerance || 
+                                 Math.abs(to - selectionTo) > tolerance;
+        
+        if (selectionChanged) {
+          // Re-apply the original selection to keep it stable
+          editor
+            .chain()
+            .setTextSelection({ from: selectionFrom, to: selectionTo })
+            .setAiHighlight()
+            .run();
         }
       }
     };
@@ -168,7 +261,7 @@ export function AiEditPopover({
       document.removeEventListener('mousedown', handleClickOutside);
       editor.off('selectionUpdate', checkSelection);
     };
-  }, [onClose, editor, selectionFrom, selectionTo]);
+  }, [onClose, editor, selectionFrom, selectionTo, state]);
 
   // Helper to ensure selection and modal are in viewport
   const ensureModalInView = React.useCallback(() => {
@@ -302,9 +395,18 @@ export function AiEditPopover({
     setSelectedSuggestionIndex(null);
 
     try {
-      // Verify selection is still valid
+      // Re-apply the selection to ensure it matches what we stored
+      editor
+        .chain()
+        .setTextSelection({ from: selectionFrom, to: selectionTo })
+        .setAiHighlight()
+        .run();
+
+      // Verify selection is still valid (with small tolerance for whitespace differences)
       const currentSelection = editor.state.selection;
-      if (currentSelection.from !== selectionFrom || currentSelection.to !== selectionTo) {
+      const tolerance = 2; // Allow small differences due to formatting
+      if (Math.abs(currentSelection.from - selectionFrom) > tolerance || 
+          Math.abs(currentSelection.to - selectionTo) > tolerance) {
         setError('Selection changed. Please try again.');
         setState('idle');
         return;
@@ -321,16 +423,26 @@ export function AiEditPopover({
 
 
   const handleAction = (action: 'replace' | 'insert-below' | 'continue') => {
-    // Verify selection is still valid before applying
-    const currentSelection = editor.state.selection;
-    if (currentSelection.from !== selectionFrom || currentSelection.to !== selectionTo) {
-      alert('Selection changed. Please select the text again and try.');
-      onClose();
-      return;
+    if (!result) {
+      return; // Don't apply if there's no result
     }
-
+    
+    // Set flag to prevent closing during action application
+    isApplyingActionRef.current = true;
+    
+    // Re-apply the selection to ensure it's correct before applying
+    editor
+      .chain()
+      .setTextSelection({ from: selectionFrom, to: selectionTo })
+      .run();
+    
+    // Call onApply with the stored selection - BubbleToolbar will use aiSelection values
     onApply(action, result);
-    onClose();
+    
+    // Reset flag after a delay to allow the action to complete
+    setTimeout(() => {
+      isApplyingActionRef.current = false;
+    }, 1000);
   };
 
   const handleCopy = async () => {
@@ -397,7 +509,10 @@ export function AiEditPopover({
                   key={index}
                   type="button"
                   className={`ai-action-button ${selectedSuggestionIndex === index ? 'ai-suggestion-selected' : ''}`}
-                  onClick={() => handleSuggestionClick(suggestion)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleSuggestionClick(suggestion);
+                  }}
                   onMouseEnter={() => setSelectedSuggestionIndex(index)}
                   onMouseLeave={() => setSelectedSuggestionIndex(null)}
                 >
@@ -445,7 +560,10 @@ export function AiEditPopover({
               <button
                 type="button"
                 className="ai-action-button ai-action-primary"
-                onClick={() => handleAction('replace')}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleAction('replace');
+                }}
               >
                 <Replace size={16} />
                 <span>Replace selection</span>
@@ -453,7 +571,10 @@ export function AiEditPopover({
               <button
                 type="button"
                 className="ai-action-button"
-                onClick={() => handleAction('insert-below')}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleAction('insert-below');
+                }}
               >
                 <ArrowDown size={16} />
                 <span>Insert below</span>
@@ -461,7 +582,10 @@ export function AiEditPopover({
               <button
                 type="button"
                 className="ai-action-button"
-                onClick={handleCopy}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleCopy();
+                }}
               >
                 <Copy size={16} />
                 <span>Copy</span>
@@ -469,7 +593,10 @@ export function AiEditPopover({
               <button
                 type="button"
                 className="ai-action-button"
-                onClick={() => handleAction('continue')}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleAction('continue');
+                }}
               >
                 <ArrowRight size={16} />
                 <span>Continue writing</span>

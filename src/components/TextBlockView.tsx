@@ -8,9 +8,11 @@ interface TextBlockViewProps {
   isEditing: boolean;
   isPreview: boolean;
   onUpdate: (updates: Partial<TextBlock | HeaderBlock>) => void;
+  triggerSelectAllAndAI?: boolean;
+  triggerSelectAll?: boolean;
 }
 
-export function TextBlockView({ block, isSelected, isEditing, isPreview, onUpdate }: TextBlockViewProps) {
+export function TextBlockView({ block, isSelected, isEditing, isPreview, onUpdate, triggerSelectAllAndAI, triggerSelectAll }: TextBlockViewProps) {
   const editorContainerRef = useRef<HTMLDivElement>(null);
 
   const handleBlur = () => {
@@ -28,9 +30,7 @@ export function TextBlockView({ block, isSelected, isEditing, isPreview, onUpdat
         className="block-view text-block-view"
         style={{
           fontFamily: 'var(--font-sans)',
-          fontSize: 'var(--font-size-base-scale)',
           lineHeight: 'var(--line-height-normal)',
-          color: 'var(--color-text)',
         }}
       >
         <div 
@@ -47,9 +47,7 @@ export function TextBlockView({ block, isSelected, isEditing, isPreview, onUpdat
       className="block-view text-block-view"
       style={{
         fontFamily: 'var(--font-sans)',
-        fontSize: 'var(--font-size-base-scale)',
         lineHeight: 'var(--line-height-normal)',
-        color: 'var(--color-text)',
       }}
     >
       <div 
@@ -65,7 +63,9 @@ export function TextBlockView({ block, isSelected, isEditing, isPreview, onUpdat
           isEditable={true}
           onUpdate={handleUpdate}
           onBlur={handleBlur}
-          defaultFontSize={block.type === 'header' ? '32' : undefined}
+          defaultFontSize={block.type === 'header' ? '32' : '20'}
+          triggerSelectAllAndAI={triggerSelectAllAndAI}
+          triggerSelectAll={triggerSelectAll}
         />
       </div>
     </div>
