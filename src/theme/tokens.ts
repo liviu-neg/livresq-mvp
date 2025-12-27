@@ -179,6 +179,7 @@ export function themeToCSSVariables(theme: Theme): Record<string, string> {
     '--color-border': theme.colors.border,
     '--color-focus-ring': theme.colors.focusRing,
     '--color-accent': theme.colors.accent,
+    '--lesson-canvas-bg': isPlain ? '#fff' : theme.colors.surface,
     
     // Section appearance variables
     '--section-plain-bg': isPlain ? theme.colors.bg : 'transparent',

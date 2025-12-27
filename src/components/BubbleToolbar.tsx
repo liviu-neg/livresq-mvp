@@ -40,11 +40,46 @@ export function BubbleToolbar({ editor }: BubbleToolbarProps) {
   
   // Use ref to track AI modal state so shouldShow callback can access it
   const isAiModalOpenRef = useRef(false);
+  // Flag to prevent bubble menu from showing when opening AI edit from toolbar
+  const isOpeningAiFromToolbarRef = useRef(false);
   
   // Keep ref in sync with state
   useEffect(() => {
     isAiModalOpenRef.current = showAiPopover;
   }, [showAiPopover]);
+
+  // Listen for preparing-ai-edit event to set flag early
+  useEffect(() => {
+    const handlePreparingAiEdit = () => {
+      // Set flag immediately to prevent bubble menu from showing
+      isOpeningAiFromToolbarRef.current = true;
+    };
+
+    window.addEventListener('preparing-ai-edit-from-toolbar', handlePreparingAiEdit);
+    return () => {
+      window.removeEventListener('preparing-ai-edit-from-toolbar', handlePreparingAiEdit);
+    };
+  }, []);
+
+  // Listen for open-ai-edit event from toolbar
+  useEffect(() => {
+    const handleOpenAiEdit = (e: Event) => {
+      const customEvent = e as CustomEvent<{ from: number; to: number; text: string }>;
+      const { from, to, text } = customEvent.detail;
+      
+      // Keep flag set to prevent bubble menu from showing
+      isOpeningAiFromToolbarRef.current = true;
+      setAiSelection({ from, to, text });
+      setShowAiPopover(true);
+      
+      // Flag will be reset when popover closes
+    };
+
+    window.addEventListener('open-ai-edit', handleOpenAiEdit);
+    return () => {
+      window.removeEventListener('open-ai-edit', handleOpenAiEdit);
+    };
+  }, []);
 
   // Helper function to get font size from current selection
   const getCurrentFontSize = (): string => {
@@ -98,8 +133,19 @@ export function BubbleToolbar({ editor }: BubbleToolbarProps) {
         if (isAiModalOpenRef.current) {
           return false;
         }
+        // Hide bubble toolbar when opening AI edit from toolbar
+        if (isOpeningAiFromToolbarRef.current) {
+          return false;
+        }
         const { selection } = state;
         const { from, to } = selection;
+        
+        // Don't show bubble menu if selection spans entire document (indicates toolbar AI edit)
+        const docSize = state.doc.content.size;
+        if (from === 0 && to === docSize && docSize > 0) {
+          return false;
+        }
+        
         return from !== to && !selection.empty;
       }}
     >
@@ -344,16 +390,23 @@ export function BubbleToolbar({ editor }: BubbleToolbarProps) {
           editor.chain().unsetAiHighlight().run();
           setShowAiPopover(false);
           setAiSelection(null);
+          // Reset flag when popover closes
+          isOpeningAiFromToolbarRef.current = false;
         }}
         onApply={(action, text) => {
-          const { from, to } = editor.state.selection;
+          // Restore selection if it changed before applying
+          const currentSelection = editor.state.selection;
+          let from = aiSelection.from;
+          let to = aiSelection.to;
           
-          // Verify selection is still valid
-          if (from !== aiSelection.from || to !== aiSelection.to) {
-            alert('Selection changed. Please try again.');
-            setShowAiPopover(false);
-            setAiSelection(null);
-            return;
+          if (currentSelection.from !== aiSelection.from || currentSelection.to !== aiSelection.to) {
+            // Restore the original selection
+            editor
+              .chain()
+              .setTextSelection({ from: aiSelection.from, to: aiSelection.to })
+              .run();
+            from = aiSelection.from;
+            to = aiSelection.to;
           }
 
           if (action === 'replace') {
@@ -367,14 +420,16 @@ export function BubbleToolbar({ editor }: BubbleToolbarProps) {
               .insertContent(text)
               .run();
           } else if (action === 'insert-below') {
-            // Insert as a new paragraph below
-            const $to = editor.state.doc.resolve(to);
-            const insertPos = $to.after($to.depth);
+            // Insert as a new paragraph below the selection
+            // Unset highlight first
+            editor.chain().unsetAiHighlight().run();
+            
+            // Insert at the end of the document
+            const docSize = editor.state.doc.content.size;
             editor
               .chain()
               .focus()
-              .unsetAiHighlight()
-              .setTextSelection(insertPos)
+              .setTextSelection(docSize)
               .insertContent(`<p>${text}</p>`)
               .run();
           } else if (action === 'continue') {

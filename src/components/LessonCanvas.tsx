@@ -2,7 +2,7 @@ import {
   DragOverlay,
   useDroppable,
 } from '@dnd-kit/core';
-import React, { useRef } from 'react';
+import React, { useRef, useEffect } from 'react';
 import {
   SortableContext,
   verticalListSortingStrategy,
@@ -82,6 +82,7 @@ function SortableBlockItem({
   
   const blockContainerRef = useRef<HTMLDivElement>(null);
   const editorRef = useRef<Editor | null>(null);
+  const shouldOpenAiEditRef = useRef(false);
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -208,11 +209,92 @@ function SortableBlockItem({
   };
 
   const handleOpenAiEdit = () => {
-    // Enter edit mode first, then the toolbar will handle selecting all text
-    if (!isEditing) {
+    // If already editing, handle immediately
+    if (isEditing && editorRef.current) {
+      const editor = editorRef.current;
+      const docSize = editor.state.doc.content.size;
+      const from = 0;
+      const to = docSize;
+      const selectedText = docSize > 0 ? editor.state.doc.textBetween(from, to) : '';
+      
+      // Notify BubbleToolbar that we're about to open AI edit from toolbar
+      window.dispatchEvent(new CustomEvent('preparing-ai-edit-from-toolbar'));
+      
+      // Select all text and highlight it
+      if (docSize > 0) {
+        editor
+          .chain()
+          .setTextSelection({ from, to })
+          .setAiHighlight()
+          .run();
+      }
+      
+      // Trigger AI edit popover
+      window.dispatchEvent(new CustomEvent('open-ai-edit', {
+        detail: { from, to, text: selectedText }
+      }));
+    } else {
+      // Enter edit mode first, then we'll handle selecting all text and opening AI popover
+      shouldOpenAiEditRef.current = true;
       onEdit();
     }
   };
+
+  // Handle AI edit after entering edit mode - dispatch event for BubbleToolbar to open popover
+  useEffect(() => {
+    if (isEditing && shouldOpenAiEditRef.current) {
+      // Poll for editor to be ready and fully initialized
+      const checkEditor = setInterval(() => {
+        const editor = editorRef.current;
+        // Check if editor exists and has a view (fully initialized)
+        if (editor && editor.view && editor.state) {
+          clearInterval(checkEditor);
+          shouldOpenAiEditRef.current = false;
+          
+          // Wait a bit more for editor to be fully ready
+          setTimeout(() => {
+            try {
+              const docSize = editor.state.doc.content.size;
+              const from = 0;
+              const to = docSize;
+              const selectedText = docSize > 0 ? editor.state.doc.textBetween(from, to) : '';
+              
+              // Notify BubbleToolbar that we're about to open AI edit from toolbar
+              // This prevents the bubble menu from showing
+              window.dispatchEvent(new CustomEvent('preparing-ai-edit-from-toolbar'));
+              
+              // Select all text and highlight it
+              if (docSize > 0) {
+                editor
+                  .chain()
+                  .setTextSelection({ from, to })
+                  .setAiHighlight()
+                  .run();
+              }
+              
+              // Trigger AI edit popover via custom event that BubbleToolbar listens to
+              window.dispatchEvent(new CustomEvent('open-ai-edit', {
+                detail: { from, to, text: selectedText }
+              }));
+            } catch (error) {
+              console.error('Error opening AI edit:', error);
+            }
+          }, 150);
+        }
+      }, 50);
+      
+      // Stop polling after 3 seconds
+      const timeoutId = setTimeout(() => {
+        clearInterval(checkEditor);
+        shouldOpenAiEditRef.current = false;
+      }, 3000);
+      
+      return () => {
+        clearInterval(checkEditor);
+        clearTimeout(timeoutId);
+      };
+    }
+  }, [isEditing]);
 
   return (
     <div
@@ -334,7 +416,7 @@ export function LessonCanvas({
         className="lesson-canvas" 
         onClick={handleCanvasClick}
         style={{
-          backgroundColor: 'var(--color-surface)',
+          backgroundColor: 'var(--lesson-canvas-bg)',
         }}
       >
         {sections.length === 0 ? (

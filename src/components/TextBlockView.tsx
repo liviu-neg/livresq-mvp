@@ -30,8 +30,10 @@ export function TextBlockView({ block, isSelected, isEditing, isPreview, onUpdat
         className="block-view text-block-view"
         style={{
           fontFamily: 'var(--font-sans)',
-          fontSize: 'var(--font-size-base-scale)',
-          lineHeight: 'var(--line-height-normal)',
+          fontSize: '20px',
+          lineHeight: '1.6',
+          fontWeight: '400',
+          letterSpacing: 'normal',
           color: 'var(--color-text)',
         }}
       >
@@ -49,8 +51,10 @@ export function TextBlockView({ block, isSelected, isEditing, isPreview, onUpdat
       className="block-view text-block-view"
       style={{
         fontFamily: 'var(--font-sans)',
-        fontSize: 'var(--font-size-base-scale)',
-        lineHeight: 'var(--line-height-normal)',
+        fontSize: '20px',
+        lineHeight: '1.6',
+        fontWeight: '400',
+        letterSpacing: 'normal',
         color: 'var(--color-text)',
       }}
     >

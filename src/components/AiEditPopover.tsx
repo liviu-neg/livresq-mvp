@@ -65,12 +65,15 @@ export function AiEditPopover({
       setSelectedSuggestionIndex(null);
 
       try {
-        // Verify selection is still valid
+        // Restore selection if it changed
         const currentSelection = editor.state.selection;
         if (currentSelection.from !== selectionFrom || currentSelection.to !== selectionTo) {
-          setError('Selection changed. Please try again.');
-          setState('idle');
-          return;
+          // Restore the original selection
+          editor
+            .chain()
+            .setTextSelection({ from: selectionFrom, to: selectionTo })
+            .setAiHighlight()
+            .run();
         }
 
         const aiResult = await generateTextEdit(selectedText, suggestion.instruction);
@@ -302,12 +305,15 @@ export function AiEditPopover({
     setSelectedSuggestionIndex(null);
 
     try {
-      // Verify selection is still valid
+      // Restore selection if it changed
       const currentSelection = editor.state.selection;
       if (currentSelection.from !== selectionFrom || currentSelection.to !== selectionTo) {
-        setError('Selection changed. Please try again.');
-        setState('idle');
-        return;
+        // Restore the original selection
+        editor
+          .chain()
+          .setTextSelection({ from: selectionFrom, to: selectionTo })
+          .setAiHighlight()
+          .run();
       }
 
       const aiResult = await generateTextEdit(selectedText, textToSubmit);
@@ -321,12 +327,14 @@ export function AiEditPopover({
 
 
   const handleAction = (action: 'replace' | 'insert-below' | 'continue') => {
-    // Verify selection is still valid before applying
+    // Restore selection if it changed before applying
     const currentSelection = editor.state.selection;
     if (currentSelection.from !== selectionFrom || currentSelection.to !== selectionTo) {
-      alert('Selection changed. Please select the text again and try.');
-      onClose();
-      return;
+      // Restore the original selection
+      editor
+        .chain()
+        .setTextSelection({ from: selectionFrom, to: selectionTo })
+        .run();
     }
 
     onApply(action, result);

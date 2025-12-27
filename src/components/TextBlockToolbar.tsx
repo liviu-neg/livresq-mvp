@@ -1,7 +1,5 @@
-import { useRef, useEffect, useState } from 'react';
-import { createPortal } from 'react-dom';
+import { useRef, useEffect } from 'react';
 import type { Editor } from '@tiptap/react';
-import { AiEditPopover } from './AiEditPopover';
 
 // SVG Icons
 const TrashIcon = () => (
@@ -56,12 +54,6 @@ export function TextBlockToolbar({
   onOpenAiEdit,
 }: TextBlockToolbarProps) {
   const toolbarRef = useRef<HTMLDivElement>(null);
-  const [showAiPopover, setShowAiPopover] = useState(false);
-  const [aiSelection, setAiSelection] = useState<{
-    from: number;
-    to: number;
-    text: string;
-  } | null>(null);
 
   // Position toolbar at top-right of block container
   useEffect(() => {
@@ -76,7 +68,7 @@ export function TextBlockToolbar({
       const toolbarRect = toolbar.getBoundingClientRect();
 
       // Position at top-right, with small offset (8px above, aligned to right edge)
-      const top = containerRect.top - toolbarRect.height - 8;
+      const top = containerRect.top - toolbarRect.height - 8 + 11;
       const right = window.innerWidth - containerRect.right;
 
       // Ensure toolbar doesn't go off-screen
@@ -105,59 +97,9 @@ export function TextBlockToolbar({
   }, [blockContainerRef]);
 
   const handleAiEdit = () => {
-    const currentEditor = editor || editorRef?.current;
-    
-    if (!currentEditor) {
-      // If no editor, trigger the callback to enter edit mode first
-      onOpenAiEdit();
-      // Poll for editor to be ready
-      const checkEditor = setInterval(() => {
-        const ed = editorRef?.current;
-        if (ed) {
-          clearInterval(checkEditor);
-          const docSize = ed.state.doc.content.size;
-          if (docSize > 0) {
-            const from = 0;
-            const to = docSize;
-            const selectedText = ed.state.doc.textBetween(from, to);
-            
-            if (selectedText) {
-              ed
-                .chain()
-                .setTextSelection({ from, to })
-                .setAiHighlight()
-                .run();
-              
-              setAiSelection({ from, to, text: selectedText });
-              setShowAiPopover(true);
-            }
-          }
-        }
-      }, 50);
-      
-      // Stop polling after 2 seconds
-      setTimeout(() => clearInterval(checkEditor), 2000);
-      return;
-    }
-
-    // Select all text
-    const docSize = currentEditor.state.doc.content.size;
-    if (docSize > 0) {
-      const from = 0;
-      const to = docSize;
-      const selectedText = currentEditor.state.doc.textBetween(from, to);
-      
-      if (selectedText) {
-        currentEditor
-          .chain()
-          .setTextSelection({ from, to })
-          .setAiHighlight()
-          .run();
-        
-        setAiSelection({ from, to, text: selectedText });
-        setShowAiPopover(true);
-      }
-    }
+    // Always use the event system to open AI edit via BubbleToolbar
+    // This ensures the popover persists even when toolbar disappears in edit mode
+    onOpenAiEdit();
   };
 
   return (
@@ -232,68 +174,6 @@ export function TextBlockToolbar({
           <span className="text-block-toolbar-label-text">{blockType === 'header' ? 'Header' : 'Texta'}</span>
         </button>
       </div>
-      {showAiPopover && aiSelection && (editor || editorRef?.current) && createPortal(
-        <AiEditPopover
-          editor={editor || editorRef?.current!}
-          selectionFrom={aiSelection.from}
-          selectionTo={aiSelection.to}
-          selectedText={aiSelection.text}
-          onClose={() => {
-            const ed = editor || editorRef?.current;
-            if (ed) {
-              ed.chain().unsetAiHighlight().run();
-            }
-            setShowAiPopover(false);
-            setAiSelection(null);
-          }}
-          onApply={(action, text) => {
-            const ed = editor || editorRef?.current;
-            if (!ed) return;
-            const { from, to } = ed.state.selection;
-            
-            if (from !== aiSelection.from || to !== aiSelection.to) {
-              alert('Selection changed. Please try again.');
-              setShowAiPopover(false);
-              setAiSelection(null);
-              return;
-            }
-
-            if (action === 'replace') {
-              ed
-                .chain()
-                .focus()
-                .setTextSelection({ from, to })
-                .unsetAiHighlight()
-                .deleteSelection()
-                .insertContent(text)
-                .run();
-            } else if (action === 'insert-below') {
-              const $to = ed.state.doc.resolve(to);
-              const insertPos = $to.after($to.depth);
-              ed
-                .chain()
-                .focus()
-                .unsetAiHighlight()
-                .setTextSelection(insertPos)
-                .insertContent(`<p>${text}</p>`)
-                .run();
-            } else if (action === 'continue') {
-              ed
-                .chain()
-                .focus()
-                .unsetAiHighlight()
-                .setTextSelection(to)
-                .insertContent(` ${text}`)
-                .setTextSelection(to + text.length + 1)
-                .run();
-            }
-
-            setShowAiPopover(false);
-            setAiSelection(null);
-          }}
-        />,
-        document.body
-      )}
     </>
   );
 }

@@ -115,6 +115,7 @@ function App() {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [selectedDevice, setSelectedDevice] = useState<DeviceType>('desktop');
   const [imageModalBlockId, setImageModalBlockId] = useState<string | null>(null);
+  const [isRightSidebarOpen, setIsRightSidebarOpen] = useState(false);
 
   // Derive blocks from sections for backward compatibility (PreviewStage, etc.)
   const blocks = extractBlocksFromSections(sections);
@@ -695,12 +696,14 @@ function App() {
             <TopBar
               isPreview={isPreview}
               onTogglePreview={() => setIsPreview(!isPreview)}
+              isRightSidebarOpen={isRightSidebarOpen}
+              onToggleRightSidebar={() => setIsRightSidebarOpen(!isRightSidebarOpen)}
             />
             <div className="app-content">
               <aside className="sidebar sidebar-left">
                 <BlocksPalette onInsertBlock={handleInsertBlock} />
               </aside>
-              <main className="main-content">
+              <main className={`main-content${!isRightSidebarOpen ? ' main-content-full' : ''}`}>
                 <LessonCanvas
                   sections={sections}
                   selectedBlockId={selectedBlockId}
@@ -723,13 +726,15 @@ function App() {
                   allBlocks={blocks}
                 />
               </main>
-              <aside className="sidebar sidebar-right">
-                <PropertiesPanel
-                  selectedBlock={selectedBlock}
-                  onUpdateBlock={handleUpdateBlock}
-                  onDeleteBlock={handleDeleteBlock}
-                />
-              </aside>
+              {isRightSidebarOpen && (
+                <aside className="sidebar sidebar-right">
+                  <PropertiesPanel
+                    selectedBlock={selectedBlock}
+                    onUpdateBlock={handleUpdateBlock}
+                    onDeleteBlock={handleDeleteBlock}
+                  />
+                </aside>
+              )}
       </div>
           </>
         )}

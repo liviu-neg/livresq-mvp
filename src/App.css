@@ -96,7 +96,8 @@ body {
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
-.preview-toggle {
+.preview-toggle,
+.sidebar-toggle {
   padding: 8px 16px;
   background: #8b5cf6;
   color: white;
@@ -107,6 +108,22 @@ body {
   font-weight: 500;
   transition: background 0.15s;
   font-family: inherit;
+}
+
+.sidebar-toggle {
+  background: transparent;
+  border: 1px solid #e0e0e0;
+  margin-left: 8px;
+  padding: 6px 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #333;
+}
+
+.sidebar-toggle:hover {
+  background: #f5f5f5;
+  border-color: #d0d0d0;
 }
 
 .preview-toggle:hover {
@@ -321,8 +338,19 @@ body {
 .main-content {
   flex: 1;
   overflow-y: auto;
-  background: #fafafa !important;
+  background: #F2F2F2 !important;
   padding: 24px;
+  transition: flex 0.2s ease;
+  min-width: 0; /* Allow flex item to shrink */
+}
+
+.main-content-full {
+  flex: 1 1 100%;
+  max-width: 100%;
+}
+
+.main-content-full .lesson-canvas {
+  max-width: 100%;
 }
 
 /* Blocks Palette */
@@ -387,13 +415,17 @@ body {
 /* Lesson Canvas - Uses theme variables (responds to theme switching) */
 .lesson-canvas {
   max-width: 800px;
+  width: 100%;
   margin: 0 auto;
   display: flex;
   flex-direction: column;
   gap: var(--spacing-lg);
   min-height: 100%;
-  background: var(--color-surface);
+  background: var(--lesson-canvas-bg);
   padding: var(--spacing-xl) var(--spacing-lg);
+  border-radius: 8px;
+  box-shadow: 0 6px 10px 0 rgba(0, 0, 0, 0.05);
+  box-sizing: border-box;
 }
 
 .empty-state {
@@ -424,10 +456,17 @@ body {
 }
 
 .canvas-block.selected {
-  border-color: var(--color-accent);
-  border-width: 2px;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1), 0 2px 8px rgba(59, 130, 246, 0.2);
+  border: none;
+  box-shadow: none;
   cursor: move;
+}
+
+.canvas-block.selected .block-card-content,
+.canvas-block.selected .text-block-content {
+  border: 3px solid #326CF6;
+  box-shadow: none;
+  border-radius: 0;
+  /* Ensure no layout shift - border was already accounted for in default state */
 }
 
 .canvas-block.selected.editing {
@@ -498,6 +537,9 @@ body {
 .block-card-content {
   padding: var(--spacing-xl);
   overflow: visible;
+  /* Add transparent border to prevent layout shift on selection */
+  border: 3px solid transparent;
+  box-sizing: border-box;
 }
 
 .block-card-header-draggable {
@@ -511,74 +553,326 @@ body {
 /* Rich Text Editor Styles */
 .rich-text-editor-container {
   width: 100%;
-  min-height: 0;
+  min-height: 0 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  box-sizing: border-box;
+  display: block;
+}
+
+/* EditorContent wrapper - ensure no extra height */
+.rich-text-editor-container > div {
+  width: 100% !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  box-sizing: border-box !important;
+  display: block !important;
+  height: auto !important;
+}
+
+/* Ensure the rich-text-editor class div also has no height */
+.rich-text-editor-container .rich-text-editor {
+  width: 100% !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  box-sizing: border-box !important;
+  display: block !important;
+  height: auto !important;
 }
 
 .rich-text-editor {
   width: 100%;
   outline: none;
+  padding: 0 !important;
+  margin: 0 !important;
+  box-sizing: border-box;
+  min-height: 0 !important;
+  display: block;
 }
 
 /* Rich Text Editor - Uses theme variables for text color (responds to theme switching) */
-.rich-text-editor .ProseMirror {
-  outline: none;
-  font-family: var(--font-sans);
-  font-size: var(--font-size-base-scale);
-  line-height: var(--line-height-normal);
-  color: var(--color-text);
-  padding: 0;
-  margin: 0;
-  min-height: 0;
-  height: auto;
+.rich-text-editor .ProseMirror,
+.ProseMirror {
+  outline: none !important;
+  font-family: var(--font-sans) !important;
+  font-size: 20px !important;
+  line-height: 1.6 !important;
+  font-weight: 400 !important;
+  letter-spacing: normal !important;
+  color: var(--color-text) !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  height: auto !important;
+  box-sizing: border-box !important;
+  display: block !important;
+  border: none !important;
+}
+
+/* Ensure empty paragraphs have no height */
+.rich-text-editor .ProseMirror p.is-editor-empty:first-child::before,
+.ProseMirror p.is-editor-empty:first-child::before {
+  content: '' !important;
+  float: left !important;
+  height: 0 !important;
+  pointer-events: none !important;
+  width: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+/* Remove any default ProseMirror styles that add height */
+.rich-text-editor .ProseMirror > *:first-child,
+.ProseMirror > *:first-child {
+  margin-top: 0 !important;
+  padding-top: 0 !important;
+}
+
+.rich-text-editor .ProseMirror > *:last-child,
+.ProseMirror > *:last-child {
+  margin-bottom: 0 !important;
+  padding-bottom: 0 !important;
+}
+
+/* Force all direct children to have no extra spacing */
+.rich-text-editor .ProseMirror > *,
+.ProseMirror > * {
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
 }
 
 .rich-text-editor .ProseMirror p {
-  margin: 0;
-  padding: 0;
+  margin: 0 !important;
+  padding: 0 !important;
+  font-size: inherit;
+  line-height: inherit;
+  font-family: inherit;
+  font-weight: inherit;
+  letter-spacing: inherit;
+  box-sizing: border-box;
+  min-height: 0 !important;
+  height: auto;
+}
+
+.rich-text-editor .ProseMirror p:empty,
+.ProseMirror p:empty {
+  margin: 0 !important;
+  padding: 0 !important;
+  min-height: 0 !important;
+  max-height: 0 !important;
+  height: 0 !important;
+  line-height: 0 !important;
+  font-size: 0 !important;
+  overflow: hidden !important;
+}
+
+/* Ensure even non-empty paragraphs with only whitespace have minimal height */
+.rich-text-editor .ProseMirror p:only-child:empty,
+.ProseMirror p:only-child:empty {
+  display: none !important;
 }
 
 .rich-text-editor .ProseMirror p + p {
-  margin-top: 0.5em;
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
 }
 
 .rich-text-editor .ProseMirror ul,
 .rich-text-editor .ProseMirror ol {
-  margin: 0.5em 0;
+  margin: 0;
+  padding: 0;
   padding-left: 1.5em;
+  font-size: inherit;
+  line-height: inherit;
+  font-family: inherit;
+  font-weight: inherit;
+  letter-spacing: inherit;
+  box-sizing: border-box;
+}
+
+.rich-text-editor .ProseMirror li {
+  font-size: inherit;
+  line-height: inherit;
+  font-family: inherit;
+  font-weight: inherit;
+  letter-spacing: inherit;
 }
 
 .rich-text-editor .ProseMirror a {
   color: var(--color-accent);
   text-decoration: underline;
   cursor: pointer;
+  font-size: inherit;
+  line-height: inherit;
+  font-family: inherit;
+  font-weight: inherit;
+  letter-spacing: inherit;
+}
+
+/* Ensure text elements inherit typography and have no margins */
+.rich-text-editor .ProseMirror span,
+.rich-text-editor .ProseMirror div,
+.rich-text-editor .ProseMirror h1,
+.rich-text-editor .ProseMirror h2,
+.rich-text-editor .ProseMirror h3,
+.rich-text-editor .ProseMirror h4,
+.rich-text-editor .ProseMirror h5,
+.rich-text-editor .ProseMirror h6 {
+  font-size: inherit;
+  line-height: inherit;
+  font-family: inherit;
+  font-weight: inherit;
+  letter-spacing: inherit;
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+/* Reset specific elements that should use base typography */
+.rich-text-editor .ProseMirror strong,
+.rich-text-editor .ProseMirror b {
+  font-weight: 700;
+  font-size: inherit;
+  line-height: inherit;
+  font-family: inherit;
+  letter-spacing: inherit;
+}
+
+.rich-text-editor .ProseMirror em,
+.rich-text-editor .ProseMirror i {
+  font-style: italic;
+  font-size: inherit;
+  line-height: inherit;
+  font-family: inherit;
+  font-weight: inherit;
+  letter-spacing: inherit;
 }
 
 /* Rich Text Readonly - Uses theme variables for text color (responds to theme switching) */
 .rich-text-readonly {
   font-family: var(--font-sans);
-  font-size: var(--font-size-base-scale);
-  line-height: var(--line-height-normal);
+  font-size: 20px;
+  line-height: 1.6;
+  font-weight: 400;
+  letter-spacing: normal;
   color: var(--color-text);
+  padding: 0 !important;
+  margin: 0 !important;
+  min-height: 0 !important;
+  height: auto;
+  box-sizing: border-box;
+  display: block;
+}
+
+/* Ensure empty paragraphs have no height in readonly too */
+.rich-text-readonly p:empty {
+  margin: 0 !important;
+  padding: 0 !important;
+  min-height: 0 !important;
+  height: 0;
+}
+
+.rich-text-readonly > *:first-child {
+  margin-top: 0 !important;
+}
+
+.rich-text-readonly > *:last-child {
+  margin-bottom: 0 !important;
 }
 
 .rich-text-readonly p {
-  margin: 0;
-  padding: 0;
+  margin: 0 !important;
+  padding: 0 !important;
+  font-size: inherit;
+  line-height: inherit;
+  font-family: inherit;
+  font-weight: inherit;
+  letter-spacing: inherit;
+  box-sizing: border-box;
+  min-height: 0 !important;
+  height: auto;
 }
 
 .rich-text-readonly p + p {
-  margin-top: 0.5em;
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
 }
 
 .rich-text-readonly ul,
 .rich-text-readonly ol {
-  margin: 0.5em 0;
+  margin: 0;
+  padding: 0;
   padding-left: 1.5em;
+  font-size: inherit;
+  line-height: inherit;
+  font-family: inherit;
+  font-weight: inherit;
+  letter-spacing: inherit;
+  box-sizing: border-box;
+}
+
+.rich-text-readonly li {
+  font-size: inherit;
+  line-height: inherit;
+  font-family: inherit;
+  font-weight: inherit;
+  letter-spacing: inherit;
 }
 
 .rich-text-readonly a {
   color: var(--color-accent);
   text-decoration: underline;
+  font-size: inherit;
+  line-height: inherit;
+  font-family: inherit;
+  font-weight: inherit;
+  letter-spacing: inherit;
+}
+
+/* Ensure text elements inherit typography and have no margins */
+.rich-text-readonly span,
+.rich-text-readonly div,
+.rich-text-readonly h1,
+.rich-text-readonly h2,
+.rich-text-readonly h3,
+.rich-text-readonly h4,
+.rich-text-readonly h5,
+.rich-text-readonly h6 {
+  font-size: inherit;
+  line-height: inherit;
+  font-family: inherit;
+  font-weight: inherit;
+  letter-spacing: inherit;
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+/* Reset specific elements that should use base typography */
+.rich-text-readonly strong,
+.rich-text-readonly b {
+  font-weight: 700;
+  font-size: inherit;
+  line-height: inherit;
+  font-family: inherit;
+  letter-spacing: inherit;
+}
+
+.rich-text-readonly em,
+.rich-text-readonly i {
+  font-style: italic;
+  font-size: inherit;
+  line-height: inherit;
+  font-family: inherit;
+  font-weight: inherit;
+  letter-spacing: inherit;
 }
 
 /* Bubble Toolbar - Fixed UI theme, doesn't change with content theme */
@@ -1156,22 +1450,54 @@ body {
 .text-block-content {
   padding: 1.5rem;
   overflow: visible;
+  /* Ensure border is present to prevent layout shift on selection */
+  border: 3px solid transparent;
+  box-sizing: border-box;
 }
 
 .text-block-view {
   position: relative;
-  min-height: 0;
+  min-height: 0 !important;
+  max-height: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  box-sizing: border-box !important;
+  height: auto !important;
+  display: block !important;
+}
+
+/* Ensure both .block-body and .rich-text-editor-container have identical dimensions */
+.text-block-view .block-body,
+.text-block-view .rich-text-editor-container {
+  width: 100% !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  box-sizing: border-box !important;
+  height: auto !important;
+  display: block !important;
+  border: none !important;
 }
 
 .text-block-view .block-body {
-  line-height: 1.5;
-  font-size: 1rem;
-  color: #333;
+  line-height: 1.6 !important;
+  font-size: 20px !important;
+  font-family: var(--font-sans) !important;
+  font-weight: 400 !important;
+  letter-spacing: normal !important;
+  color: var(--color-text) !important;
   white-space: pre-wrap;
   word-wrap: break-word;
   overflow-wrap: break-word;
-  margin: 0;
-  padding: 0;
+  margin: 0 !important;
+  padding: 0 !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  height: auto !important;
+  box-sizing: border-box !important;
+  display: block !important;
+  border: none !important;
 }
 
 .text-block-drag-handle {
@@ -1634,11 +1960,24 @@ body {
 
 /* Block View - Uses theme variables (responds to theme switching) */
 .block-view {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-lg);
-  font-family: var(--font-sans);
-  color: var(--color-text);
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 0 !important;
+  font-family: var(--font-sans) !important;
+  color: var(--color-text) !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  height: auto !important;
+  box-sizing: border-box !important;
+}
+
+/* Ensure text-block-view specifically has no extra height */
+.text-block-view.block-view {
+  min-height: 0 !important;
+  max-height: none !important;
+  height: auto !important;
 }
 
 /* Columns Block */
