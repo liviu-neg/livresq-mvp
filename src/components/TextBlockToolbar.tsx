@@ -8,7 +8,7 @@ interface TextBlockToolbarProps {
   onMove: () => void;
   onGenerateWithAI: () => void;
   onMoreOptions: () => void;
-  blockType: 'text' | 'header' | 'image';
+  blockType: 'text' | 'header' | 'image' | 'quiz';
 }
 
 // SVG Icons as React components
@@ -77,25 +77,20 @@ export function TextBlockToolbar({
       >
         <MoveIcon />
       </button>
-      <button
-        type="button"
-        className="text-block-toolbar-button text-block-toolbar-button-ai"
-        onClick={onGenerateWithAI}
-        title="Generate with AI"
-      >
-        <div className="text-block-toolbar-button-ai-gradient"></div>
-        <GenerateAIIcon />
-      </button>
-      <button
-        type="button"
-        className="text-block-toolbar-button"
-        onClick={onMoreOptions}
-        title="More options"
-      >
-        <MoreOptionsIcon />
-      </button>
+      {blockType !== 'quiz' && (
+        <button
+          type="button"
+          className="text-block-toolbar-button text-block-toolbar-button-ai"
+          onClick={onGenerateWithAI}
+          title="Generate with AI"
+        >
+          <div className="text-block-toolbar-button-ai-gradient"></div>
+          <GenerateAIIcon />
+        </button>
+      )}
+      {/* Temporarily removed to test */}
       <div className="text-block-toolbar-label">
-        {blockType === 'header' ? 'Header' : blockType === 'image' ? 'Image' : 'Text'}
+        {blockType === 'header' ? 'Header' : blockType === 'image' ? 'Image' : blockType === 'quiz' ? 'Quiz' : 'Text'}
       </div>
     </div>
   );

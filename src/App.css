@@ -46,7 +46,8 @@ body {
   padding: 12px 24px;
   border-bottom: 1px solid #e5e5e5;
   background: white !important;
-  z-index: 10;
+  position: relative;
+  z-index: 10001;
 }
 
 .top-bar-title {
@@ -94,6 +95,101 @@ body {
   background: #ffffff !important;
   color: #333 !important;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+/* Zoom Dropdown - Framer Style */
+.zoom-dropdown {
+  position: relative;
+}
+
+.zoom-dropdown-trigger {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  background: white;
+  cursor: pointer;
+  color: #333;
+  font-size: 0.85rem;
+  font-weight: 500;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.zoom-dropdown-trigger:hover {
+  background: #f5f5f5;
+  border-color: #d0d0d0;
+}
+
+.zoom-dropdown-trigger svg {
+  width: 12px;
+  height: 12px;
+  color: #666;
+  transition: transform 0.2s ease;
+}
+
+.zoom-dropdown-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  min-width: 200px;
+  background: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  z-index: 1000;
+  overflow: hidden;
+}
+
+.zoom-dropdown-section {
+  display: flex;
+  flex-direction: column;
+  padding: 4px 0;
+}
+
+.zoom-dropdown-divider {
+  height: 1px;
+  background: #e5e5e5;
+  margin: 4px 0;
+}
+
+.zoom-dropdown-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 0.875rem;
+  color: #1a1a1a;
+  text-align: left;
+  transition: background-color 0.15s ease;
+  width: 100%;
+}
+
+.zoom-dropdown-item:hover:not(:disabled) {
+  background: #f5f5f5;
+}
+
+.zoom-dropdown-item.active {
+  background: #f0f0f0;
+  font-weight: 500;
+}
+
+.zoom-dropdown-item-disabled {
+  color: #999;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.zoom-dropdown-shortcut {
+  font-size: 0.75rem;
+  color: #666;
+  font-weight: 400;
+  margin-left: 12px;
 }
 
 .properties-panel-toggle {
@@ -345,9 +441,17 @@ body {
 /* Main Content - Framer Style */
 .main-content {
   flex: 1;
+  min-width: 0; /* Prevent flex item from growing beyond container */
   overflow-y: auto;
+  overflow-x: hidden;
   background: #F2F2F2 !important;
   padding: 24px;
+  /* Ensure content is centered when canvas is scaled */
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  width: 100%; /* Ensure stable width */
+  box-sizing: border-box; /* Include padding in width calculation */
 }
 
 /* Blocks Palette */
@@ -412,6 +516,7 @@ body {
 /* Lesson Canvas - Uses theme variables (responds to theme switching) */
 .lesson-canvas {
   max-width: 800px;
+  width: 100%; /* Ensure full width up to max-width */
   margin: 0 auto;
   display: flex;
   flex-direction: column;
@@ -421,7 +526,10 @@ body {
   padding: var(--spacing-xl) var(--spacing-lg);
   border-radius: 8px;
   box-shadow: 0px 6px 10px 0px rgba(0, 0, 0, 0.05);
-  transition: max-width 0.3s ease;
+  transition: max-width 0.3s ease, transform 0.2s ease;
+  /* Ensure canvas maintains proper layout when scaled */
+  will-change: transform;
+  box-sizing: border-box; /* Include padding in width calculation */
 }
 
 .lesson-canvas.panel-hidden {
@@ -436,6 +544,9 @@ body {
   border: 2px dashed #ddd;
   border-radius: 8px;
   background: white;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 /* Canvas Block - Uses theme variables (responds to theme switching) */
@@ -473,12 +584,22 @@ body {
   box-shadow: none;
 }
 
+.canvas-block.quiz-block-toolbar.selected {
+  border: 3px solid #326CF6 !important;
+  box-shadow: none;
+}
+
 /* Image block in columns - same styling as main canvas */
 .column-block-item.image-block-toolbar.selected {
   border: 3px solid #326CF6 !important;
   box-shadow: none;
   background: transparent;
   padding: 0;
+}
+
+.column-block-item.quiz-block-toolbar.selected {
+  border: 3px solid #326CF6 !important;
+  box-shadow: none;
 }
 
 .column-block-item.image-block-toolbar {
@@ -1448,6 +1569,76 @@ body {
   font-weight: 500;
 }
 
+/* Multiple Choice Quiz Styling */
+.quiz-multiple-choice {
+  /* Use theme variables for colors - adapts to plain and neon themes */
+  color: var(--color-text, #1a1a1a);
+}
+
+.quiz-multiple-choice .block-question {
+  font-weight: 600;
+  font-size: 18px;
+  color: var(--color-text, #1a1a1a);
+  margin-bottom: 1rem;
+  line-height: 1.5;
+}
+
+.quiz-multiple-choice .block-options {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 0;
+}
+
+.quiz-multiple-choice .block-option-label {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  padding: 0;
+  margin: 0;
+}
+
+.quiz-multiple-choice .block-option-radio {
+  width: 22px;
+  height: 22px;
+  cursor: pointer;
+  flex-shrink: 0;
+  accent-color: var(--color-text, #1a1a1a);
+  border: 2.5px solid var(--color-text, #1a1a1a);
+  background: transparent;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  border-radius: 50%;
+  position: relative;
+}
+
+.quiz-multiple-choice .block-option-radio:checked {
+  background: transparent;
+  border-color: var(--color-text, #1a1a1a);
+}
+
+.quiz-multiple-choice .block-option-radio:checked::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--color-text, #1a1a1a);
+}
+
+.quiz-multiple-choice .block-option-text {
+  flex: 1;
+  font-size: 18px;
+  color: var(--color-text, #1a1a1a);
+  line-height: 1.5;
+  padding: 0;
+}
+
 /* Properties Panel - Framer Style */
 .properties-panel {
   display: flex;
@@ -1525,7 +1716,8 @@ body {
 }
 
 .property-input,
-.property-textarea {
+.property-textarea,
+.property-select {
   padding: 8px 12px;
   border: 1px solid #e0e0e0 !important;
   border-radius: 6px;
@@ -1536,14 +1728,27 @@ body {
   color: #1a1a1a !important;
 }
 
+.property-select {
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg width='12' height='8' viewBox='0 0 12 8' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L6 6L11 1' stroke='%23666' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  padding-right: 32px;
+}
+
 .property-input:hover,
-.property-textarea:hover {
+.property-textarea:hover,
+.property-select:hover {
   border-color: #d0d0d0 !important;
   background: #fafafa !important;
 }
 
 .property-input:focus,
-.property-textarea:focus {
+.property-textarea:focus,
+.property-select:focus {
   outline: none;
   border-color: #8b5cf6 !important;
   background: white !important;
@@ -2475,8 +2680,15 @@ body {
 
 /* Text Block Toolbar */
 .text-block-toolbar-wrapper {
-  position: fixed;
-  z-index: 1000;
+  /* Position will be set inline by JavaScript */
+  /* Explicitly disable all transitions and animations for instant positioning */
+  transition: none !important;
+  animation: none !important;
+  transform-origin: 0 0 !important;
+  /* Ensure no inherited motion smoothing */
+  transform: none !important;
+  /* Reset any inherited positioning */
+  position: static !important;
 }
 
 .text-block-toolbar {

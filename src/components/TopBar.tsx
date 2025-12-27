@@ -1,19 +1,23 @@
 import { useThemeSwitcher } from '../theme/ThemeProvider';
+import { ZoomDropdown } from './ZoomDropdown';
 
 interface TopBarProps {
   isPreview: boolean;
   onTogglePreview: () => void;
   isPropertiesPanelVisible: boolean;
   onTogglePropertiesPanel: () => void;
+  zoom: number;
+  onZoomChange: (zoom: number) => void;
 }
 
-export function TopBar({ isPreview, onTogglePreview, isPropertiesPanelVisible, onTogglePropertiesPanel }: TopBarProps) {
+export function TopBar({ isPreview, onTogglePreview, isPropertiesPanelVisible, onTogglePropertiesPanel, zoom, onZoomChange }: TopBarProps) {
   const { themeId, setThemeId } = useThemeSwitcher();
 
   return (
     <div className="top-bar">
       <h1 className="top-bar-title">Lesson Builder</h1>
       <div className="top-bar-actions">
+        <ZoomDropdown zoom={zoom} onZoomChange={onZoomChange} />
         <div className="theme-toggle">
           <button
             type="button"

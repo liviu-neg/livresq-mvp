@@ -29,8 +29,11 @@ export interface ImageBlock extends BaseBlock {
   altText?: string;
 }
 
+export type QuizType = 'multiple-choice' | 'true-false' | 'short-answer';
+
 export interface QuizBlock extends BaseBlock {
   type: 'quiz';
+  quizType: QuizType;
   question: string;
   options: [string, string, string, string];
   correctIndex: number;
@@ -161,8 +164,9 @@ export function createBlock(type: BlockType): Block {
     case 'quiz':
       return {
         ...base,
-        question: '',
-        options: ['Option 1', 'Option 2', 'Option 3', 'Option 4'],
+        quizType: 'multiple-choice',
+        question: 'Which of the following rivers is considered the <em>longest</em> in the world?',
+        options: ['Nile', 'Amazon', 'Mississippi', 'Yangtze'],
         correctIndex: 0,
       };
     case 'columns':

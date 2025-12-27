@@ -67,6 +67,23 @@ export function PropertiesPanel({
         {selectedBlock.type === 'quiz' && (
           <>
             <div className="property-group">
+              <label htmlFor="quiz-type">Quiz Type</label>
+              <select
+                id="quiz-type"
+                value={(selectedBlock as QuizBlock).quizType}
+                onChange={(e) =>
+                  handleUpdate({
+                    quizType: e.target.value,
+                  } as Partial<QuizBlock>)
+                }
+                className="property-select"
+              >
+                <option value="multiple-choice">Multiple Choice</option>
+                <option value="true-false">True/False</option>
+                <option value="short-answer">Short Answer</option>
+              </select>
+            </div>
+            <div className="property-group">
               <label htmlFor="question">Question</label>
               <textarea
                 id="question"
@@ -80,36 +97,38 @@ export function PropertiesPanel({
                 rows={3}
               />
             </div>
-            <div className="property-group">
-              <label>Options</label>
-              {(selectedBlock as QuizBlock).options.map((option, index) => (
-                <div key={index} className="option-row">
-                  <input
-                    type="radio"
-                    name="correct"
-                    checked={(selectedBlock as QuizBlock).correctIndex === index}
-                    onChange={() =>
-                      handleUpdate({
-                        correctIndex: index,
-                      } as Partial<QuizBlock>)
-                    }
-                    className="option-radio"
-                  />
-                  <input
-                    type="text"
-                    value={option}
-                    onChange={(e) => {
-                      const newOptions = [
-                        ...(selectedBlock as QuizBlock).options,
-                      ];
-                      newOptions[index] = e.target.value;
-                      handleUpdate({ options: newOptions } as Partial<QuizBlock>);
-                    }}
-                    className="property-input option-input"
-                  />
-                </div>
-              ))}
-            </div>
+            {(selectedBlock as QuizBlock).quizType === 'multiple-choice' && (
+              <div className="property-group">
+                <label>Options</label>
+                {(selectedBlock as QuizBlock).options.map((option, index) => (
+                  <div key={index} className="option-row">
+                    <input
+                      type="radio"
+                      name="correct"
+                      checked={(selectedBlock as QuizBlock).correctIndex === index}
+                      onChange={() =>
+                        handleUpdate({
+                          correctIndex: index,
+                        } as Partial<QuizBlock>)
+                      }
+                      className="option-radio"
+                    />
+                    <input
+                      type="text"
+                      value={option}
+                      onChange={(e) => {
+                        const newOptions = [
+                          ...(selectedBlock as QuizBlock).options,
+                        ];
+                        newOptions[index] = e.target.value;
+                        handleUpdate({ options: newOptions } as Partial<QuizBlock>);
+                      }}
+                      className="property-input option-input"
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
           </>
         )}
 

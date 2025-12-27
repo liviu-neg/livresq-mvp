@@ -2,6 +2,7 @@ import { useDroppable } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import React from 'react';
+import { createPortal } from 'react-dom';
 import type { ColumnsBlock, Block } from '../types';
 import { TextBlockView } from './TextBlockView';
 import { ImageBlockView } from './ImageBlockView';
@@ -161,7 +162,8 @@ function ColumnBlockItem({
 
   const isTextBlock = block.type === 'text' || block.type === 'header';
   const isImageBlock = block.type === 'image';
-  const isToolbarBlock = isTextBlock || isImageBlock; // Blocks that show the toolbar
+  const isQuizBlock = block.type === 'quiz';
+  const isToolbarBlock = isTextBlock || isImageBlock || isQuizBlock; // Blocks that show the toolbar
   const cardDragListeners = (isSelected && !isEditing && !isPreview) ? {
     ...attributes,
     ...listeners,
@@ -170,85 +172,235 @@ function ColumnBlockItem({
   const blockRef = React.useRef<HTMLDivElement>(null);
   const toolbarRef = React.useRef<HTMLDivElement>(null);
 
-  // Position toolbar above the block (same logic as in SortableBlockItem)
+  // Position toolbar above the block - stable positioning with transform
+  // Returns true if position was successfully applied, false otherwise
   const updateToolbarPosition = React.useCallback(() => {
     if (isSelected && isToolbarBlock && !isPreview && !isEditing && !isDragging && toolbarRef.current && blockRef.current) {
-      // Force a reflow to ensure block position is accurate after layout changes
-      void blockRef.current.offsetHeight;
-      
       const blockRect = blockRef.current.getBoundingClientRect();
       const toolbar = toolbarRef.current;
-      const toolbarRect = toolbar.getBoundingClientRect();
       
-      // Position toolbar above the block, aligned to the right, touching the selection stroke (3px lower)
-      const top = blockRect.top - toolbarRect.height + 3;
-      const left = blockRect.right - toolbarRect.width;
-      
-      // Ensure toolbar doesn't go off-screen on the right
+      // Check if block is visible in viewport
+      const viewportHeight = window.innerHeight;
       const viewportWidth = window.innerWidth;
-      const maxLeft = viewportWidth - toolbarRect.width - 10; // 10px padding from edge
-      const finalLeft = Math.min(left, maxLeft);
       
-      toolbar.style.position = 'fixed';
-      toolbar.style.top = `${top}px`;
-      toolbar.style.left = `${finalLeft}px`;
-      toolbar.style.zIndex = '1000';
+      // Hide toolbar if block is completely out of viewport
+      const isBlockVisible = (
+        blockRect.bottom >= 0 &&
+        blockRect.top <= viewportHeight &&
+        blockRect.right >= 0 &&
+        blockRect.left <= viewportWidth
+      );
+      
+      if (!isBlockVisible) {
+        // Block is out of view, hide toolbar
+        toolbar.style.cssText = `
+          position: fixed !important;
+          top: -9999px !important;
+          left: -9999px !important;
+          transform: translate(-9999px, -9999px) !important;
+          visibility: hidden !important;
+          opacity: 0 !important;
+          display: block !important;
+          transition: none !important;
+          animation: none !important;
+        `;
+        isToolbarPositionedRef.current = false;
+        return false;
+      }
+      
+      // CRITICAL: Keep toolbar completely hidden and off-screen during measurement
+      toolbar.style.cssText = `
+        position: fixed !important;
+        top: -9999px !important;
+        left: -9999px !important;
+        transform: translate(-9999px, -9999px) !important;
+        visibility: hidden !important;
+        opacity: 0 !important;
+        display: block !important;
+        pointer-events: none !important;
+        transition: none !important;
+        animation: none !important;
+      `;
+      
+      // Force reflow to ensure hidden state is applied
+      void toolbar.offsetWidth;
+      void toolbar.offsetHeight;
+      
+      // Now measure dimensions while hidden
+      const toolbarWidth = toolbar.offsetWidth || toolbar.getBoundingClientRect().width || 300;
+      const toolbarHeight = toolbar.offsetHeight || toolbar.getBoundingClientRect().height || 50;
+      
+      // Calculate target position in viewport coordinates
+      // Block has 3px border, so content right edge is blockRect.right - 3
+      // Align toolbar's right edge to block's content right edge, then move 3px to the right
+      let targetLeft = (blockRect.right - 3) - toolbarWidth + 3;
+      let targetTop = blockRect.top - toolbarHeight + 2; // 5px down from previous position (-3 + 5 = +2)
+      
+      // Account for properties panel and sidebar
+      const propertiesPanelWidth = isPropertiesPanelVisible ? 280 : 0;
+      const sidebarWidth = 280;
+      const canvasRight = viewportWidth - propertiesPanelWidth;
+      
+      // Clamp to block boundaries first (accounting for 3px right offset)
+      const blockContentLeft = blockRect.left + 3;
+      const blockContentRight = blockRect.right - 3 + 3; // Add 3px to allow toolbar to extend 3px to the right
+      
+      if (targetLeft < blockContentLeft) {
+        targetLeft = blockContentLeft;
+      }
+      if (targetLeft + toolbarWidth > blockContentRight) {
+        targetLeft = blockContentRight - toolbarWidth;
+      }
+      
+      // Clamp to viewport boundaries
+      if (targetLeft + toolbarWidth > canvasRight - 10) {
+        targetLeft = canvasRight - toolbarWidth - 10;
+      }
+      if (targetLeft < sidebarWidth + 10) {
+        targetLeft = sidebarWidth + 10;
+      }
+      targetLeft = Math.max(10, Math.min(targetLeft, viewportWidth - toolbarWidth - 10));
+      targetTop = Math.max(10, Math.min(targetTop, viewportHeight - toolbarHeight - 10));
+      
+      // Snap to device pixels to avoid sub-pixel jitter
+      const devicePixelRatio = window.devicePixelRatio || 1;
+      targetLeft = Math.round(targetLeft * devicePixelRatio) / devicePixelRatio;
+      targetTop = Math.round(targetTop * devicePixelRatio) / devicePixelRatio;
+      
+      // CRITICAL: Apply position AND visibility in a SINGLE atomic style update
+      // This prevents any flash or intermediate state
+      toolbar.style.cssText = `
+        position: fixed !important;
+        top: 0 !important;
+        left: 0 !important;
+        transform: translate(${targetLeft}px, ${targetTop}px) !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        display: block !important;
+        pointer-events: auto !important;
+        will-change: transform !important;
+        transition: none !important;
+        animation: none !important;
+        transform-origin: 0 0 !important;
+      `;
+      
+      // Mark as positioned
+      isToolbarPositionedRef.current = true;
+      
+      return true;
     }
-  }, [isSelected, isToolbarBlock, isPreview, isEditing, isDragging]);
+    isToolbarPositionedRef.current = false;
+    return false;
+  }, [isSelected, isToolbarBlock, isPreview, isEditing, isDragging, isPropertiesPanelVisible]);
 
+  // Use useLayoutEffect to position toolbar before paint (prevents flash)
+  React.useLayoutEffect(() => {
+    if (!isSelected || !isToolbarBlock || isPreview || isEditing || isDragging) {
+      // Hide toolbar when not needed - completely off-screen and invisible
+      isToolbarPositionedRef.current = false;
+      if (toolbarRef.current) {
+        toolbarRef.current.style.cssText = `
+          position: fixed !important;
+          top: -9999px !important;
+          left: -9999px !important;
+          transform: translate(-9999px, -9999px) !important;
+          visibility: hidden !important;
+          opacity: 0 !important;
+          display: none !important;
+          pointer-events: none !important;
+          transition: none !important;
+          animation: none !important;
+        `;
+      }
+      return;
+    }
+
+    // CRITICAL: Position toolbar immediately before paint
+    // Ensure toolbar is NEVER visible until positioned correctly
+    if (toolbarRef.current && blockRef.current) {
+      // Reset positioning flag
+      isToolbarPositionedRef.current = false;
+      
+      // First, ensure toolbar is completely hidden and off-screen
+      // Use display: block but keep it off-screen
+      toolbarRef.current.style.cssText = `
+        position: fixed !important;
+        top: -9999px !important;
+        left: -9999px !important;
+        transform: translate(-9999px, -9999px) !important;
+        visibility: hidden !important;
+        opacity: 0 !important;
+        display: block !important;
+        pointer-events: none !important;
+        transition: none !important;
+        animation: none !important;
+      `;
+      
+      // Force multiple reflows to ensure the hidden state is fully applied
+      void toolbarRef.current.offsetWidth;
+      void toolbarRef.current.offsetHeight;
+      void toolbarRef.current.offsetWidth;
+      
+      // Compute and apply position synchronously
+      // This will set display: block and visibility: visible ONLY after position is set
+      updateToolbarPosition();
+    }
+  }, [updateToolbarPosition, isPropertiesPanelVisible, isSelected, isToolbarBlock, isPreview, isEditing, isDragging]);
+
+  // Use useEffect for event listeners (after layout)
   React.useEffect(() => {
     if (!isSelected || !isToolbarBlock || isPreview || isEditing || isDragging) {
       return;
     }
 
-    updateToolbarPosition();
-    
-    // Throttle scroll and resize handlers for better performance
-    let ticking = false;
-    const handleUpdate = () => {
-      if (!ticking) {
-        window.requestAnimationFrame(() => {
-          updateToolbarPosition();
-          ticking = false;
-        });
-        ticking = true;
-      }
+    // Single throttled update function using requestAnimationFrame
+    let rafId: number | null = null;
+    const scheduleUpdate = () => {
+      if (rafId !== null) return; // Already scheduled
+      rafId = requestAnimationFrame(() => {
+        rafId = null;
+        updateToolbarPosition();
+      });
     };
     
-    const handleResize = () => {
-      handleUpdate();
-    };
+    // Listen to all events that require repositioning
+    const handleResize = scheduleUpdate;
+    const handleScroll = scheduleUpdate;
     
-    const handleScroll = () => {
-      handleUpdate();
-    };
+    // Window events
+    window.addEventListener('resize', handleResize, { passive: true });
+    window.addEventListener('scroll', handleScroll, { capture: true, passive: true });
     
-    window.addEventListener('resize', handleResize);
-    window.addEventListener('scroll', handleScroll, true);
-    
-    // Also listen to scroll on the lesson canvas container
+    // Canvas container scroll
     const canvasContainer = blockRef.current?.closest('.lesson-canvas');
     if (canvasContainer) {
-      canvasContainer.addEventListener('scroll', handleScroll);
+      canvasContainer.addEventListener('scroll', handleScroll, { passive: true });
     }
     
-    // Wait for CSS transition to complete when sidebar state changes
-    const timeoutId = setTimeout(() => {
-      updateToolbarPosition();
-    }, 350);
+    // Main content scroll (if it exists)
+    const mainContent = document.querySelector('.main-content');
+    if (mainContent) {
+      mainContent.addEventListener('scroll', handleScroll, { passive: true });
+    }
     
-    const timeoutId2 = setTimeout(() => {
+    // Update after toolbar content renders (measure toolbar size)
+    const measureTimeout = setTimeout(() => {
       updateToolbarPosition();
-    }, 500);
+    }, 100);
     
     return () => {
+      if (rafId !== null) {
+        cancelAnimationFrame(rafId);
+      }
       window.removeEventListener('resize', handleResize);
       window.removeEventListener('scroll', handleScroll, true);
       if (canvasContainer) {
         canvasContainer.removeEventListener('scroll', handleScroll);
       }
-      clearTimeout(timeoutId);
-      clearTimeout(timeoutId2);
+      if (mainContent) {
+        mainContent.removeEventListener('scroll', handleScroll);
+      }
+      clearTimeout(measureTimeout);
     };
   }, [updateToolbarPosition, isPropertiesPanelVisible, isSelected, isToolbarBlock, isPreview, isEditing, isDragging]);
 
@@ -283,21 +435,46 @@ function ColumnBlockItem({
     console.log('More options clicked');
   };
 
+  // Render toolbar in a portal at document body level to avoid transform issues
+  // Keep toolbar always mounted but COMPLETELY hidden until positioned
+  const shouldShowToolbar = isSelected && isToolbarBlock && !isPreview && !isEditing && !isDragging;
+  
+  const toolbarContent = (
+    <div 
+      ref={toolbarRef} 
+      className="text-block-toolbar-wrapper"
+      style={{
+        // CRITICAL: Start completely off-screen and invisible
+        // useLayoutEffect will position it before paint
+        position: 'fixed',
+        top: '-9999px',
+        left: '-9999px',
+        transform: 'translate(-9999px, -9999px)',
+        visibility: 'hidden',
+        opacity: 0,
+        display: shouldShowToolbar ? 'block' : 'none',
+        transition: 'none',
+        animation: 'none',
+        pointerEvents: 'none',
+      }}
+    >
+      {shouldShowToolbar && (
+        <TextBlockToolbar
+          block={block}
+          onDelete={handleDelete}
+          onDuplicate={handleDuplicate}
+          onMove={handleMove}
+          onGenerateWithAI={handleGenerateWithAI}
+          onMoreOptions={handleMoreOptions}
+          blockType={block.type as 'text' | 'header' | 'image' | 'quiz'}
+        />
+      )}
+    </div>
+  );
+
   return (
     <>
-      {isSelected && isToolbarBlock && !isPreview && !isEditing && !isDragging && (
-        <div ref={toolbarRef} className="text-block-toolbar-wrapper">
-          <TextBlockToolbar
-            block={block}
-            onDelete={handleDelete}
-            onDuplicate={handleDuplicate}
-            onMove={handleMove}
-            onGenerateWithAI={handleGenerateWithAI}
-            onMoreOptions={handleMoreOptions}
-            blockType={block.type as 'text' | 'header' | 'image'}
-          />
-        </div>
-      )}
+      {createPortal(toolbarContent, document.body)}
       <div
         ref={(node) => {
           blockRef.current = node;
@@ -308,7 +485,7 @@ function ColumnBlockItem({
         style={style}
         className={`column-block-item ${isSelected ? 'selected' : ''} ${
           isEditing ? 'editing' : ''
-        } ${isDragging ? 'dragging' : ''} ${isImageBlock ? 'image-block-toolbar' : ''}`}
+        } ${isDragging ? 'dragging' : ''} ${isImageBlock ? 'image-block-toolbar' : ''} ${isQuizBlock ? 'quiz-block-toolbar' : ''}`}
         onClick={handleBlockClick}
         onDoubleClick={handleBlockDoubleClick}
         {...cardDragListeners}

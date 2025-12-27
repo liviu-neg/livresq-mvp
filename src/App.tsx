@@ -120,6 +120,44 @@ function App() {
   const [isPropertiesPanelVisible, setIsPropertiesPanelVisible] = useState(false);
   const [triggerSelectAllAndAI, setTriggerSelectAllAndAI] = useState(false);
   const [triggerSelectAll, setTriggerSelectAll] = useState(false);
+  const [zoom, setZoom] = useState(100);
+
+  // Keyboard shortcuts for zoom
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Check if we're in an input/textarea/editable element
+      const target = e.target as HTMLElement;
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {
+        return;
+      }
+
+      // Zoom in: Cmd/Ctrl + Plus
+      if ((e.metaKey || e.ctrlKey) && (e.key === '+' || e.key === '=')) {
+        e.preventDefault();
+        setZoom((prev) => Math.min(100, Math.round((prev + 10) / 10) * 10));
+      }
+      // Zoom out: Cmd/Ctrl + Minus
+      else if ((e.metaKey || e.ctrlKey) && e.key === '-') {
+        e.preventDefault();
+        setZoom((prev) => Math.max(25, Math.round((prev - 10) / 10) * 10));
+      }
+      // Reset zoom: Cmd/Ctrl + 0
+      else if ((e.metaKey || e.ctrlKey) && e.key === '0') {
+        e.preventDefault();
+        setZoom(100);
+      }
+      // Zoom to fit: Cmd/Ctrl + 1
+      else if ((e.metaKey || e.ctrlKey) && e.key === '1') {
+        e.preventDefault();
+        // TODO: Implement zoom to fit
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, []);
 
   // Derive blocks from rows for backward compatibility (PreviewStage, etc.)
   const blocks = extractBlocksFromRows(rows);
@@ -856,6 +894,8 @@ function App() {
               onTogglePreview={() => setIsPreview(!isPreview)}
               isPropertiesPanelVisible={isPropertiesPanelVisible}
               onTogglePropertiesPanel={() => setIsPropertiesPanelVisible(!isPropertiesPanelVisible)}
+              zoom={zoom}
+              onZoomChange={setZoom}
             />
             <div className="app-content">
               <aside className="sidebar sidebar-left">
@@ -902,6 +942,7 @@ function App() {
                   allBlocks={blocks}
                   isPropertiesPanelVisible={isPropertiesPanelVisible}
                   triggerSelectAllAndAI={triggerSelectAllAndAI}
+                  zoom={zoom}
                 />
               </main>
               {isPropertiesPanelVisible && (
