@@ -42,6 +42,7 @@ interface LessonCanvasProps {
   onDuplicateCell?: () => void;
   onDeleteRow?: () => void;
   onDuplicateRow?: () => void;
+  onAddEmptyStateRow?: () => void;
   isPreview: boolean;
   activeId?: string | null;
   allBlocks?: Block[]; // All blocks including nested ones for finding blocks by ID
@@ -386,6 +387,7 @@ export function LessonCanvas({
   onDuplicateCell,
   onDeleteRow,
   onDuplicateRow,
+  onAddEmptyStateRow,
   isPreview,
   activeId,
   allBlocks,
@@ -486,6 +488,7 @@ export function LessonCanvas({
                         onDuplicateCell={onDuplicateCell}
                         onDeleteRow={onDeleteRow}
                         onDuplicateRow={onDuplicateRow}
+                        onAddEmptyStateRow={onAddEmptyStateRow}
                         renderResource={renderResource}
                         activeId={activeId}
                         allBlocks={allBlocksList}

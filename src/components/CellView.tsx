@@ -3,6 +3,7 @@ import type { Cell, Resource, Block } from '../types';
 import { isBlock, isConstructor } from '../utils/sections';
 import { RowView } from './RowView';
 import { CellToolbar } from './CellToolbar';
+import { EmptyStateRow } from './EmptyStateRow';
 
 interface CellViewProps {
   cell: Cell;
@@ -20,6 +21,8 @@ interface CellViewProps {
   activeId?: string | null;
   allBlocks?: Block[];
   showStructureStrokes?: boolean;
+  isEmptyStateRow?: boolean; // True if this cell is in an empty state row
+  rowId?: string; // Row ID for empty state row
 }
 
 export function CellView({
@@ -38,12 +41,19 @@ export function CellView({
   activeId,
   allBlocks,
   showStructureStrokes = false,
+  isEmptyStateRow = false,
+  rowId,
 }: CellViewProps) {
   const cellRef = useRef<HTMLDivElement>(null);
   const cellResourcesRef = useRef<HTMLDivElement>(null);
   const isSelected = selectedCellId === cell.id;
 
   const handleCellClick = (e: React.MouseEvent) => {
+    // Don't allow cell selection if it's in an empty state row
+    if (isEmptyStateRow) {
+      return;
+    }
+    
     // Only select cell if clicking directly on the cell container padding/border area, not on nested content
     const target = e.target as HTMLElement;
     
@@ -100,44 +110,49 @@ export function CellView({
     <>
       <div
         ref={cellRef}
-        className={`cell-view ${showStructureStrokes ? 'show-strokes' : ''} ${isSelected ? 'selected' : ''}`}
+        className={`cell-view ${isEmptyStateRow ? 'empty-state-cell' : ''} ${showStructureStrokes && !isEmptyStateRow ? 'show-strokes' : ''} ${isSelected ? 'selected' : ''}`}
         data-cell-id={cell.id}
         onClick={handleCellClick}
       >
         <div ref={cellResourcesRef} className="cell-resources">
-          {cell.resources.map((resource) => {
-            if (isBlock(resource)) {
-              return (
-                <div key={resource.id} className="resource-wrapper">
-                  {renderResource(resource)}
-                </div>
-              );
-            } else if (isConstructor(resource)) {
-              // Nested constructor (Row inside a Cell)
-              return (
-                <div key={resource.id} className="resource-wrapper resource-constructor">
-                  <RowView
-                    row={resource}
-                    selectedBlockId={selectedBlockId}
-                    selectedCellId={selectedCellId}
-                    editingBlockId={editingBlockId}
-                    isPreview={isPreview}
-                    onSelectBlock={onSelectBlock}
-                    onSelectCell={onSelectCell}
-                    onEditBlock={onEditBlock}
-                    onUpdateBlock={onUpdateBlock}
-                    onDeleteCell={onDeleteCell}
-                    onDuplicateCell={onDuplicateCell}
-                    renderResource={renderResource}
-                    activeId={activeId}
-                    allBlocks={allBlocks}
-                    showStructureStrokes={showStructureStrokes}
-                  />
-                </div>
-              );
-            }
-            return null;
-          })}
+          {cell.resources.length === 0 && isEmptyStateRow && rowId ? (
+            // Show empty state UI when cell is empty and it's an empty state row
+            <EmptyStateRow rowId={rowId} />
+          ) : (
+            cell.resources.map((resource) => {
+              if (isBlock(resource)) {
+                return (
+                  <div key={resource.id} className="resource-wrapper">
+                    {renderResource(resource)}
+                  </div>
+                );
+              } else if (isConstructor(resource)) {
+                // Nested constructor (Row inside a Cell)
+                return (
+                  <div key={resource.id} className="resource-wrapper resource-constructor">
+                    <RowView
+                      row={resource}
+                      selectedBlockId={selectedBlockId}
+                      selectedCellId={selectedCellId}
+                      editingBlockId={editingBlockId}
+                      isPreview={isPreview}
+                      onSelectBlock={onSelectBlock}
+                      onSelectCell={onSelectCell}
+                      onEditBlock={onEditBlock}
+                      onUpdateBlock={onUpdateBlock}
+                      onDeleteCell={onDeleteCell}
+                      onDuplicateCell={onDuplicateCell}
+                      renderResource={renderResource}
+                      activeId={activeId}
+                      allBlocks={allBlocks}
+                      showStructureStrokes={showStructureStrokes}
+                    />
+                  </div>
+                );
+              }
+              return null;
+            })
+          )}
         </div>
       </div>
       {isSelected && 
@@ -147,7 +162,7 @@ export function CellView({
        onDeleteCell && 
        onDuplicateCell && (
         <CellToolbar
-          cellContainerRef={cellRef}
+          cellContainerRef={cellRef as React.RefObject<HTMLElement>}
           onDelete={onDeleteCell}
           onDuplicate={onDuplicateCell}
           onDragStart={handleDragStart}

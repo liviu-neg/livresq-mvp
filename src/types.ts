@@ -84,6 +84,7 @@ export interface Row {
   id: string;
   cells: Cell[]; // Horizontal flow of cells
   props?: Record<string, unknown>; // Future: row-specific props (padding, background, etc.)
+  isEmptyState?: boolean; // True if this is an empty state row (for adding new sections)
 }
 
 /**

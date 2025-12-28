@@ -2918,6 +2918,7 @@ body {
   border-radius: 4px;
   transition: border-color 0.2s;
   margin-bottom: var(--spacing-lg);
+  position: relative;
 }
 
 .row-view:hover {
@@ -2953,6 +2954,122 @@ body {
   /* Keep transparent border for consistent box-sizing */
   border: 3px solid transparent;
   box-sizing: border-box;
+}
+
+/* Add section button - appears at bottom of selected row */
+.row-add-section-button {
+  position: absolute;
+  bottom: -24px;
+  left: 50%;
+  transform: translateX(-50%);
+  height: 48px;
+  padding: 0 24px;
+  background: #94A3AC;
+  color: white;
+  border: none;
+  border-radius: 99px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  z-index: 10;
+  white-space: nowrap;
+  transition: background-color 0.2s;
+}
+
+.row-add-section-button:hover {
+  background: #7a8a95;
+}
+
+/* Empty state row */
+.empty-state-row-view {
+  min-height: 224px;
+  background: #ffffff !important; /* Always white, regardless of theme */
+}
+
+.empty-state-row-view .row-cells {
+  min-height: 224px;
+  background: #ffffff !important; /* Always white, regardless of theme */
+}
+
+.empty-state-row-view .cell-view {
+  background: #ffffff !important; /* Always white, regardless of theme */
+}
+
+.empty-state-row-view .cell-resources {
+  background: #ffffff !important; /* Always white, regardless of theme */
+}
+
+/* Ensure selected stroke is visible for empty state rows */
+.empty-state-row-view.selected .row-cells {
+  outline: 3px solid #94A3AC;
+  outline-offset: -3px;
+  box-shadow: none;
+  border-radius: 0;
+  border: 3px solid transparent;
+  box-sizing: border-box;
+}
+
+.empty-state-row {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #ffffff !important; /* Always white, regardless of theme */
+}
+
+.empty-state-row-content {
+  width: 100%;
+  max-width: 800px;
+  padding: 40px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 32px;
+}
+
+.empty-state-row-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 500;
+  color: #333;
+  text-align: center;
+}
+
+.empty-state-row-buttons {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.empty-state-row-button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 20px;
+  background: white;
+  border: 1px solid #e5e5e5;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  min-width: 140px;
+}
+
+.empty-state-row-button:hover {
+  border-color: #8b5cf6;
+  background: #fafafa;
+}
+
+.empty-state-row-button span {
+  font-size: 14px;
+  font-weight: 500;
+  color: #333;
+}
+
+.empty-state-row-button svg {
+  flex-shrink: 0;
 }
 
 .row-cells {
@@ -3003,6 +3120,28 @@ body {
 
 .cell-view.selected:hover {
   border: none !important; /* Prevent hover border when selected */
+}
+
+/* Empty state cell - no stroke, not selectable */
+.cell-view.empty-state-cell {
+  border: none !important;
+}
+
+.cell-view.empty-state-cell:hover {
+  border: none !important;
+}
+
+.cell-view.empty-state-cell.show-strokes {
+  border: none !important;
+}
+
+.cell-view.empty-state-cell.show-strokes:hover {
+  border: none !important;
+}
+
+/* Allow pointer events on content inside empty state cell (for drag and drop) */
+.cell-view.empty-state-cell .cell-resources {
+  pointer-events: auto;
 }
 
 .cell-view.selected .cell-resources {

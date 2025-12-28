@@ -31,6 +31,7 @@ interface RowToolbarProps {
   onDelete: () => void;
   onDuplicate: () => void;
   onDragStart: (e: React.MouseEvent) => void;
+  isEmptyState?: boolean; // If true, only show delete button
 }
 
 export function RowToolbar({
@@ -38,6 +39,7 @@ export function RowToolbar({
   onDelete,
   onDuplicate,
   onDragStart,
+  isEmptyState = false,
 }: RowToolbarProps) {
   const toolbarRef = useRef<HTMLDivElement>(null);
   const [position, setPosition] = useState<{ top: number; left: number } | null>(null);
@@ -189,30 +191,35 @@ export function RowToolbar({
       >
         <TrashIcon />
       </button>
-      <div className="row-toolbar-divider"></div>
-      <button
-        type="button"
-        className="row-toolbar-button"
-        onClick={(e) => {
-          e.stopPropagation();
-          onDuplicate();
-        }}
-        aria-label="Duplicate"
-      >
-        <DuplicateIcon />
-      </button>
-      <div className="row-toolbar-divider"></div>
-      <button
-        type="button"
-        className="row-toolbar-button row-toolbar-drag"
-        onMouseDown={(e) => {
-          e.stopPropagation();
-          onDragStart(e);
-        }}
-        aria-label="Drag"
-      >
-        <DragHandleIcon />
-      </button>
+      {!isEmptyState && (
+        <>
+          <div className="row-toolbar-divider"></div>
+          <button
+            type="button"
+            className="row-toolbar-button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onDuplicate();
+            }}
+            aria-label="Duplicate"
+          >
+            <DuplicateIcon />
+          </button>
+          <div className="row-toolbar-divider"></div>
+          <button
+            type="button"
+            className="row-toolbar-button row-toolbar-drag"
+            onMouseDown={(e) => {
+              e.stopPropagation();
+              onDragStart(e);
+            }}
+            aria-label="Drag"
+          >
+            <DragHandleIcon />
+          </button>
+          <div className="row-toolbar-divider"></div>
+        </>
+      )}
       <div className="row-toolbar-divider"></div>
       <button
         type="button"

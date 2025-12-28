@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { nanoid } from 'nanoid';
 import {
   DndContext,
   closestCenter,
@@ -65,8 +66,8 @@ function App() {
     if (selectedBlockId) {
       const location = findBlockLocationInRows(rows, selectedBlockId);
       return location ? location.rowId : null;
-    }
-    return null;
+  }
+  return null;
   };
 
   // Track newly inserted block to scroll to its row
@@ -425,6 +426,62 @@ function App() {
     });
     
     setSelectedRowId(duplicatedRow.id);
+  };
+
+  const handleAddEmptyStateRow = () => {
+    if (!selectedRowId) return;
+    
+    const selectedRowIndex = rows.findIndex((row) => row.id === selectedRowId);
+    if (selectedRowIndex === -1) return;
+
+    // Check if the next row (directly below) is an empty state row
+    const nextRow = rows[selectedRowIndex + 1];
+    if (nextRow && nextRow.isEmptyState) {
+      // Select the existing empty state row instead of creating a new one
+      setSelectedRowId(nextRow.id);
+      setSelectedBlockId(null);
+      setSelectedCellId(null);
+      
+      // Scroll to the existing empty state row
+      setTimeout(() => {
+        const rowElement = document.querySelector(`[data-row-id="${nextRow.id}"]`) as HTMLElement;
+        if (rowElement) {
+          rowElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+      }, 100);
+      return;
+    }
+
+    // Create a new empty state row if no empty state row exists directly below
+    const newEmptyStateRow: Row = {
+      id: nanoid(),
+      cells: [
+        {
+          id: nanoid(),
+          resources: [],
+        },
+      ],
+      isEmptyState: true,
+    };
+
+    setRows((prev) => {
+      const newRows = [...prev];
+      newRows.splice(selectedRowIndex + 1, 0, newEmptyStateRow);
+      return newRows;
+    });
+    
+    // Deselect previous row and select new empty state row
+    setSelectedRowId(newEmptyStateRow.id);
+    setSelectedBlockId(null);
+    setSelectedCellId(null);
+    
+    // Scroll to the new row after a short delay to ensure it's rendered
+    setTimeout(() => {
+      const rowElement = document.querySelector(`[data-row-id="${newEmptyStateRow.id}"]`) as HTMLElement;
+      if (rowElement) {
+        rowElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+    }, 100);
   };
 
   const handleInsertBlock = (blockType: BlockType) => {
@@ -1070,6 +1127,7 @@ function App() {
                   onDuplicateCell={handleDuplicateCell}
                   onDeleteRow={handleDeleteRow}
                   onDuplicateRow={handleDuplicateRow}
+                  onAddEmptyStateRow={handleAddEmptyStateRow}
                   isPreview={isPreview}
                   activeId={activeId}
                   allBlocks={blocks}
