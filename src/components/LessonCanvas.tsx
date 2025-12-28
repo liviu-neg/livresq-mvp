@@ -16,7 +16,7 @@ import { ImageBlockView } from './ImageBlockView';
 import { QuizBlockView } from './QuizBlockView';
 import { ColumnsBlockView } from './ColumnsBlockView';
 import { BlockCardHeader } from './BlockCardHeader';
-import { TextBlockToolbar } from './TextBlockToolbar';
+import { BlockToolbar } from './BlockToolbar';
 import { SimpleSection } from './sections/SimpleSection';
 import { TwoColumnSection } from './sections/TwoColumnSection';
 import { findBlockInSections } from '../utils/sections';
@@ -315,16 +315,16 @@ function SortableBlockItem({
           <div className="text-block-drag-indicator"></div>
         </div>
       )}
-      {(block.type === 'text' || block.type === 'header') && isSelected && !isEditing && !isPreview && !isDragging && (
-        <TextBlockToolbar
+      {(block.type === 'text' || block.type === 'header' || block.type === 'image') && isSelected && !isEditing && !isPreview && !isDragging && (
+        <BlockToolbar
           blockContainerRef={blockContainerRef}
           blockType={block.type}
           onDelete={onDeleteBlock}
           onDuplicate={onDuplicateBlock}
           onDragStart={handleDragStart}
-          editor={editorRef.current}
-          editorRef={editorRef}
-          onOpenAiEdit={handleOpenAiEdit}
+          editor={block.type === 'text' || block.type === 'header' ? editorRef.current : undefined}
+          editorRef={block.type === 'text' || block.type === 'header' ? editorRef : undefined}
+          onOpenAiEdit={block.type === 'text' || block.type === 'header' ? handleOpenAiEdit : undefined}
         />
       )}
       <div 
@@ -333,7 +333,7 @@ function SortableBlockItem({
           // Prevent drag when clicking on editor content or toolbar
           if (block.type === 'text' && isEditing) {
             const target = e.target as HTMLElement;
-            if (target.closest('.ProseMirror') || target.closest('.bubble-toolbar') || target.closest('.text-block-toolbar')) {
+            if (target.closest('.ProseMirror') || target.closest('.bubble-toolbar') || target.closest('.block-toolbar')) {
               e.stopPropagation();
             }
           }
