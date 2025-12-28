@@ -95,6 +95,7 @@ function SortableBlockItem({
   } = useSortable({ id: block.id });
   
   const blockContainerRef = useRef<HTMLDivElement>(null);
+  const blockContentRef = useRef<HTMLDivElement>(null);
   const editorRef = useRef<Editor | null>(null);
   const shouldOpenAiEditRef = useRef(false);
 
@@ -326,7 +327,7 @@ function SortableBlockItem({
     >
       {(block.type === 'text' || block.type === 'header' || block.type === 'image') && isSelected && !isEditing && !isPreview && !isDragging && (
         <BlockToolbar
-          blockContainerRef={blockContainerRef}
+          blockContainerRef={blockContentRef}
           blockType={block.type}
           onDelete={onDeleteBlock}
           onDuplicate={onDuplicateBlock}
@@ -336,6 +337,7 @@ function SortableBlockItem({
         />
       )}
       <div 
+        ref={blockContentRef}
         className={`block-card-content ${(block.type === 'text' || block.type === 'header') ? 'text-block-content' : ''}`}
         onMouseDown={(e) => {
           // Prevent drag when clicking on editor content or toolbar

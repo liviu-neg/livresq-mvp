@@ -90,28 +90,44 @@ export function BlockToolbar({
       // Reset retry count on successful measurement
       measurementRetries = 0;
       
-      const containerRect = container.getBoundingClientRect();
-      const viewportPadding = 8;
-      
-      // Get header height to avoid overlapping
-      const topBar = document.querySelector('.top-bar') as HTMLElement;
-      const headerHeight = topBar ? topBar.getBoundingClientRect().height : 0;
-      const minTopWithHeader = headerHeight + viewportPadding;
-
-      // Default: position above block, aligned to top-right
-      let top = containerRect.top - toolbarHeight - 8 + 11;
-      let left = containerRect.right - toolbarWidth;
-
-      // If not enough space above (accounting for header), place below
-      if (top < minTopWithHeader) {
-        top = containerRect.bottom + 8;
+      // Get the scroll container (.main-content)
+      const mainContent = document.querySelector('.main-content') as HTMLElement;
+      if (!mainContent) {
+        setPosition(null);
+        return;
       }
 
-      // Clamp within viewport with padding and header
-      const maxLeft = window.innerWidth - toolbarWidth - viewportPadding;
-      const maxTop = window.innerHeight - toolbarHeight - viewportPadding;
+      // Get block position relative to viewport
+      const containerRect = container.getBoundingClientRect();
+      // Get scroll container position relative to viewport
+      const scrollContainerRect = mainContent.getBoundingClientRect();
+      
+      // Calculate position relative to scroll container using scroll offset
+      const viewportPadding = 8;
+      const offset = 8; // Space between toolbar and block
+      const topOffset = 11; // Additional vertical offset
+      
+      // Position above block, aligned to top-right
+      // Formula: blockRect.top - scrollContainerRect.top + scrollContainer.scrollTop - toolbarHeight - offset
+      let top = containerRect.top 
+        - scrollContainerRect.top 
+        + mainContent.scrollTop 
+        - toolbarHeight 
+        - offset 
+        + topOffset;
+      
+      // Position aligned to right edge
+      // Formula: blockRect.right - scrollContainerRect.left + scrollContainer.scrollLeft - toolbarWidth
+      let left = containerRect.right 
+        - scrollContainerRect.left 
+        + mainContent.scrollLeft 
+        - toolbarWidth;
+
+      // Clamp within scroll container bounds
+      const maxLeft = mainContent.scrollWidth - toolbarWidth - viewportPadding;
+      const maxTop = mainContent.scrollHeight - toolbarHeight - viewportPadding;
       const minLeft = viewportPadding;
-      const minTop = minTopWithHeader;
+      const minTop = viewportPadding;
 
       left = Math.max(minLeft, Math.min(maxLeft, left));
       top = Math.max(minTop, Math.min(maxTop, top));
@@ -130,33 +146,21 @@ export function BlockToolbar({
       });
     });
 
-    // Update on various events
+    // Update on scroll and resize events
+    // Since toolbar is now in the same scroll context, we only need to listen to .main-content scroll
+    const mainContent = document.querySelector('.main-content') as HTMLElement;
+    if (!mainContent) {
+      return;
+    }
+
     const handleUpdate = () => {
       requestAnimationFrame(updatePosition);
     };
 
-    window.addEventListener('scroll', handleUpdate, true);
+    // Listen to scroll container scroll
+    mainContent.addEventListener('scroll', handleUpdate, true);
+    // Listen to window resize (scroll container size may change)
     window.addEventListener('resize', handleUpdate);
-
-    // Find canvas scroll container
-    const findScrollContainer = (element: HTMLElement | null): HTMLElement | null => {
-      if (!element) return null;
-      let current: HTMLElement | null = element.parentElement;
-      while (current) {
-        const style = window.getComputedStyle(current);
-        if (style.overflow === 'auto' || style.overflow === 'scroll' || 
-            style.overflowY === 'auto' || style.overflowY === 'scroll') {
-          return current;
-        }
-        current = current.parentElement;
-      }
-      return null;
-    };
-
-    const scrollContainer = findScrollContainer(container);
-    if (scrollContainer) {
-      scrollContainer.addEventListener('scroll', handleUpdate, true);
-    }
 
     // ResizeObserver for selected block
     const resizeObserver = new ResizeObserver(handleUpdate);
@@ -165,11 +169,10 @@ export function BlockToolbar({
     return () => {
       if (rafId1 !== null) cancelAnimationFrame(rafId1);
       if (rafId2 !== null) cancelAnimationFrame(rafId2);
-      window.removeEventListener('scroll', handleUpdate, true);
-      window.removeEventListener('resize', handleUpdate);
-      if (scrollContainer) {
-        scrollContainer.removeEventListener('scroll', handleUpdate, true);
+      if (mainContent) {
+        mainContent.removeEventListener('scroll', handleUpdate, true);
       }
+      window.removeEventListener('resize', handleUpdate);
       resizeObserver.disconnect();
     };
   }, [blockContainerRef]);
@@ -200,7 +203,7 @@ export function BlockToolbar({
       ref={toolbarRef} 
       className="block-toolbar"
       style={{
-        position: 'fixed',
+        position: 'absolute',
         top: position ? `${position.top}px` : '-9999px',
         left: position ? `${position.left}px` : '-9999px',
         zIndex: 1000,
@@ -280,13 +283,17 @@ export function BlockToolbar({
       </div>
   );
 
-  // Always render toolbar in portal to document.body (hidden until positioned)
-  // This allows us to measure its size for positioning
-  // The useEffect will handle positioning once the refs are available
-  if (typeof document === 'undefined' || !document.body) {
+  // Portal toolbar into .main-content scroll container (same coordinate system as blocks)
+  // This keeps the toolbar in the same scroll context, so it stays attached during scroll
+  if (typeof document === 'undefined') {
     return null;
   }
   
-  return createPortal(toolbarContent, document.body);
+  const mainContent = document.querySelector('.main-content') as HTMLElement;
+  if (!mainContent) {
+    return null;
+  }
+  
+  return createPortal(toolbarContent, mainContent);
 }
 
