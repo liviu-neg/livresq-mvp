@@ -943,6 +943,8 @@ body {
   flex-direction: column;
   gap: 6px;
   min-width: fit-content;
+  z-index: 1001 !important; /* Higher than cell/block toolbars to appear above when text is selected */
+  position: relative; /* Required for z-index to work */
 }
 
 .bubble-toolbar-row {
@@ -1696,6 +1698,105 @@ body {
 }
 
 .block-toolbar-label-text {
+  color: white;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+/* Cell Toolbar Styles (Yellow Theme) */
+.cell-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  background: white;
+  border-radius: 4px;
+  padding: 0;
+  box-shadow: 0 10px 10px 0 rgba(0, 0, 0, 0.15);
+  border: 3px solid #F19E39;
+  z-index: 999; /* Lower than bubble toolbar (1001) so bubble toolbar appears above when text is selected */
+  position: fixed;
+  height: 50px;
+}
+
+.cell-toolbar-divider {
+  width: 1px;
+  height: 44px;
+  background: #E9EAEF;
+  margin: 0;
+  flex-shrink: 0;
+}
+
+.cell-toolbar-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 54px;
+  height: 44px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: #000000;
+  border-radius: 4px;
+  padding: 0;
+  transition: background-color 0.15s;
+  flex-shrink: 0;
+}
+
+.cell-toolbar-button:hover {
+  background: #f5f5f5;
+  color: #000000;
+}
+
+.cell-toolbar-button:active {
+  background: #e5e5e5;
+}
+
+.cell-toolbar-button svg {
+  width: 24px;
+  height: 24px;
+  display: block;
+  color: #000000;
+  fill: #000000;
+}
+
+.cell-toolbar-drag {
+  cursor: grab;
+}
+
+.cell-toolbar-drag svg {
+  stroke: #000000;
+  fill: none;
+  width: 22px;
+  height: 22px;
+}
+
+.cell-toolbar-drag:active {
+  cursor: grabbing;
+}
+
+.cell-toolbar-label-button {
+  background: #F19E39;
+  color: white;
+  padding: 0 12px;
+  height: 44px;
+  width: auto;
+  min-width: 54px;
+  border-radius: 0;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: default;
+  pointer-events: none;
+  border: none;
+  justify-content: center;
+}
+
+.cell-toolbar-label-button:hover {
+  background: #F19E39;
+}
+
+.cell-toolbar-label-text {
   color: white;
   font-size: 16px;
   font-weight: 600;
@@ -2834,23 +2935,48 @@ body {
   border-color: #94A3AC !important;
 }
 
+.row-view.selected {
+  border: none !important;
+  box-shadow: none;
+}
+
+.row-view.selected:hover {
+  border: none !important; /* Prevent hover border when selected */
+}
+
+.row-view.selected .row-cells {
+  outline: 3px solid #94A3AC;
+  outline-offset: -3px; /* Make outline appear inside, matching border appearance */
+  box-shadow: none;
+  border-radius: 0;
+  /* Keep transparent border for consistent box-sizing */
+  border: 3px solid transparent;
+  box-sizing: border-box;
+}
+
 .row-cells {
   display: flex;
   flex-direction: row;
+  align-items: stretch; /* Ensure all cells stretch to match tallest cell */
   gap: var(--spacing-lg);
   width: 100%;
   padding: 8px 8px 8px 8px;
   box-sizing: border-box;
+  border: 3px solid transparent;
+  /* No transition - matches block approach to prevent layout shifts */
+  outline: none; /* Ensure no outline by default */
 }
 
 .cell-view {
   flex: 1;
   display: flex;
   flex-direction: column;
+  align-items: stretch; /* Ensure cell content stretches to full height */
   border: 1px solid transparent;
   border-radius: 4px;
   transition: border-color 0.2s;
   min-width: 0; /* Allow flex shrinking */
+  /* Remove height: 100% - let flexbox align-items: stretch handle it */
 }
 
 .cell-view:hover {
@@ -2869,13 +2995,38 @@ body {
   border-color: #F19E39 !important;
 }
 
+.cell-view.selected {
+  border: none !important;
+  box-shadow: none;
+}
+
+.cell-view.selected:hover {
+  border: none !important; /* Prevent hover border when selected */
+}
+
+.cell-view.selected .cell-resources {
+  outline: 3px solid #F19E39;
+  outline-offset: -3px; /* Make outline appear inside, matching border appearance */
+  box-shadow: none;
+  border-radius: 0;
+  /* Keep transparent border for consistent box-sizing */
+  border: 3px solid transparent;
+  box-sizing: border-box;
+}
+
 .cell-resources {
   display: flex;
   flex-direction: column;
+  align-items: stretch; /* Ensure resources stretch to full height */
   gap: var(--spacing-lg);
   width: 100%;
   padding: 8px 8px 8px 8px;
   box-sizing: border-box;
+  border: 3px solid transparent;
+  /* No transition - matches block approach to prevent layout shifts */
+  flex: 1; /* Stretch to fill available cell height */
+  /* Remove min-height: 100% - let flexbox handle stretching */
+  outline: none; /* Ensure no outline by default */
 }
 
 .resource-wrapper {
@@ -2887,4 +3038,103 @@ body {
   padding: var(--spacing-md);
   background: rgba(0, 0, 0, 0.02);
   border-radius: 4px;
+}
+
+/* Row Toolbar Styles (Gray-Blue Theme #94A3AC) */
+.row-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  background: white;
+  border-radius: 4px;
+  padding: 0;
+  box-shadow: 0 10px 10px 0 rgba(0, 0, 0, 0.15);
+  border: 3px solid #94A3AC;
+  z-index: 999; /* Lower than bubble toolbar (1001) so bubble toolbar appears above when text is selected */
+  position: fixed;
+  height: 50px;
+}
+
+.row-toolbar-divider {
+  width: 1px;
+  height: 44px;
+  background: #E9EAEF;
+  margin: 0;
+  flex-shrink: 0;
+}
+
+.row-toolbar-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 54px;
+  height: 44px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: #000000;
+  border-radius: 4px;
+  padding: 0;
+  transition: background-color 0.15s;
+  flex-shrink: 0;
+}
+
+.row-toolbar-button:hover {
+  background: #f5f5f5;
+  color: #000000;
+}
+
+.row-toolbar-button:active {
+  background: #e5e5e5;
+}
+
+.row-toolbar-button svg {
+  width: 24px;
+  height: 24px;
+  display: block;
+  color: #000000;
+  fill: #000000;
+}
+
+.row-toolbar-drag {
+  cursor: grab;
+}
+
+.row-toolbar-drag svg {
+  stroke: #000000;
+  fill: none;
+  width: 22px;
+  height: 22px;
+}
+
+.row-toolbar-drag:active {
+  cursor: grabbing;
+}
+
+.row-toolbar-label-button {
+  background: #94A3AC;
+  color: white;
+  padding: 0 12px;
+  height: 44px;
+  width: auto;
+  min-width: 54px;
+  border-radius: 0;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: default;
+  pointer-events: none;
+  border: none;
+  justify-content: center;
+}
+
+.row-toolbar-label-button:hover {
+  background: #94A3AC;
+}
+
+.row-toolbar-label-text {
+  color: white;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
 }

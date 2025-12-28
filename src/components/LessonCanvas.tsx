@@ -27,13 +27,21 @@ interface LessonCanvasProps {
   sections: Section[]; // For backward compatibility
   rows?: Row[]; // New: Row/Cell/Resource model
   selectedBlockId: string | null;
+  selectedCellId?: string | null;
+  selectedRowId?: string | null;
   editingBlockId: string | null;
   onSelectBlock: (blockId: string | null) => void;
+  onSelectCell?: (cellId: string | null) => void;
+  onSelectRow?: (rowId: string | null) => void;
   onEditBlock: (blockId: string) => void;
   onStopEditing: () => void;
   onUpdateBlock: (block: Block) => void;
   onDeleteBlock: () => void;
   onDuplicateBlock: () => void;
+  onDeleteCell?: () => void;
+  onDuplicateCell?: () => void;
+  onDeleteRow?: () => void;
+  onDuplicateRow?: () => void;
   isPreview: boolean;
   activeId?: string | null;
   allBlocks?: Block[]; // All blocks including nested ones for finding blocks by ID
@@ -361,13 +369,21 @@ export function LessonCanvas({
   sections,
   rows,
   selectedBlockId,
+  selectedCellId,
+  selectedRowId,
   editingBlockId,
   onSelectBlock,
+  onSelectCell,
+  onSelectRow,
   onEditBlock,
   onStopEditing,
   onUpdateBlock,
   onDeleteBlock,
   onDuplicateBlock,
+  onDeleteCell,
+  onDuplicateCell,
+  onDeleteRow,
+  onDuplicateRow,
   isPreview,
   activeId,
   allBlocks,
@@ -378,6 +394,8 @@ export function LessonCanvas({
     const target = e.target as HTMLElement;
     if (target.classList.contains('lesson-canvas') || target.classList.contains('empty-state')) {
       onSelectBlock(null);
+      if (onSelectCell) onSelectCell(null);
+      if (onSelectRow) onSelectRow(null);
       onStopEditing();
     }
   };
@@ -393,6 +411,12 @@ export function LessonCanvas({
         }
       }));
 
+  const handleBlockSelect = (blockId: string) => {
+    onSelectBlock(blockId);
+    if (onSelectCell) onSelectCell(null); // Clear cell selection when selecting block
+    if (onSelectRow) onSelectRow(null); // Clear row selection when selecting block
+  };
+
   const renderResource = (resource: Resource) => {
     if (isBlock(resource)) {
       return (
@@ -402,12 +426,12 @@ export function LessonCanvas({
           isSelected={resource.id === selectedBlockId}
           isEditing={resource.id === editingBlockId}
           isPreview={isPreview}
-          onSelect={() => onSelectBlock(resource.id)}
+          onSelect={() => handleBlockSelect(resource.id)}
           onEdit={() => onEditBlock(resource.id)}
           onUpdateBlock={onUpdateBlock}
           selectedBlockId={selectedBlockId}
           editingBlockId={editingBlockId}
-          onSelectBlock={onSelectBlock}
+          onSelectBlock={handleBlockSelect}
           onEditBlock={onEditBlock}
           onDeleteBlock={onDeleteBlock}
           onDuplicateBlock={onDuplicateBlock}
@@ -447,11 +471,19 @@ export function LessonCanvas({
                         key={row.id}
                         row={row}
                         selectedBlockId={selectedBlockId}
+                        selectedCellId={selectedCellId}
+                        selectedRowId={selectedRowId}
                         editingBlockId={editingBlockId}
                         isPreview={isPreview}
                         onSelectBlock={onSelectBlock}
+                        onSelectCell={onSelectCell}
+                        onSelectRow={onSelectRow}
                         onEditBlock={onEditBlock}
                         onUpdateBlock={onUpdateBlock}
+                        onDeleteCell={onDeleteCell}
+                        onDuplicateCell={onDuplicateCell}
+                        onDeleteRow={onDeleteRow}
+                        onDuplicateRow={onDuplicateRow}
                         renderResource={renderResource}
                         activeId={activeId}
                         allBlocks={allBlocksList}
@@ -512,12 +544,12 @@ export function LessonCanvas({
       isSelected={block.id === selectedBlockId}
       isEditing={block.id === editingBlockId}
       isPreview={isPreview}
-      onSelect={() => onSelectBlock(block.id)}
+      onSelect={() => handleBlockSelect(block.id)}
       onEdit={() => onEditBlock(block.id)}
       onUpdateBlock={onUpdateBlock}
       selectedBlockId={selectedBlockId}
       editingBlockId={editingBlockId}
-      onSelectBlock={onSelectBlock}
+      onSelectBlock={handleBlockSelect}
       onEditBlock={onEditBlock}
       onDeleteBlock={onDeleteBlock}
       onDuplicateBlock={onDuplicateBlock}

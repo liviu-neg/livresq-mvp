@@ -22,7 +22,7 @@ import { PreviewToolbar, deviceConfigs } from './components/PreviewToolbar';
 import { PreviewStage } from './components/PreviewStage';
 import { ImageFillModal } from './components/ImageFillModal';
 import type { DeviceType } from './components/PreviewToolbar';
-import type { Block, BlockType, ColumnsBlock, Row, Resource } from './types';
+import type { Block, BlockType, ColumnsBlock, Row, Cell, Resource } from './types';
 import { createBlock } from './types';
 import { 
   extractBlocksFromSections, 
@@ -31,6 +31,8 @@ import {
   findBlockInRows,
   findBlockLocationInRows,
   findResourceLocation,
+  findCellInRows,
+  findCellLocationInRows,
   createNewRow,
   createNewConstructor,
   isBlock,
@@ -43,6 +45,7 @@ function App() {
   // Use rows as primary state (Row/Cell/Resource model)
   const [rows, setRows] = useState<Row[]>([]);
   const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null);
+  const [selectedCellId, setSelectedCellId] = useState<string | null>(null);
   const [selectedRowId, setSelectedRowId] = useState<string | null>(null); // Track selected row for insertion
   const [editingBlockId, setEditingBlockId] = useState<string | null>(null);
   const [isPreview, setIsPreview] = useState(false);
@@ -56,19 +59,84 @@ function App() {
   const sections = migrateRowsToSections(rows);
   const blocks = extractBlocksFromSections(sections);
   
-  // When a block is selected, also track which row it's in (for insertion rule C)
-  useEffect(() => {
+  // Track which row contains the selected block (for insertion rule C) - separate from row selection
+  // This is used for insertion logic but doesn't affect row selection state
+  const getSelectedBlockRowId = (): string | null => {
     if (selectedBlockId) {
       const location = findBlockLocationInRows(rows, selectedBlockId);
-      if (location) {
-        setSelectedRowId(location.rowId);
-      } else {
-        setSelectedRowId(null);
-      }
-    } else {
-      setSelectedRowId(null);
+      return location ? location.rowId : null;
     }
-  }, [selectedBlockId, rows]);
+    return null;
+  };
+
+  // Track newly inserted block to scroll to its row
+  const [newlyInsertedBlockId, setNewlyInsertedBlockId] = useState<string | null>(null);
+
+  // Scroll to row containing newly inserted block
+  useEffect(() => {
+    if (!newlyInsertedBlockId) return;
+
+    let retryCount = 0;
+    const MAX_RETRIES = 20; // Max 1 second of retries (20 * 50ms)
+
+    const scrollToNewRow = () => {
+      const location = findBlockLocationInRows(rows, newlyInsertedBlockId);
+      if (!location) {
+        // Retry if location not found yet
+        if (retryCount < MAX_RETRIES) {
+          retryCount++;
+          setTimeout(scrollToNewRow, 50);
+        } else {
+          // Give up after max retries
+          setNewlyInsertedBlockId(null);
+        }
+        return;
+      }
+
+      const rowElement = document.querySelector(`[data-row-id="${location.rowId}"]`) as HTMLElement;
+      if (!rowElement) {
+        // Retry if element not found yet
+        if (retryCount < MAX_RETRIES) {
+          retryCount++;
+          setTimeout(scrollToNewRow, 50);
+        } else {
+          // Give up after max retries
+          setNewlyInsertedBlockId(null);
+        }
+        return;
+      }
+
+      // Check if row is visible (with some tolerance)
+      const rect = rowElement.getBoundingClientRect();
+      const viewportHeight = window.innerHeight;
+      const viewportTop = 0;
+      const viewportBottom = viewportHeight;
+      
+      // Consider visible if at least 50% of the row is in viewport
+      const rowHeight = rect.height;
+      const visibleTop = Math.max(rect.top, viewportTop);
+      const visibleBottom = Math.min(rect.bottom, viewportBottom);
+      const visibleHeight = Math.max(0, visibleBottom - visibleTop);
+      const isVisible = visibleHeight >= (rowHeight * 0.5);
+
+      if (!isVisible) {
+        rowElement.scrollIntoView({
+          behavior: 'smooth',
+          block: 'center',
+        });
+      }
+
+      // Clear the flag after scrolling
+      setNewlyInsertedBlockId(null);
+    };
+
+    // Use multiple RAFs to ensure DOM is ready
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        scrollToNewRow();
+      });
+    });
+  }, [newlyInsertedBlockId, rows]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -212,20 +280,165 @@ function App() {
     );
     
     setSelectedBlockId(duplicatedBlock.id);
-    setEditingBlockId(null);
+      setEditingBlockId(null);
+  };
+
+  const handleDeleteCell = () => {
+    if (!selectedCellId) return;
+    
+    const location = findCellLocationInRows(rows, selectedCellId);
+    if (!location) return;
+
+    setRows((prev) =>
+      prev.map((row) => {
+        if (row.id !== location.rowId) {
+          // Recursively check nested constructors
+          return {
+            ...row,
+            cells: row.cells.map((cell) => ({
+              ...cell,
+              resources: cell.resources.map((resource) => {
+                if (isConstructor(resource)) {
+                  const nestedLocation = findCellLocationInRows([resource], selectedCellId);
+                  if (nestedLocation) {
+                    const updatedNested = {
+                      ...resource,
+                      cells: resource.cells.filter((_, idx) => idx !== nestedLocation.cellIndex),
+                    };
+                    return updatedNested.cells.length > 0 ? updatedNested : null;
+                  }
+                }
+                return resource;
+              }).filter(Boolean) as Resource[],
+            })),
+          };
+        }
+        
+        // This is the row containing the cell to delete
+            return {
+          ...row,
+          cells: row.cells.filter((_, idx) => idx !== location.cellIndex),
+        };
+      }).filter((row) => row.cells.length > 0) // Remove rows with no cells
+    );
+    
+    setSelectedCellId(null);
+  };
+
+  const handleDuplicateCell = () => {
+    if (!selectedCellId) return;
+    
+    const cellToDuplicate = findCellInRows(rows, selectedCellId);
+    if (!cellToDuplicate) return;
+
+    const location = findCellLocationInRows(rows, selectedCellId);
+    if (!location) return;
+
+    // Create a new cell with same properties but new ID and duplicated resources
+    const duplicatedCell: Cell = {
+      id: crypto.randomUUID(),
+      resources: cellToDuplicate.resources.map((resource) => {
+        if (isBlock(resource)) {
+          return { ...resource, id: crypto.randomUUID() };
+        }
+        // For constructors, recursively duplicate
+        if (isConstructor(resource)) {
+          return {
+            ...resource,
+            id: crypto.randomUUID(),
+            cells: resource.cells.map((cell) => ({
+              ...cell,
+              id: crypto.randomUUID(),
+              resources: cell.resources.map((r) => 
+                isBlock(r) ? { ...r, id: crypto.randomUUID() } : r
+              ),
+            })),
+          };
+        }
+        return resource;
+      }),
+    };
+
+    setRows((prev) =>
+      prev.map((row) => {
+        if (row.id !== location.rowId) return row;
+        const newCells = [...row.cells];
+        newCells.splice(location.cellIndex + 1, 0, duplicatedCell);
+        return { ...row, cells: newCells };
+      })
+    );
+    
+    setSelectedCellId(duplicatedCell.id);
+  };
+
+  const handleDeleteRow = () => {
+    if (!selectedRowId) return;
+    
+    setRows((prev) => prev.filter((row) => row.id !== selectedRowId));
+    setSelectedRowId(null);
+    setSelectedCellId(null);
+    setSelectedBlockId(null);
+  };
+
+  const handleDuplicateRow = () => {
+    if (!selectedRowId) return;
+    
+    const rowToDuplicate = rows.find((row) => row.id === selectedRowId);
+    if (!rowToDuplicate) return;
+
+    const selectedRowIndex = rows.findIndex((row) => row.id === selectedRowId);
+    if (selectedRowIndex === -1) return;
+
+    // Create a new row with same properties but new IDs
+    const duplicatedRow: Row = {
+      id: crypto.randomUUID(),
+      cells: rowToDuplicate.cells.map((cell) => ({
+        id: crypto.randomUUID(),
+        resources: cell.resources.map((resource) => {
+          if (isBlock(resource)) {
+            return { ...resource, id: crypto.randomUUID() };
+          }
+          // For constructors, recursively duplicate
+          if (isConstructor(resource)) {
+            return {
+              ...resource,
+              id: crypto.randomUUID(),
+              cells: resource.cells.map((nestedCell) => ({
+                ...nestedCell,
+                id: crypto.randomUUID(),
+                resources: nestedCell.resources.map((r) =>
+                  isBlock(r) ? { ...r, id: crypto.randomUUID() } : r
+                ),
+              })),
+            };
+          }
+          return resource;
+        }),
+      })),
+      props: rowToDuplicate.props ? { ...rowToDuplicate.props } : undefined,
+    };
+
+    setRows((prev) => {
+      const newRows = [...prev];
+      newRows.splice(selectedRowIndex + 1, 0, duplicatedRow);
+      return newRows;
+    });
+    
+    setSelectedRowId(duplicatedRow.id);
   };
 
   const handleInsertBlock = (blockType: BlockType) => {
     const newBlock = createBlock(blockType);
 
-    // Rule C: If a Row is selected, insert new Section (Row + Cell + Resource) below it
-    if (selectedRowId) {
-      const selectedRowIndex = rows.findIndex(r => r.id === selectedRowId);
+    // Always create a new row when clicking a block from the sidebar
+    const newRow = createNewRow();
+    newRow.cells[0].resources = [newBlock];
+
+    // If a Row is selected OR if a block is selected (use its parent row), insert new row below it
+    const rowIdForInsertion = selectedRowId || getSelectedBlockRowId();
+    if (rowIdForInsertion) {
+      const selectedRowIndex = rows.findIndex(r => r.id === rowIdForInsertion);
       if (selectedRowIndex !== -1) {
-        // Create new Row with one Cell containing the new Block
-        const newRow = createNewRow();
-        newRow.cells[0].resources = [newBlock];
-        
         setRows((prev) => {
           const newRows = [...prev];
           newRows.splice(selectedRowIndex + 1, 0, newRow);
@@ -234,72 +447,16 @@ function App() {
         
         setSelectedBlockId(newBlock.id);
         setEditingBlockId(null);
+        setNewlyInsertedBlockId(newBlock.id); // Trigger scroll effect
         return;
       }
     }
 
-    // If no rows exist, create one
-    if (rows.length === 0) {
-      const newRow = createNewRow();
-      newRow.cells[0].resources = [newBlock];
-      setRows([newRow]);
-      setSelectedBlockId(newBlock.id);
-      setEditingBlockId(null);
-      return;
-    }
-
-    // If a block is selected, find its location and insert after it in the same cell
-    if (selectedBlockId) {
-      const location = findBlockLocationInRows(rows, selectedBlockId);
-      if (location) {
-        setRows((prev) =>
-          prev.map((row) => {
-            if (row.id !== location.rowId) return row;
-            return {
-              ...row,
-              cells: row.cells.map((cell) => {
-                if (cell.id !== location.cellId) return cell;
-                const newResources = [...cell.resources];
-                newResources.splice(location.index + 1, 0, newBlock);
-                return { ...cell, resources: newResources };
-              }),
-            };
-          })
-        );
-        setSelectedBlockId(newBlock.id);
-        setEditingBlockId(null);
-        return;
-      }
-    }
-
-    // Fallback: append to last row's first cell
-    setRows((prev) => {
-      if (prev.length === 0) {
-        const newRow = createNewRow();
-        newRow.cells[0].resources = [newBlock];
-        return [newRow];
-      }
-      return prev.map((row, index) => {
-        if (index === prev.length - 1 && row.cells.length > 0) {
-          return {
-            ...row,
-            cells: row.cells.map((cell, cellIndex) => {
-              if (cellIndex === 0) {
-                return {
-                  ...cell,
-                  resources: [...cell.resources, newBlock],
-                };
-              }
-              return cell;
-            }),
-          };
-        }
-        return row;
-      });
-    });
-
+    // If no rows exist or no row is selected, append at the end
+    setRows((prev) => [...prev, newRow]);
     setSelectedBlockId(newBlock.id);
     setEditingBlockId(null);
+    setNewlyInsertedBlockId(newBlock.id); // Trigger scroll effect
   };
 
   const handleDragStart = (event: DragStartEvent) => {
@@ -462,10 +619,10 @@ function App() {
           return resources.map(resource => {
             if (isBlock(resource) && resource.id === columnsBlockId && resource.type === 'columns') {
               const columnsBlock = { ...resource } as ColumnsBlock;
-              const newChildren = [...columnsBlock.children];
-              newChildren[columnIndex] = [...newChildren[columnIndex], newBlock];
-              return { ...columnsBlock, children: newChildren };
-            }
+                  const newChildren = [...columnsBlock.children];
+                  newChildren[columnIndex] = [...newChildren[columnIndex], newBlock];
+                  return { ...columnsBlock, children: newChildren };
+                }
             if (isConstructor(resource)) {
               return {
                 ...resource,
@@ -476,9 +633,9 @@ function App() {
               };
             }
             return resource;
-          });
-        };
-        
+              });
+            };
+
         setRows((prev) =>
           prev.map((row) => ({
             ...row,
@@ -519,7 +676,7 @@ function App() {
         setRows((prev) =>
           prev.map((row, index) => {
             if (index === prev.length - 1 && row.cells.length > 0) {
-              return {
+                return {
                 ...row,
                 cells: row.cells.map((cell, cellIndex) => {
                   if (cellIndex === 0) {
@@ -533,9 +690,9 @@ function App() {
               };
             }
             return row;
-          })
-        );
-      } else {
+            })
+          );
+        } else {
         const newRow = createNewRow();
         newRow.cells[0].resources = [newBlock];
         setRows((prev) => (prev.length > 0 ? [...prev, newRow] : [newRow]));
@@ -572,7 +729,7 @@ function App() {
         return rowsToUpdate.map((row) => {
           if (row.id !== activeLocation.rowId) {
             // Recursively check nested constructors
-            return {
+          return {
               ...row,
               cells: row.cells.map((cell) => {
                 return {
@@ -626,10 +783,10 @@ function App() {
         return resources.map(resource => {
           if (isBlock(resource) && resource.id === columnsBlockId && resource.type === 'columns') {
             const columnsBlock = { ...resource } as ColumnsBlock;
-            const newChildren = [...columnsBlock.children];
-            newChildren[columnIndex] = [...newChildren[columnIndex], blockToMove];
-            return { ...columnsBlock, children: newChildren };
-          }
+              const newChildren = [...columnsBlock.children];
+              newChildren[columnIndex] = [...newChildren[columnIndex], blockToMove];
+              return { ...columnsBlock, children: newChildren };
+            }
           if (isConstructor(resource)) {
             return {
               ...resource,
@@ -640,8 +797,8 @@ function App() {
             };
           }
           return resource;
-        });
-      };
+          });
+        };
 
       // Add to columns block
       setRows(
@@ -665,7 +822,7 @@ function App() {
         return rowsToUpdate.map((row) => {
           if (row.id !== activeLocation.rowId) {
             // Recursively check nested constructors
-            return {
+          return {
               ...row,
               cells: row.cells.map((cell) => {
                 return {
@@ -756,7 +913,7 @@ function App() {
         const removeBlockFromRows = (rowsToUpdate: Row[]): Row[] => {
           return rowsToUpdate.map((row) => {
             if (row.id !== activeLocation.rowId) {
-              return {
+            return {
                 ...row,
                 cells: row.cells.map((cell) => {
                   return {
@@ -800,7 +957,7 @@ function App() {
         setRows(
           rowsAfterRemove.map((row, index) => {
             if (index === rowsAfterRemove.length - 1 && row.cells.length > 0) {
-              return {
+            return {
                 ...row,
                 cells: row.cells.map((cell, cellIndex) => {
                   if (cellIndex === 0) {
@@ -874,14 +1031,14 @@ function App() {
           </>
         ) : (
           <>
-                    <TopBar
-                      isPreview={isPreview}
-                      onTogglePreview={() => setIsPreview(!isPreview)}
+            <TopBar
+              isPreview={isPreview}
+              onTogglePreview={() => setIsPreview(!isPreview)}
                       isRightSidebarOpen={isRightSidebarOpen}
                       onToggleRightSidebar={() => setIsRightSidebarOpen(!isRightSidebarOpen)}
                       showStructureStrokes={showStructureStrokes}
                       onToggleStructureStrokes={() => setShowStructureStrokes(!showStructureStrokes)}
-                    />
+            />
             <div className="app-content">
               <aside className="sidebar sidebar-left">
                 <BlocksPalette onInsertBlock={handleInsertBlock} />
@@ -891,8 +1048,12 @@ function App() {
                   sections={sections}
                   rows={rows}
                   selectedBlockId={selectedBlockId}
+                  selectedCellId={selectedCellId}
+                  selectedRowId={selectedRowId}
                   editingBlockId={editingBlockId}
                   onSelectBlock={setSelectedBlockId}
+                  onSelectCell={setSelectedCellId}
+                  onSelectRow={setSelectedRowId}
                   onEditBlock={(blockId) => {
                     const block = findBlockInSections(sections, blockId);
                     if (block?.type === 'image') {
@@ -905,6 +1066,10 @@ function App() {
                   onUpdateBlock={handleUpdateBlock}
                   onDeleteBlock={handleDeleteBlock}
                   onDuplicateBlock={handleDuplicateBlock}
+                  onDeleteCell={handleDeleteCell}
+                  onDuplicateCell={handleDuplicateCell}
+                  onDeleteRow={handleDeleteRow}
+                  onDuplicateRow={handleDuplicateRow}
                   isPreview={isPreview}
                   activeId={activeId}
                   allBlocks={blocks}
@@ -912,15 +1077,15 @@ function App() {
                 />
               </main>
               {isRightSidebarOpen && (
-                <aside className="sidebar sidebar-right">
-                  <PropertiesPanel
-                    selectedBlock={selectedBlock}
-                    onUpdateBlock={handleUpdateBlock}
-                    onDeleteBlock={handleDeleteBlock}
-                  />
-                </aside>
+              <aside className="sidebar sidebar-right">
+                <PropertiesPanel
+                  selectedBlock={selectedBlock}
+                  onUpdateBlock={handleUpdateBlock}
+                  onDeleteBlock={handleDeleteBlock}
+                />
+              </aside>
               )}
-            </div>
+      </div>
           </>
         )}
       </div>

@@ -1,8 +1,7 @@
 import { useRef, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import type { Editor } from '@tiptap/react';
 
-// SVG Icons
+// SVG Icons (same as CellToolbar)
 const TrashIcon = () => (
   <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" width="24" height="24">
     <path fill="currentColor" d="M11 8v7H9V8h2Zm7.997.077L18.14 19.23A3 3 0 0 1 15.148 22H8.853a3 3 0 0 1-2.992-2.77L5.003 8.077l1.994-.154.858 11.154a1 1 0 0 0 .998.923h6.295a1 1 0 0 0 .997-.923l.858-11.154 1.994.154ZM15 1l.948.684L16.721 4H21v2H3V4h4.28l.772-2.316L9 1h6ZM9.387 4h5.226l-.334-1H9.721l-.334 1ZM15 8v7h-2V8h2Z"></path>
@@ -21,48 +20,36 @@ const DragHandleIcon = () => (
   </svg>
 );
 
-const AiEditIcon = () => (
-  <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" width="24" height="24">
-    <path fill="currentColor" d="M5.5 16A2.5 2.5 0 0 0 8 18.5v1A2.5 2.5 0 0 0 5.5 22h-1A2.5 2.5 0 0 0 2 19.5v-1A2.5 2.5 0 0 0 4.5 16h1Zm5.178-10.793c.325-1.368 2.319-1.37 2.644 0l.027.142.042.255a6.26 6.26 0 0 0 5.26 5.046c1.553.224 1.561 2.473 0 2.699a6.26 6.26 0 0 0-5.302 5.301c-.225 1.563-2.475 1.554-2.699 0a6.26 6.26 0 0 0-5.3-5.3c-1.56-.225-1.557-2.474 0-2.699l.255-.042a6.26 6.26 0 0 0 5.046-5.26l.028-.141ZM19.5 2A2.5 2.5 0 0 0 22 4.5v1A2.5 2.5 0 0 0 19.5 8h-1A2.5 2.5 0 0 0 16 5.5v-1A2.5 2.5 0 0 0 18.5 2h1Z"></path>
-  </svg>
-);
-
 const MoreOptionsIcon = () => (
   <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" width="24" height="24">
     <path fill="currentColor" d="M12 7a2 2 0 1 1 0-4 2 2 0 0 1 0 4Zm0 7a2 2 0 1 1 0-4 2 2 0 0 1 0 4Zm0 7a2 2 0 1 1 0-4 2 2 0 0 1 0 4Z"></path>
   </svg>
 );
 
-interface BlockToolbarProps {
-  blockContainerRef: React.RefObject<HTMLElement>;
-  blockType: 'text' | 'header' | 'image';
+interface RowToolbarProps {
+  rowContainerRef: React.RefObject<HTMLElement>;
   onDelete: () => void;
   onDuplicate: () => void;
   onDragStart: (e: React.MouseEvent) => void;
-  editorRef?: React.RefObject<Editor | null>;
-  onOpenAiEdit?: () => void;
 }
 
-export function BlockToolbar({
-  blockContainerRef,
-  blockType,
+export function RowToolbar({
+  rowContainerRef,
   onDelete,
   onDuplicate,
   onDragStart,
-  editorRef,
-  onOpenAiEdit,
-}: BlockToolbarProps) {
+}: RowToolbarProps) {
   const toolbarRef = useRef<HTMLDivElement>(null);
   const [position, setPosition] = useState<{ top: number; left: number } | null>(null);
 
   // Measure toolbar size and update position
   useEffect(() => {
-    if (!blockContainerRef.current) {
+    if (!rowContainerRef.current) {
       setPosition(null);
       return;
     }
 
-    const container = blockContainerRef.current;
+    const container = rowContainerRef.current;
     let isActive = true;
     let measurementRetries = 0;
     const MAX_MEASUREMENT_RETRIES = 20;
@@ -98,7 +85,7 @@ export function BlockToolbar({
       const headerHeight = topBar ? topBar.getBoundingClientRect().height : 0;
       const minTopWithHeader = headerHeight + viewportPadding;
 
-      // Default: position above block, aligned to top-right
+      // Default: position above row, aligned to top-right
       let top = containerRect.top - toolbarHeight - 8 + 11;
       let left = containerRect.right - toolbarWidth;
 
@@ -158,7 +145,7 @@ export function BlockToolbar({
       scrollContainer.addEventListener('scroll', handleUpdate, true);
     }
 
-    // ResizeObserver for selected block
+    // ResizeObserver for selected row
     const resizeObserver = new ResizeObserver(handleUpdate);
     resizeObserver.observe(container);
 
@@ -172,112 +159,76 @@ export function BlockToolbar({
       }
       resizeObserver.disconnect();
     };
-  }, [blockContainerRef]);
-
-  const handleAiEdit = () => {
-    // Only available for text/header blocks
-    if ((blockType === 'text' || blockType === 'header') && onOpenAiEdit) {
-      onOpenAiEdit();
-    }
-  };
-
-  const getBlockLabel = () => {
-    switch (blockType) {
-      case 'text':
-        return 'Texta';
-      case 'header':
-        return 'Header';
-      case 'image':
-        return 'Image';
-      default:
-        return '';
-    }
-  };
+  }, [rowContainerRef]);
 
   // Always render toolbar in portal (even if not positioned yet) so ref can be set
   const toolbarContent = (
     <div 
       ref={toolbarRef} 
-      className="block-toolbar"
+      className="row-toolbar"
       style={{
         position: 'fixed',
         top: position ? `${position.top}px` : '-9999px',
         left: position ? `${position.left}px` : '-9999px',
-        zIndex: 1000,
+        zIndex: 999, /* Lower than bubble toolbar (1001) so bubble toolbar appears above when text is selected */
         visibility: position ? 'visible' : 'hidden',
         pointerEvents: position ? 'auto' : 'none',
       }}
       onClick={(e) => e.stopPropagation()}
       onMouseDown={(e) => e.stopPropagation()}
     >
-        <button
-          type="button"
-          className="block-toolbar-button"
-          onClick={(e) => {
-            e.stopPropagation();
-            onDelete();
-          }}
-          aria-label="Delete"
-        >
-          <TrashIcon />
-        </button>
-        <div className="block-toolbar-divider"></div>
-        <button
-          type="button"
-          className="block-toolbar-button"
-          onClick={(e) => {
-            e.stopPropagation();
-            onDuplicate();
-          }}
-          aria-label="Duplicate"
-        >
-          <DuplicateIcon />
-        </button>
-        <div className="block-toolbar-divider"></div>
-        <button
-          type="button"
-          className="block-toolbar-button block-toolbar-drag"
-          onMouseDown={(e) => {
-            e.stopPropagation();
-            onDragStart(e);
-          }}
-          aria-label="Drag"
-        >
-          <DragHandleIcon />
-        </button>
-        <div className="block-toolbar-divider"></div>
-        {(blockType === 'text' || blockType === 'header') && (
-          <>
-            <button
-              type="button"
-              className="block-toolbar-button block-toolbar-ai"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleAiEdit();
-              }}
-              aria-label="Edit with AI"
-            >
-              <AiEditIcon />
-            </button>
-            <div className="block-toolbar-divider"></div>
-          </>
-        )}
-        <button
-          type="button"
-          className="block-toolbar-button"
-          aria-label="More options"
-        >
-          <MoreOptionsIcon />
-        </button>
-        <div className="block-toolbar-divider"></div>
-        <button
-          type="button"
-          className="block-toolbar-button block-toolbar-label-button"
-          aria-label="Block type"
-        >
-          <span className="block-toolbar-label-text">{getBlockLabel()}</span>
-        </button>
-      </div>
+      <button
+        type="button"
+        className="row-toolbar-button"
+        onClick={(e) => {
+          e.stopPropagation();
+          onDelete();
+        }}
+        aria-label="Delete"
+      >
+        <TrashIcon />
+      </button>
+      <div className="row-toolbar-divider"></div>
+      <button
+        type="button"
+        className="row-toolbar-button"
+        onClick={(e) => {
+          e.stopPropagation();
+          onDuplicate();
+        }}
+        aria-label="Duplicate"
+      >
+        <DuplicateIcon />
+      </button>
+      <div className="row-toolbar-divider"></div>
+      <button
+        type="button"
+        className="row-toolbar-button row-toolbar-drag"
+        onMouseDown={(e) => {
+          e.stopPropagation();
+          onDragStart(e);
+        }}
+        aria-label="Drag"
+      >
+        <DragHandleIcon />
+      </button>
+      <div className="row-toolbar-divider"></div>
+      <button
+        type="button"
+        className="row-toolbar-button"
+        aria-label="More options"
+      >
+        <MoreOptionsIcon />
+      </button>
+      <div className="row-toolbar-divider"></div>
+      <button
+        type="button"
+        className="row-toolbar-button row-toolbar-label-button"
+        aria-label="Row type"
+      >
+        <span className="row-toolbar-label-text">Row</span>
+      </button>
+    </div>
   );
 
   // Always render toolbar in portal to document.body (hidden until positioned)

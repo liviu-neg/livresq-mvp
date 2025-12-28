@@ -267,6 +267,62 @@ export function findBlockLocationInRows(
 }
 
 /**
+ * Find a cell by ID in rows
+ */
+export function findCellInRows(
+  rows: Row[],
+  cellId: string
+): Cell | null {
+  for (const row of rows) {
+    for (const cell of row.cells) {
+      if (cell.id === cellId) {
+        return cell;
+      }
+      // Also check nested constructors
+      for (const resource of cell.resources) {
+        if (isConstructor(resource)) {
+          const nested = findCellInRows([resource], cellId);
+          if (nested) {
+            return nested;
+          }
+        }
+      }
+    }
+  }
+  return null;
+}
+
+/**
+ * Find which row contains a cell
+ */
+export function findCellLocationInRows(
+  rows: Row[],
+  cellId: string
+): {
+  rowId: string;
+  cellIndex: number;
+} | null {
+  for (const row of rows) {
+    const cellIndex = row.cells.findIndex((cell) => cell.id === cellId);
+    if (cellIndex !== -1) {
+      return { rowId: row.id, cellIndex };
+    }
+    // Also check nested constructors
+    for (const cell of row.cells) {
+      for (const resource of cell.resources) {
+        if (isConstructor(resource)) {
+          const nested = findCellLocationInRows([resource], cellId);
+          if (nested) {
+            return nested;
+          }
+        }
+      }
+    }
+  }
+  return null;
+}
+
+/**
  * Create a new Row with one empty Cell
  */
 export function createNewRow(): Row {
