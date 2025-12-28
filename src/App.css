@@ -469,32 +469,56 @@ body {
 /* Canvas Block - Uses theme variables (responds to theme switching) */
 .canvas-block {
   background: var(--color-bg);
-  border: 1px solid transparent;
-  border-radius: var(--radius-md);
+  border: none;
+  border-radius: 4px;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: none;
   box-shadow: none;
   overflow: visible;
-  margin-bottom: var(--spacing-lg);
+  margin-bottom: 0;
+  box-sizing: border-box;
+  min-width: 0;
+  position: relative;
 }
 
-.canvas-block:hover {
-  border: 1px solid #326CF6;
-  box-shadow: none;
+.canvas-block::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  pointer-events: none;
+  transition: border-color 0.2s;
+  box-sizing: border-box;
 }
 
-.canvas-block.show-strokes {
-  border: 1px dashed #326CF6;
+.canvas-block:hover::before {
+  border-color: #326CF6;
 }
 
-.canvas-block.show-strokes:hover {
-  border: 1px solid #326CF6 !important;
+.canvas-block.show-strokes::before {
+  border-style: dashed !important;
+  border-width: 1px !important;
+  border-color: #326CF6 !important;
+}
+
+.canvas-block.show-strokes:hover::before {
+  border-style: solid !important;
+  border-width: 1px !important;
+  border-color: #326CF6 !important;
 }
 
 .canvas-block.selected {
-  border: none;
+  border: none !important;
   box-shadow: none;
   cursor: move;
+}
+
+.canvas-block.selected::before {
+  display: none;
 }
 
 .canvas-block.selected .block-card-content,
@@ -515,9 +539,6 @@ body {
 }
 
 .canvas-block.dragging .block-card-header,
-.canvas-block.dragging .text-block-drag-handle {
-  display: none;
-}
 
 .drag-overlay {
   opacity: 0.95;
@@ -1536,55 +1557,6 @@ body {
   border: none !important;
 }
 
-.text-block-drag-handle {
-  position: absolute;
-  top: 0.75rem;
-  right: 0.75rem;
-  opacity: 0;
-  transition: opacity 0.2s;
-  z-index: 10;
-  cursor: grab;
-  width: 28px;
-  height: 28px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  touch-action: none;
-  user-select: none;
-}
-
-.text-block-drag-handle:active {
-  cursor: grabbing;
-  opacity: 1 !important;
-}
-
-.text-block-drag-handle:hover {
-  opacity: 1 !important;
-}
-
-.canvas-block:hover .text-block-drag-handle {
-  opacity: 0.7;
-}
-
-.text-block-drag-indicator {
-  width: 24px;
-  height: 24px;
-  background: rgba(0, 0, 0, 0.05);
-  border-radius: 4px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  pointer-events: none;
-}
-
-.text-block-drag-indicator::before {
-  content: '⋮⋮';
-  color: #999;
-  font-size: 14px;
-  letter-spacing: -3px;
-  line-height: 1;
-  font-weight: 300;
-}
 
 /* Text Block Toolbar */
 .block-toolbar {
@@ -2847,15 +2819,19 @@ body {
 }
 
 .row-view:hover {
-  border: 1px solid #94A3AC;
+  border: 1px solid #94A3AC !important;
 }
 
 .row-view.show-strokes {
-  border: 1px dashed #ccc;
+  border-style: dashed !important;
+  border-width: 1px !important;
+  border-color: #94A3AC !important;
 }
 
 .row-view.show-strokes:hover {
-  border: 1px solid #94A3AC;
+  border-style: solid !important;
+  border-width: 1px !important;
+  border-color: #94A3AC !important;
 }
 
 .row-cells {
@@ -2863,7 +2839,8 @@ body {
   flex-direction: row;
   gap: var(--spacing-lg);
   width: 100%;
-  padding: 8px;
+  padding: 8px 8px 8px 8px;
+  box-sizing: border-box;
 }
 
 .cell-view {
@@ -2877,15 +2854,19 @@ body {
 }
 
 .cell-view:hover {
-  border: 1px solid #F19E39;
+  border: 1px solid #F19E39 !important;
 }
 
 .cell-view.show-strokes {
-  border: 1px dashed #ccc;
+  border-style: dashed !important;
+  border-width: 1px !important;
+  border-color: #F19E39 !important;
 }
 
 .cell-view.show-strokes:hover {
-  border: 1px solid #F19E39;
+  border-style: solid !important;
+  border-width: 1px !important;
+  border-color: #F19E39 !important;
 }
 
 .cell-resources {
@@ -2893,7 +2874,8 @@ body {
   flex-direction: column;
   gap: var(--spacing-lg);
   width: 100%;
-  padding: 8px;
+  padding: 8px 8px 8px 8px;
+  box-sizing: border-box;
 }
 
 .resource-wrapper {

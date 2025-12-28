@@ -316,11 +316,6 @@ function SortableBlockItem({
       onDoubleClick={handleBlockDoubleClick}
       {...cardDragListeners}
     >
-      {(block.type === 'text' || block.type === 'header') && !isPreview && !isEditing && !isDragging && (
-        <div className="text-block-drag-handle">
-          <div className="text-block-drag-indicator"></div>
-        </div>
-      )}
       {(block.type === 'text' || block.type === 'header' || block.type === 'image') && isSelected && !isEditing && !isPreview && !isDragging && (
         <BlockToolbar
           blockContainerRef={blockContainerRef}
@@ -480,12 +475,8 @@ export function LessonCanvas({
               (() => {
                 const block = findBlockInSections(sections, activeId as string);
                 if (!block) return null;
-                const isImageOrQuiz = block.type === 'image' || block.type === 'quiz';
                 return (
                   <div className="canvas-block dragging">
-                    {!isImageOrQuiz && (
-                      <BlockCardHeader type={block.type} isPreview={false} />
-                    )}
                     <div className="block-card-content">
                       {(() => {
                         switch (block.type) {
@@ -613,12 +604,8 @@ export function LessonCanvas({
               (() => {
                 const block = findBlockInSections(sections, activeId as string);
                 if (!block) return null;
-                const isImageOrQuiz = block.type === 'image' || block.type === 'quiz';
                 return (
                   <div className="canvas-block dragging">
-                    {!isImageOrQuiz && (
-                      <BlockCardHeader type={block.type} isPreview={false} />
-                    )}
                     <div className="block-card-content">
                       {(() => {
                         switch (block.type) {
