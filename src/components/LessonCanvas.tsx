@@ -10,7 +10,7 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import type { Editor } from '@tiptap/react';
-import type { Block, Section } from '../types';
+import type { Block, Section, Row, Resource } from '../types';
 import { TextBlockView } from './TextBlockView';
 import { ImageBlockView } from './ImageBlockView';
 import { QuizBlockView } from './QuizBlockView';
@@ -20,9 +20,12 @@ import { BlockToolbar } from './BlockToolbar';
 import { SimpleSection } from './sections/SimpleSection';
 import { TwoColumnSection } from './sections/TwoColumnSection';
 import { findBlockInSections } from '../utils/sections';
+import { RowView } from './RowView';
+import { isBlock } from '../utils/sections';
 
 interface LessonCanvasProps {
-  sections: Section[];
+  sections: Section[]; // For backward compatibility
+  rows?: Row[]; // New: Row/Cell/Resource model
   selectedBlockId: string | null;
   editingBlockId: string | null;
   onSelectBlock: (blockId: string | null) => void;
@@ -34,6 +37,7 @@ interface LessonCanvasProps {
   isPreview: boolean;
   activeId?: string | null;
   allBlocks?: Block[]; // All blocks including nested ones for finding blocks by ID
+  showStructureStrokes?: boolean; // Toggle for showing structure strokes
 }
 
 interface SortableBlockItemProps {
@@ -52,6 +56,7 @@ interface SortableBlockItemProps {
   onDuplicateBlock: () => void;
   activeId?: string | null;
   allBlocks?: Block[];
+  showStructureStrokes?: boolean;
 }
 
 function SortableBlockItem({
@@ -70,6 +75,7 @@ function SortableBlockItem({
   onDuplicateBlock,
   activeId,
   allBlocks = [],
+  showStructureStrokes = false,
 }: SortableBlockItemProps) {
   const {
     attributes,
@@ -305,7 +311,7 @@ function SortableBlockItem({
       style={style}
       className={`canvas-block ${isSelected ? 'selected' : ''} ${
         isEditing ? 'editing' : ''
-      } ${isDragging ? 'dragging' : ''} ${(block.type === 'text' || block.type === 'header') ? 'text-block-no-header' : ''} ${isImageOrQuizBlock ? 'no-header' : ''}`}
+      } ${isDragging ? 'dragging' : ''} ${(block.type === 'text' || block.type === 'header') ? 'text-block-no-header' : ''} ${isImageOrQuizBlock ? 'no-header' : ''} ${showStructureStrokes ? 'show-strokes' : ''}`}
       onClick={handleBlockClick}
       onDoubleClick={handleBlockDoubleClick}
       {...cardDragListeners}
@@ -322,7 +328,6 @@ function SortableBlockItem({
           onDelete={onDeleteBlock}
           onDuplicate={onDuplicateBlock}
           onDragStart={handleDragStart}
-          editor={block.type === 'text' || block.type === 'header' ? editorRef.current : undefined}
           editorRef={block.type === 'text' || block.type === 'header' ? editorRef : undefined}
           onOpenAiEdit={block.type === 'text' || block.type === 'header' ? handleOpenAiEdit : undefined}
         />
@@ -359,6 +364,7 @@ function EmptyStateDroppable() {
 
 export function LessonCanvas({
   sections,
+  rows,
   selectedBlockId,
   editingBlockId,
   onSelectBlock,
@@ -370,6 +376,7 @@ export function LessonCanvas({
   isPreview,
   activeId,
   allBlocks,
+  showStructureStrokes = false,
 }: LessonCanvasProps) {
   const handleCanvasClick = (e: React.MouseEvent<HTMLDivElement>) => {
     // Only clear selection if clicking directly on the canvas background
@@ -381,14 +388,132 @@ export function LessonCanvas({
   };
 
   // Extract all blocks for drag overlay
-  const allBlocksList = allBlocks || sections.flatMap(section => {
-    if (section.type === 'simple') {
-      return section.slots.main;
-    } else {
-      return [...section.slots.left, ...section.slots.right];
-    }
-  });
+  const allBlocksList = allBlocks || (rows && rows.length > 0
+    ? rows.flatMap(row => row.cells.flatMap(cell => cell.resources.filter(isBlock) as Block[]))
+    : sections.flatMap(section => {
+        if (section.type === 'simple') {
+          return section.slots.main;
+        } else {
+          return [...section.slots.left, ...section.slots.right];
+        }
+      }));
 
+  const renderResource = (resource: Resource) => {
+    if (isBlock(resource)) {
+      return (
+        <SortableBlockItem
+          key={resource.id}
+          block={resource}
+          isSelected={resource.id === selectedBlockId}
+          isEditing={resource.id === editingBlockId}
+          isPreview={isPreview}
+          onSelect={() => onSelectBlock(resource.id)}
+          onEdit={() => onEditBlock(resource.id)}
+          onUpdateBlock={onUpdateBlock}
+          selectedBlockId={selectedBlockId}
+          editingBlockId={editingBlockId}
+          onSelectBlock={onSelectBlock}
+          onEditBlock={onEditBlock}
+          onDeleteBlock={onDeleteBlock}
+          onDuplicateBlock={onDuplicateBlock}
+          activeId={activeId}
+          allBlocks={allBlocksList}
+          showStructureStrokes={showStructureStrokes}
+        />
+      );
+    }
+    return null;
+  };
+
+  // If rows are provided, render using Row/Cell/Resource model
+  if (rows && rows.length > 0) {
+    // Get all block IDs for SortableContext
+    const allBlockIds = rows.flatMap(row => 
+      row.cells.flatMap(cell => 
+        cell.resources.filter(isBlock).map(r => (r as Block).id)
+      )
+    );
+
+    return (
+      <>
+        <div 
+          className="lesson-canvas" 
+          onClick={handleCanvasClick}
+          style={{
+            backgroundColor: 'var(--lesson-canvas-bg)',
+          }}
+        >
+          <SortableContext
+            items={allBlockIds}
+            strategy={verticalListSortingStrategy}
+          >
+                    {rows.map((row) => (
+                      <RowView
+                        key={row.id}
+                        row={row}
+                        selectedBlockId={selectedBlockId}
+                        editingBlockId={editingBlockId}
+                        isPreview={isPreview}
+                        onSelectBlock={onSelectBlock}
+                        onEditBlock={onEditBlock}
+                        onUpdateBlock={onUpdateBlock}
+                        renderResource={renderResource}
+                        activeId={activeId}
+                        allBlocks={allBlocksList}
+                        showStructureStrokes={showStructureStrokes}
+                      />
+                    ))}
+          </SortableContext>
+        </div>
+        {activeId && (
+          <DragOverlay>
+          <div className="drag-overlay">
+            {activeId.startsWith('palette-') ? (
+              <div className="palette-block dragging">
+                {activeId === 'palette-text' && '📝 Text'}
+                {activeId === 'palette-header' && '📝 Header'}
+                {activeId === 'palette-image' && '🖼️ Image'}
+                {activeId === 'palette-quiz' && '❓ Quiz'}
+                {activeId === 'palette-columns' && '📊 Columns'}
+              </div>
+            ) : (
+              (() => {
+                const block = findBlockInSections(sections, activeId as string);
+                if (!block) return null;
+                const isImageOrQuiz = block.type === 'image' || block.type === 'quiz';
+                return (
+                  <div className="canvas-block dragging">
+                    {!isImageOrQuiz && (
+                      <BlockCardHeader type={block.type} isPreview={false} />
+                    )}
+                    <div className="block-card-content">
+                      {(() => {
+                        switch (block.type) {
+                          case 'text':
+                            return <TextBlockView block={block} isSelected={false} isEditing={false} isPreview={false} onUpdate={() => {}} />;
+                          case 'header':
+                            return <TextBlockView block={block} isSelected={false} isEditing={false} isPreview={false} onUpdate={() => {}} />;
+                          case 'image':
+                            return <ImageBlockView block={block} isSelected={false} isPreview={false} onUpdate={() => {}} />;
+                          case 'quiz':
+                            return <QuizBlockView block={block} isSelected={false} isPreview={false} onUpdate={() => {}} />;
+                          case 'columns':
+                            return <div className="canvas-block dragging columns-drag-preview"></div>;
+                        }
+                      })()}
+                    </div>
+                  </div>
+                );
+              })()
+            )}
+          </div>
+          </DragOverlay>
+        )}
+      </>
+    );
+  }
+
+  // Fallback to sections rendering (backward compatibility)
   const renderBlock = (block: Block) => (
     <SortableBlockItem
       key={block.id}
@@ -407,6 +532,7 @@ export function LessonCanvas({
       onDuplicateBlock={onDuplicateBlock}
       activeId={activeId}
       allBlocks={allBlocksList}
+      showStructureStrokes={showStructureStrokes}
     />
   );
 

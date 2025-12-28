@@ -22,103 +22,53 @@ import { PreviewToolbar, deviceConfigs } from './components/PreviewToolbar';
 import { PreviewStage } from './components/PreviewStage';
 import { ImageFillModal } from './components/ImageFillModal';
 import type { DeviceType } from './components/PreviewToolbar';
-import type { Block, BlockType, ColumnsBlock, Section, ImageBlock } from './types';
+import type { Block, BlockType, ColumnsBlock, Row, Resource } from './types';
 import { createBlock } from './types';
-import { migrateBlocksToSections, extractBlocksFromSections, findBlockInSections, findBlockLocation } from './utils/sections';
+import { 
+  extractBlocksFromSections, 
+  findBlockInSections, 
+  migrateRowsToSections,
+  findBlockInRows,
+  findBlockLocationInRows,
+  findResourceLocation,
+  createNewRow,
+  createNewConstructor,
+  isBlock,
+  isConstructor,
+} from './utils/sections';
 import './App.css';
 
-// Helper to find a block by ID (including nested blocks in columns)
-function findBlockById(blocks: Block[], id: string): Block | null {
-  for (const block of blocks) {
-    if (block.id === id) return block;
-    if (block.type === 'columns') {
-      const columnsBlock = block as ColumnsBlock;
-      for (const column of columnsBlock.children) {
-        for (const childBlock of column) {
-          if (childBlock.id === id) return childBlock;
-        }
-      }
-    }
-  }
-  return null;
-}
-
-// Helper to find which container a block is in
-function findBlockContainer(blocks: Block[], blockId: string): { type: 'canvas' | 'column'; columnsBlockId?: string; columnIndex?: number } | null {
-  // Check canvas blocks
-  const canvasIndex = blocks.findIndex(b => b.id === blockId);
-  if (canvasIndex !== -1) {
-    return { type: 'canvas' };
-  }
-
-  // Check nested blocks in columns
-  for (const block of blocks) {
-    if (block.type === 'columns') {
-      const columnsBlock = block as ColumnsBlock;
-      for (let colIndex = 0; colIndex < columnsBlock.children.length; colIndex++) {
-        const column = columnsBlock.children[colIndex];
-        const blockIndex = column.findIndex(b => b.id === blockId);
-        if (blockIndex !== -1) {
-          return { type: 'column', columnsBlockId: columnsBlock.id, columnIndex: colIndex };
-        }
-      }
-    }
-  }
-  return null;
-}
-
-// Helper to remove a block from its current container
-function removeBlockFromContainer(blocks: Block[], blockId: string): { newBlocks: Block[]; removedBlock: Block | null } {
-  const newBlocks = [...blocks];
-  let removedBlock: Block | null = null;
-
-  // Check canvas blocks
-  const canvasIndex = newBlocks.findIndex(b => b.id === blockId);
-  if (canvasIndex !== -1) {
-    removedBlock = newBlocks[canvasIndex];
-    newBlocks.splice(canvasIndex, 1);
-    return { newBlocks, removedBlock };
-  }
-
-  // Check nested blocks in columns
-  for (let i = 0; i < newBlocks.length; i++) {
-    const block = newBlocks[i];
-    if (block.type === 'columns') {
-      const columnsBlock = { ...block } as ColumnsBlock;
-      let found = false;
-      const newChildren = columnsBlock.children.map((column, colIndex) => {
-        const blockIndex = column.findIndex(b => b.id === blockId);
-        if (blockIndex !== -1) {
-          found = true;
-          removedBlock = column[blockIndex];
-          return column.filter(b => b.id !== blockId);
-        }
-        return column;
-      });
-      if (found) {
-        columnsBlock.children = newChildren;
-        newBlocks[i] = columnsBlock;
-        return { newBlocks, removedBlock };
-      }
-    }
-  }
-
-  return { newBlocks, removedBlock };
-}
 
 function App() {
-  // Use sections as primary state
-  const [sections, setSections] = useState<Section[]>([]);
+  // Use rows as primary state (Row/Cell/Resource model)
+  const [rows, setRows] = useState<Row[]>([]);
   const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null);
+  const [selectedRowId, setSelectedRowId] = useState<string | null>(null); // Track selected row for insertion
   const [editingBlockId, setEditingBlockId] = useState<string | null>(null);
   const [isPreview, setIsPreview] = useState(false);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [selectedDevice, setSelectedDevice] = useState<DeviceType>('desktop');
   const [imageModalBlockId, setImageModalBlockId] = useState<string | null>(null);
   const [isRightSidebarOpen, setIsRightSidebarOpen] = useState(false);
+  const [showStructureStrokes, setShowStructureStrokes] = useState(false);
 
-  // Derive blocks from sections for backward compatibility (PreviewStage, etc.)
+  // Derive sections from rows for backward compatibility (rendering, PreviewStage, etc.)
+  const sections = migrateRowsToSections(rows);
   const blocks = extractBlocksFromSections(sections);
+  
+  // When a block is selected, also track which row it's in (for insertion rule C)
+  useEffect(() => {
+    if (selectedBlockId) {
+      const location = findBlockLocationInRows(rows, selectedBlockId);
+      if (location) {
+        setSelectedRowId(location.rowId);
+      } else {
+        setSelectedRowId(null);
+      }
+    } else {
+      setSelectedRowId(null);
+    }
+  }, [selectedBlockId, rows]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -132,67 +82,104 @@ function App() {
   );
 
   const selectedBlock =
-    selectedBlockId ? findBlockInSections(sections, selectedBlockId) : null;
+    selectedBlockId ? findBlockInRows(rows, selectedBlockId) : null;
 
   const handleUpdateBlock = (updatedBlock: Block) => {
-    setSections((prev) =>
-      prev.map((section) => {
-        if (section.type === 'simple') {
-          const blockIndex = section.slots.main.findIndex(b => b.id === updatedBlock.id);
-          if (blockIndex !== -1) {
-            const newSlots = { ...section.slots };
-            newSlots.main = [...newSlots.main];
-            newSlots.main[blockIndex] = updatedBlock;
-            return { ...section, slots: newSlots };
-          }
-        } else if (section.type === 'two-column') {
-          const leftIndex = section.slots.left.findIndex(b => b.id === updatedBlock.id);
-          const rightIndex = section.slots.right.findIndex(b => b.id === updatedBlock.id);
-          if (leftIndex !== -1) {
-            const newSlots = { ...section.slots };
-            newSlots.left = [...newSlots.left];
-            newSlots.left[leftIndex] = updatedBlock;
-            return { ...section, slots: newSlots };
-          } else if (rightIndex !== -1) {
-            const newSlots = { ...section.slots };
-            newSlots.right = [...newSlots.right];
-            newSlots.right[rightIndex] = updatedBlock;
-            return { ...section, slots: newSlots };
-          }
-        }
-        return section;
-      })
-    );
+    const updateBlockInRows = (rowsToUpdate: Row[]): Row[] => {
+      return rowsToUpdate.map((row) => {
+        const updatedCells = row.cells.map((cell) => {
+          const updatedResources = cell.resources.map((resource) => {
+            if (isBlock(resource) && resource.id === updatedBlock.id) {
+              return updatedBlock;
+            }
+            if (isConstructor(resource)) {
+              // Recursively update nested constructors
+              return updateBlockInRows([resource])[0];
+            }
+            return resource;
+          });
+          return { ...cell, resources: updatedResources };
+        });
+        return { ...row, cells: updatedCells };
+      });
+    };
+
+    setRows(updateBlockInRows(rows));
   };
 
   const handleDeleteBlock = () => {
     if (!selectedBlockId) return;
     
-    const location = findBlockLocation(sections, selectedBlockId);
+    const location = findBlockLocationInRows(rows, selectedBlockId);
     if (!location) return;
 
-    setSections((prev) =>
-      prev.map((section) => {
-        if (section.id !== location.sectionId) return section;
-        
-        if (section.type === 'simple') {
-          const newSlots = {
-            main: section.slots.main.filter(b => b.id !== selectedBlockId),
-          };
-          return { ...section, slots: newSlots };
-        } else if (section.type === 'two-column') {
-          const newSlots = { ...section.slots };
-          if (location.slot === 'left') {
-            newSlots.left = section.slots.left.filter(b => b.id !== selectedBlockId);
-          } else {
-            newSlots.right = section.slots.right.filter(b => b.id !== selectedBlockId);
-          }
-          return { ...section, slots: newSlots };
+    const deleteBlockFromRows = (rowsToUpdate: Row[]): Row[] => {
+      return rowsToUpdate.map((row) => {
+        if (row.id !== location.rowId) {
+          // Recursively check nested constructors
+          const updatedCells = row.cells.map((cell) => {
+            const updatedResources = cell.resources
+              .filter((resource) => {
+                if (isBlock(resource)) {
+                  return resource.id !== selectedBlockId;
+                }
+                if (isConstructor(resource)) {
+                  // Recursively delete from nested constructors
+                  const nestedLocation = findBlockLocationInRows([resource], selectedBlockId);
+                  if (nestedLocation) {
+                    const updatedNested = deleteBlockFromRows([resource])[0];
+                    // If constructor becomes empty, remove it
+                    return updatedNested.cells.some(c => c.resources.length > 0);
+                  }
+                  return true;
+                }
+                return true;
+              })
+              .map((resource) => {
+                if (isConstructor(resource)) {
+                  return deleteBlockFromRows([resource])[0];
+                }
+                return resource;
+              });
+            return { ...cell, resources: updatedResources };
+          });
+          return { ...row, cells: updatedCells };
         }
-        return section;
-      })
-    );
-    
+        
+        // This is the row containing the block to delete
+        return {
+          ...row,
+          cells: row.cells.map((cell) => {
+            if (cell.id !== location.cellId) return cell;
+            return {
+              ...cell,
+              resources: cell.resources.filter((resource) => {
+                if (isBlock(resource)) {
+                  return resource.id !== selectedBlockId;
+                }
+                if (isConstructor(resource)) {
+                  // Recursively delete from nested constructors
+                  const nestedLocation = findBlockLocationInRows([resource], selectedBlockId);
+                  if (nestedLocation) {
+                    const updatedNested = deleteBlockFromRows([resource])[0];
+                    return updatedNested.cells.some(c => c.resources.length > 0);
+                  }
+                  return true;
+                }
+                return true;
+              }).map((resource) => {
+                if (isConstructor(resource)) {
+                  return deleteBlockFromRows([resource])[0];
+                }
+                return resource;
+              }),
+            };
+          }),
+        };
+      });
+    };
+
+    setRows(deleteBlockFromRows(rows));
     setSelectedBlockId(null);
     setEditingBlockId(null);
   };
@@ -200,36 +187,27 @@ function App() {
   const handleDuplicateBlock = () => {
     if (!selectedBlockId) return;
     
-    const blockToDuplicate = findBlockInSections(sections, selectedBlockId);
+    const blockToDuplicate = findBlockInRows(rows, selectedBlockId);
     if (!blockToDuplicate) return;
 
-    const location = findBlockLocation(sections, selectedBlockId);
+    const location = findBlockLocationInRows(rows, selectedBlockId);
     if (!location) return;
 
     // Create a new block with same properties but new ID
     const duplicatedBlock = { ...blockToDuplicate, id: crypto.randomUUID() };
 
-    setSections((prev) =>
-      prev.map((section) => {
-        if (section.id !== location.sectionId) return section;
-        
-        if (section.type === 'simple') {
-          const newSlots = { ...section.slots };
-          newSlots.main = [...newSlots.main];
-          newSlots.main.splice(location.index + 1, 0, duplicatedBlock);
-          return { ...section, slots: newSlots };
-        } else if (section.type === 'two-column') {
-          const newSlots = { ...section.slots };
-          if (location.slot === 'left') {
-            newSlots.left = [...newSlots.left];
-            newSlots.left.splice(location.index + 1, 0, duplicatedBlock);
-          } else {
-            newSlots.right = [...newSlots.right];
-            newSlots.right.splice(location.index + 1, 0, duplicatedBlock);
-          }
-          return { ...section, slots: newSlots };
-        }
-        return section;
+    setRows((prev) =>
+      prev.map((row) => {
+        if (row.id !== location.rowId) return row;
+        return {
+          ...row,
+          cells: row.cells.map((cell) => {
+            if (cell.id !== location.cellId) return cell;
+            const newResources = [...cell.resources];
+            newResources.splice(location.index + 1, 0, duplicatedBlock);
+            return { ...cell, resources: newResources };
+          }),
+        };
       })
     );
     
@@ -240,40 +218,52 @@ function App() {
   const handleInsertBlock = (blockType: BlockType) => {
     const newBlock = createBlock(blockType);
 
-    // If no sections exist, create one
-    if (sections.length === 0) {
-      const newSection = migrateBlocksToSections([newBlock])[0];
-      setSections([newSection]);
+    // Rule C: If a Row is selected, insert new Section (Row + Cell + Resource) below it
+    if (selectedRowId) {
+      const selectedRowIndex = rows.findIndex(r => r.id === selectedRowId);
+      if (selectedRowIndex !== -1) {
+        // Create new Row with one Cell containing the new Block
+        const newRow = createNewRow();
+        newRow.cells[0].resources = [newBlock];
+        
+        setRows((prev) => {
+          const newRows = [...prev];
+          newRows.splice(selectedRowIndex + 1, 0, newRow);
+          return newRows;
+        });
+        
+        setSelectedBlockId(newBlock.id);
+        setEditingBlockId(null);
+        return;
+      }
+    }
+
+    // If no rows exist, create one
+    if (rows.length === 0) {
+      const newRow = createNewRow();
+      newRow.cells[0].resources = [newBlock];
+      setRows([newRow]);
       setSelectedBlockId(newBlock.id);
       setEditingBlockId(null);
       return;
     }
 
-    // Find the section and slot containing the selected block
+    // If a block is selected, find its location and insert after it in the same cell
     if (selectedBlockId) {
-      const location = findBlockLocation(sections, selectedBlockId);
+      const location = findBlockLocationInRows(rows, selectedBlockId);
       if (location) {
-        setSections((prev) =>
-          prev.map((section) => {
-            if (section.id !== location.sectionId) return section;
-            
-            if (section.type === 'simple') {
-              const newSlots = { ...section.slots };
-              newSlots.main = [...newSlots.main];
-              newSlots.main.splice(location.index + 1, 0, newBlock);
-              return { ...section, slots: newSlots };
-            } else if (section.type === 'two-column') {
-              const newSlots = { ...section.slots };
-              if (location.slot === 'left') {
-                newSlots.left = [...newSlots.left];
-                newSlots.left.splice(location.index + 1, 0, newBlock);
-              } else {
-                newSlots.right = [...newSlots.right];
-                newSlots.right.splice(location.index + 1, 0, newBlock);
-              }
-              return { ...section, slots: newSlots };
-            }
-            return section;
+        setRows((prev) =>
+          prev.map((row) => {
+            if (row.id !== location.rowId) return row;
+            return {
+              ...row,
+              cells: row.cells.map((cell) => {
+                if (cell.id !== location.cellId) return cell;
+                const newResources = [...cell.resources];
+                newResources.splice(location.index + 1, 0, newBlock);
+                return { ...cell, resources: newResources };
+              }),
+            };
           })
         );
         setSelectedBlockId(newBlock.id);
@@ -282,27 +272,31 @@ function App() {
       }
     }
 
-    // No selection or section not found - append to last section's main slot
-    const lastSection = sections[sections.length - 1];
-    if (lastSection && lastSection.type === 'simple') {
-      setSections((prev) =>
-        prev.map((section, index) => {
-          if (index === prev.length - 1 && section.type === 'simple') {
-            return {
-              ...section,
-              slots: {
-                main: [...section.slots.main, newBlock],
-              },
-            };
-          }
-          return section;
-        })
-      );
-    } else {
-      // Create a new simple section
-      const newSection = migrateBlocksToSections([newBlock])[0];
-      setSections((prev) => [...prev, newSection]);
-    }
+    // Fallback: append to last row's first cell
+    setRows((prev) => {
+      if (prev.length === 0) {
+        const newRow = createNewRow();
+        newRow.cells[0].resources = [newBlock];
+        return [newRow];
+      }
+      return prev.map((row, index) => {
+        if (index === prev.length - 1 && row.cells.length > 0) {
+          return {
+            ...row,
+            cells: row.cells.map((cell, cellIndex) => {
+              if (cellIndex === 0) {
+                return {
+                  ...cell,
+                  resources: [...cell.resources, newBlock],
+                };
+              }
+              return cell;
+            }),
+          };
+        }
+        return row;
+      });
+    });
 
     setSelectedBlockId(newBlock.id);
     setEditingBlockId(null);
@@ -318,39 +312,64 @@ function App() {
     if (!over || active.id === over.id) return;
 
     const activeData = active.data.current;
-    const overData = over.data.current;
 
-    // Only reorder existing blocks within the same section slot (not from palette, not in columns)
+    // Only reorder existing blocks within the same cell (not from palette, not in columns)
     if (activeData?.source !== 'palette' && !activeData?.containerId?.startsWith('columns:')) {
-      const activeLocation = findBlockLocation(sections, active.id as string);
-      const overLocation = findBlockLocation(sections, over.id as string);
+      const activeLocation = findBlockLocationInRows(rows, active.id as string);
+      const overLocation = findBlockLocationInRows(rows, over.id as string);
       
-      // Only reorder if both blocks are in the same section and slot
+      // Only reorder if both blocks are in the same row and cell
       if (activeLocation && overLocation && 
-          activeLocation.sectionId === overLocation.sectionId &&
-          activeLocation.slot === overLocation.slot) {
-        setSections((prev) =>
-          prev.map((section) => {
-            if (section.id !== activeLocation.sectionId) return section;
-            
-            if (section.type === 'simple' && activeLocation.slot === 'main') {
-              const newSlots = { ...section.slots };
-              newSlots.main = arrayMove(newSlots.main, activeLocation.index, overLocation.index);
-              return { ...section, slots: newSlots };
-            } else if (section.type === 'two-column') {
-              const newSlots = { ...section.slots };
-              if (activeLocation.slot === 'left' && overLocation.slot === 'left') {
-                newSlots.left = arrayMove(newSlots.left, activeLocation.index, overLocation.index);
-              } else if (activeLocation.slot === 'right' && overLocation.slot === 'right') {
-                newSlots.right = arrayMove(newSlots.right, activeLocation.index, overLocation.index);
-              }
-              return { ...section, slots: newSlots };
-            }
-            return section;
+          activeLocation.rowId === overLocation.rowId &&
+          activeLocation.cellId === overLocation.cellId) {
+        setRows((prev) =>
+          prev.map((row) => {
+            if (row.id !== activeLocation.rowId) return row;
+            return {
+              ...row,
+              cells: row.cells.map((cell) => {
+                if (cell.id !== activeLocation.cellId) return cell;
+                const newResources = [...cell.resources];
+                // Only reorder blocks, not constructors
+                const blockIndices = newResources
+                  .map((r, i) => isBlock(r) ? i : -1)
+                  .filter(i => i !== -1);
+                const activeBlockIndex = blockIndices.indexOf(activeLocation.index);
+                const overBlockIndex = blockIndices.indexOf(overLocation.index);
+                if (activeBlockIndex !== -1 && overBlockIndex !== -1) {
+                  const blocks = blockIndices.map(i => newResources[i] as Block);
+                  const reorderedBlocks = arrayMove(blocks, activeBlockIndex, overBlockIndex);
+                  blockIndices.forEach((originalIndex, i) => {
+                    newResources[originalIndex] = reorderedBlocks[i];
+                  });
+                }
+                return { ...cell, resources: newResources };
+              }),
+            };
           })
         );
       }
     }
+  };
+
+  // Helper function to clean up empty cells and rows
+  const cleanupEmptyCellsAndRows = (rowsToClean: Row[]): Row[] => {
+    return rowsToClean
+      .map((row) => {
+        // Remove empty cells (cells with no resources)
+        const nonEmptyCells = row.cells.filter((cell) => cell.resources.length > 0);
+        
+        // If row has no cells left, return null to filter it out
+        if (nonEmptyCells.length === 0) {
+          return null;
+        }
+        
+        return {
+          ...row,
+          cells: nonEmptyCells,
+        };
+      })
+      .filter((row): row is Row => row !== null);
   };
 
   const handleDragEnd = (event: DragEndEvent) => {
@@ -366,126 +385,181 @@ function App() {
     // Handle dropping from palette
     if (activeData?.source === 'palette') {
       const blockType = activeData.type as BlockType;
+      
+      // Rule D: Special constructor item (for now, treat 'columns' as constructor)
+      if (blockType === 'columns') {
+        // Insert only structure (Row + Cells) with empty Resources
+        const newConstructor = createNewConstructor(2); // Default 2 columns
+        
+        if (over.id === 'empty-canvas') {
+          setRows([newConstructor]);
+          return;
+        }
+        
+        // Find where to insert
+        const overLocation = findResourceLocation(rows, over.id as string);
+        if (overLocation) {
+          setRows((prev) =>
+            prev.map((row) => {
+              if (row.id !== overLocation.rowId) return row;
+              return {
+                ...row,
+                cells: row.cells.map((cell) => {
+                  if (cell.id !== overLocation.cellId) return cell;
+                  const newResources = [...cell.resources];
+                  newResources.splice(overLocation.index + 1, 0, newConstructor);
+                  return { ...cell, resources: newResources };
+                }),
+              };
+            })
+          );
+        } else {
+          // Append to last row's first cell
+          setRows((prev) => {
+            if (prev.length === 0) return [newConstructor];
+            return prev.map((row, index) => {
+              if (index === prev.length - 1 && row.cells.length > 0) {
+                return {
+                  ...row,
+                  cells: row.cells.map((cell, cellIndex) => {
+                    if (cellIndex === 0) {
+                      return {
+                        ...cell,
+                        resources: [...cell.resources, newConstructor],
+                      };
+                    }
+                    return cell;
+                  }),
+                };
+              }
+              return row;
+            });
+          });
+        }
+        return;
+      }
+      
+      // Regular block type
       const newBlock = createBlock(blockType);
 
+      // Rule A: Dropped outside any existing Section/Cell
       if (over.id === 'empty-canvas') {
-        // Dropped on empty canvas - create a new SimpleSection
-        const newSection = migrateBlocksToSections([newBlock])[0];
-        setSections([newSection]);
+        // Create new Section: new Row + new Cell + new Resource
+        const newRow = createNewRow();
+        newRow.cells[0].resources = [newBlock];
+        setRows([newRow]);
         setSelectedBlockId(newBlock.id);
         return;
       }
 
-      // Check if dropped into a column (columns block within a section)
+      // Check if dropped into a column (columns block within a row)
       if (overData?.containerId?.startsWith('columns:')) {
         const columnsBlockId = overData.columnsBlockId as string;
         const columnIndex = overData.columnIndex as number;
         
-        setSections((prev) =>
-          prev.map((section) => {
-            // Find the columns block in this section
-            const findAndUpdateColumns = (blocks: Block[]): Block[] => {
-              return blocks.map(block => {
-                if (block.id === columnsBlockId && block.type === 'columns') {
-                  const columnsBlock = { ...block } as ColumnsBlock;
-                  const newChildren = [...columnsBlock.children];
-                  newChildren[columnIndex] = [...newChildren[columnIndex], newBlock];
-                  return { ...columnsBlock, children: newChildren };
-                }
-                return block;
-              });
-            };
-
-            if (section.type === 'simple') {
-              const updatedMain = findAndUpdateColumns(section.slots.main);
-              return { ...section, slots: { main: updatedMain } };
-            } else if (section.type === 'two-column') {
-              const updatedLeft = findAndUpdateColumns(section.slots.left);
-              const updatedRight = findAndUpdateColumns(section.slots.right);
-              return { ...section, slots: { left: updatedLeft, right: updatedRight } };
+        // Helper to find and update columns block in resources
+        const findAndUpdateColumns = (resources: Resource[]): Resource[] => {
+          return resources.map(resource => {
+            if (isBlock(resource) && resource.id === columnsBlockId && resource.type === 'columns') {
+              const columnsBlock = { ...resource } as ColumnsBlock;
+              const newChildren = [...columnsBlock.children];
+              newChildren[columnIndex] = [...newChildren[columnIndex], newBlock];
+              return { ...columnsBlock, children: newChildren };
             }
-            return section;
-          })
+            if (isConstructor(resource)) {
+              return {
+                ...resource,
+                cells: resource.cells.map(cell => ({
+                  ...cell,
+                  resources: findAndUpdateColumns(cell.resources),
+                })),
+              };
+            }
+            return resource;
+          });
+        };
+        
+        setRows((prev) =>
+          prev.map((row) => ({
+            ...row,
+            cells: row.cells.map((cell) => ({
+              ...cell,
+              resources: findAndUpdateColumns(cell.resources),
+            })),
+          }))
         );
         setSelectedBlockId(newBlock.id);
         return;
       }
 
-      // Dropped on a block - insert into the same section slot
-      const overLocation = findBlockLocation(sections, over.id as string);
+      // Rule B: Dropped on an existing block/cell - insert into target Cell's resources (vertical flow)
+      // Do NOT create new Rows/Cells
+      const overLocation = findBlockLocationInRows(rows, over.id as string);
       if (overLocation) {
-        setSections((prev) =>
-          prev.map((section) => {
-            if (section.id !== overLocation.sectionId) return section;
-            
-            if (section.type === 'simple' && overLocation.slot === 'main') {
-              const newSlots = { ...section.slots };
-              newSlots.main = [...newSlots.main];
-              newSlots.main.splice(overLocation.index, 0, newBlock);
-              return { ...section, slots: newSlots };
-            } else if (section.type === 'two-column') {
-              const newSlots = { ...section.slots };
-              if (overLocation.slot === 'left') {
-                newSlots.left = [...newSlots.left];
-                newSlots.left.splice(overLocation.index, 0, newBlock);
-              } else {
-                newSlots.right = [...newSlots.right];
-                newSlots.right.splice(overLocation.index, 0, newBlock);
-              }
-              return { ...section, slots: newSlots };
-            }
-            return section;
+        setRows((prev) =>
+          prev.map((row) => {
+            if (row.id !== overLocation.rowId) return row;
+            return {
+              ...row,
+              cells: row.cells.map((cell) => {
+                if (cell.id !== overLocation.cellId) return cell;
+                const newResources = [...cell.resources];
+                newResources.splice(overLocation.index, 0, newBlock);
+                return { ...cell, resources: newResources };
+              }),
+            };
           })
         );
         setSelectedBlockId(newBlock.id);
         return;
       }
 
-      // Fallback: append to last section or create new one
-      if (sections.length > 0) {
-        const lastSection = sections[sections.length - 1];
-        if (lastSection.type === 'simple') {
-          setSections((prev) =>
-            prev.map((section, index) => {
-              if (index === prev.length - 1 && section.type === 'simple') {
-                return {
-                  ...section,
-                  slots: {
-                    main: [...section.slots.main, newBlock],
-                  },
-                };
-              }
-              return section;
-            })
-          );
-        } else {
-          const newSection = migrateBlocksToSections([newBlock])[0];
-          setSections((prev) => [...prev, newSection]);
-        }
+      // Fallback: append to last row's first cell or create new row
+      if (rows.length > 0 && rows[rows.length - 1].cells.length > 0) {
+        setRows((prev) =>
+          prev.map((row, index) => {
+            if (index === prev.length - 1 && row.cells.length > 0) {
+              return {
+                ...row,
+                cells: row.cells.map((cell, cellIndex) => {
+                  if (cellIndex === 0) {
+                    return {
+                      ...cell,
+                      resources: [...cell.resources, newBlock],
+                    };
+                  }
+                  return cell;
+                }),
+              };
+            }
+            return row;
+          })
+        );
       } else {
-        const newSection = migrateBlocksToSections([newBlock])[0];
-        setSections([newSection]);
+        const newRow = createNewRow();
+        newRow.cells[0].resources = [newBlock];
+        setRows((prev) => (prev.length > 0 ? [...prev, newRow] : [newRow]));
       }
       setSelectedBlockId(newBlock.id);
       return;
     }
 
-    // Handle moving existing blocks within sections
-    const activeId = active.id as string;
-    const activeLocation = findBlockLocation(sections, activeId);
-    const overLocation = findBlockLocation(sections, over.id as string);
+    // Handle moving existing blocks within rows
+    const activeBlockId = active.id as string;
+    const activeLocation = findBlockLocationInRows(rows, activeBlockId);
+    const overLocation = findBlockLocationInRows(rows, over.id as string);
     
-    // Handle reordering within the same section slot (handled by handleDragOver, but ensure it's set)
+    // Handle reordering within the same cell (handled by handleDragOver, but ensure it's set)
     if (activeLocation && overLocation && 
-        activeLocation.sectionId === overLocation.sectionId &&
-        activeLocation.slot === overLocation.slot) {
+        activeLocation.rowId === overLocation.rowId &&
+        activeLocation.cellId === overLocation.cellId) {
       // Already handled by handleDragOver
-      setSelectedBlockId(activeId);
+      setSelectedBlockId(activeBlockId);
       return;
     }
 
-    // Handle moving blocks between sections or slots
-    const blockToMove = findBlockInSections(sections, activeId);
+    // Handle moving blocks between rows or cells
+    const blockToMove = findBlockInRows(rows, activeBlockId);
     if (!blockToMove || !activeLocation) return;
 
     // Check if dropping into a columns block
@@ -493,149 +567,256 @@ function App() {
       const columnsBlockId = overData.columnsBlockId as string;
       const columnIndex = overData.columnIndex as number;
       
-      // Remove from source
-      const sectionsAfterRemove = sections.map((section) => {
-        if (section.id !== activeLocation.sectionId) return section;
-        
-        if (section.type === 'simple') {
-          return {
-            ...section,
-            slots: {
-              main: section.slots.main.filter(b => b.id !== activeId),
-            },
-          };
-        } else if (section.type === 'two-column') {
-          const newSlots = { ...section.slots };
-          if (activeLocation.slot === 'left') {
-            newSlots.left = section.slots.left.filter(b => b.id !== activeId);
-          } else {
-            newSlots.right = section.slots.right.filter(b => b.id !== activeId);
+      // Remove from source (using the removeBlockFromRows helper pattern)
+      const removeBlockFromRows = (rowsToUpdate: Row[]): Row[] => {
+        return rowsToUpdate.map((row) => {
+          if (row.id !== activeLocation.rowId) {
+            // Recursively check nested constructors
+            return {
+              ...row,
+              cells: row.cells.map((cell) => {
+                return {
+                  ...cell,
+                  resources: cell.resources
+                    .filter((resource) => {
+                      if (isBlock(resource)) {
+                        return resource.id !== activeBlockId;
+                      }
+                      if (isConstructor(resource)) {
+                        return true;
+                      }
+                      return true;
+                    })
+                    .map((resource) => {
+                      if (isConstructor(resource)) {
+                        return removeBlockFromRows([resource])[0];
+                      }
+                      return resource;
+                    }),
+                };
+              }),
+            };
           }
-          return { ...section, slots: newSlots };
-        }
-        return section;
-      });
+          
+          return {
+            ...row,
+            cells: row.cells.map((cell) => {
+              if (cell.id !== activeLocation.cellId) return cell;
+              return {
+                ...cell,
+                resources: cell.resources.filter((resource) => {
+                  if (isBlock(resource)) {
+                    return resource.id !== activeBlockId;
+                  }
+                  return true;
+                }),
+              };
+            }),
+          };
+        });
+      };
+
+      let rowsAfterRemove = removeBlockFromRows(rows);
+      
+      // Clean up empty cells and rows
+      rowsAfterRemove = cleanupEmptyCellsAndRows(rowsAfterRemove);
+
+      // Helper to find and update columns block in resources
+      const findAndUpdateColumns = (resources: Resource[]): Resource[] => {
+        return resources.map(resource => {
+          if (isBlock(resource) && resource.id === columnsBlockId && resource.type === 'columns') {
+            const columnsBlock = { ...resource } as ColumnsBlock;
+            const newChildren = [...columnsBlock.children];
+            newChildren[columnIndex] = [...newChildren[columnIndex], blockToMove];
+            return { ...columnsBlock, children: newChildren };
+          }
+          if (isConstructor(resource)) {
+            return {
+              ...resource,
+              cells: resource.cells.map(cell => ({
+                ...cell,
+                resources: findAndUpdateColumns(cell.resources),
+              })),
+            };
+          }
+          return resource;
+        });
+      };
 
       // Add to columns block
-      setSections(sectionsAfterRemove.map((section) => {
-        const findAndUpdateColumns = (blocks: Block[]): Block[] => {
-          return blocks.map(block => {
-            if (block.id === columnsBlockId && block.type === 'columns') {
-              const columnsBlock = { ...block } as ColumnsBlock;
-              const newChildren = [...columnsBlock.children];
-              newChildren[columnIndex] = [...newChildren[columnIndex], blockToMove];
-              return { ...columnsBlock, children: newChildren };
+      setRows(
+        rowsAfterRemove.map((row) => ({
+          ...row,
+          cells: row.cells.map((cell) => ({
+            ...cell,
+            resources: findAndUpdateColumns(cell.resources),
+          })),
+        }))
+      );
+      
+      setSelectedBlockId(activeBlockId);
+      return;
+    }
+
+    // Handle moving to a different row or cell
+    if (overLocation) {
+      // Remove from source
+      const removeBlockFromRows = (rowsToUpdate: Row[]): Row[] => {
+        return rowsToUpdate.map((row) => {
+          if (row.id !== activeLocation.rowId) {
+            // Recursively check nested constructors
+            return {
+              ...row,
+              cells: row.cells.map((cell) => {
+                return {
+                  ...cell,
+                  resources: cell.resources
+                    .filter((resource) => {
+                      if (isBlock(resource)) {
+                        return resource.id !== activeId;
+                      }
+                      if (isConstructor(resource)) {
+                        return true; // Keep constructor, will filter inside
+                      }
+                      return true;
+                    })
+                    .map((resource) => {
+                      if (isConstructor(resource)) {
+                        return removeBlockFromRows([resource])[0];
+                      }
+                      return resource;
+                    }),
+                };
+              }),
+            };
+          }
+          
+          // This is the source row
+          return {
+            ...row,
+            cells: row.cells.map((cell) => {
+              if (cell.id !== activeLocation.cellId) return cell;
+              return {
+                ...cell,
+                resources: cell.resources.filter((resource) => {
+                  if (isBlock(resource)) {
+                    return resource.id !== activeId;
+                  }
+                  if (isConstructor(resource)) {
+                    // Recursively remove from nested constructors
+                    const nestedLocation = findBlockLocationInRows([resource], activeBlockId);
+                    if (nestedLocation) {
+                      const updatedNested = removeBlockFromRows([resource])[0];
+                      return updatedNested.cells.some(c => c.resources.length > 0);
+                    }
+                    return true;
+                  }
+                  return true;
+                }).map((resource) => {
+                  if (isConstructor(resource)) {
+                    return removeBlockFromRows([resource])[0];
+                  }
+                  return resource;
+                }),
+              };
+            }),
+          };
+        });
+      };
+
+      let rowsAfterRemove = removeBlockFromRows(rows);
+      
+      // Clean up empty cells and rows
+      rowsAfterRemove = cleanupEmptyCellsAndRows(rowsAfterRemove);
+
+      // Add to destination
+      setRows(
+        rowsAfterRemove.map((row) => {
+          if (row.id !== overLocation.rowId) return row;
+          return {
+            ...row,
+            cells: row.cells.map((cell) => {
+              if (cell.id !== overLocation.cellId) return cell;
+              const newResources = [...cell.resources];
+              newResources.splice(overLocation.index, 0, blockToMove);
+              return { ...cell, resources: newResources };
+            }),
+          };
+        })
+      );
+      
+      setSelectedBlockId(activeBlockId);
+      return;
+    }
+
+    // Fallback: if dropped on empty canvas, move to last row
+    if (over.id === 'empty-canvas' && rows.length > 0) {
+      if (rows[rows.length - 1].cells.length > 0) {
+        // Remove from source
+        const removeBlockFromRows = (rowsToUpdate: Row[]): Row[] => {
+          return rowsToUpdate.map((row) => {
+            if (row.id !== activeLocation.rowId) {
+              return {
+                ...row,
+                cells: row.cells.map((cell) => {
+                  return {
+                    ...cell,
+                    resources: cell.resources
+                      .filter((resource) => {
+                        if (isBlock(resource)) {
+                          return resource.id !== activeBlockId;
+                        }
+                        return true;
+                      }),
+                  };
+                }),
+              };
             }
-            return block;
+            
+            return {
+              ...row,
+              cells: row.cells.map((cell) => {
+                if (cell.id !== activeLocation.cellId) return cell;
+                return {
+                  ...cell,
+                resources: cell.resources.filter((resource) => {
+                  if (isBlock(resource)) {
+                    return resource.id !== activeBlockId;
+                  }
+                  return true;
+                }),
+                };
+              }),
+            };
           });
         };
 
-        if (section.type === 'simple') {
-          const updatedMain = findAndUpdateColumns(section.slots.main);
-          return { ...section, slots: { main: updatedMain } };
-        } else if (section.type === 'two-column') {
-          const updatedLeft = findAndUpdateColumns(section.slots.left);
-          const updatedRight = findAndUpdateColumns(section.slots.right);
-          return { ...section, slots: { left: updatedLeft, right: updatedRight } };
-        }
-        return section;
-      }));
-      
-      setSelectedBlockId(activeId);
-      return;
-    }
-
-    // Handle moving to a different section slot
-    if (overLocation) {
-      // Remove from source
-      const sectionsAfterRemove = sections.map((section) => {
-        if (section.id !== activeLocation.sectionId) return section;
+        let rowsAfterRemove = removeBlockFromRows(rows);
         
-        if (section.type === 'simple') {
-          return {
-            ...section,
-            slots: {
-              main: section.slots.main.filter(b => b.id !== activeId),
-            },
-          };
-        } else if (section.type === 'two-column') {
-          const newSlots = { ...section.slots };
-          if (activeLocation.slot === 'left') {
-            newSlots.left = section.slots.left.filter(b => b.id !== activeId);
-          } else {
-            newSlots.right = section.slots.right.filter(b => b.id !== activeId);
-          }
-          return { ...section, slots: newSlots };
-        }
-        return section;
-      });
+        // Clean up empty cells and rows
+        rowsAfterRemove = cleanupEmptyCellsAndRows(rowsAfterRemove);
 
-      // Add to destination
-      setSections(sectionsAfterRemove.map((section) => {
-        if (section.id !== overLocation.sectionId) return section;
-        
-        if (section.type === 'simple' && overLocation.slot === 'main') {
-          const newSlots = { ...section.slots };
-          newSlots.main = [...newSlots.main];
-          newSlots.main.splice(overLocation.index, 0, blockToMove);
-          return { ...section, slots: newSlots };
-        } else if (section.type === 'two-column') {
-          const newSlots = { ...section.slots };
-          if (overLocation.slot === 'left') {
-            newSlots.left = [...newSlots.left];
-            newSlots.left.splice(overLocation.index, 0, blockToMove);
-          } else {
-            newSlots.right = [...newSlots.right];
-            newSlots.right.splice(overLocation.index, 0, blockToMove);
-          }
-          return { ...section, slots: newSlots };
-        }
-        return section;
-      }));
-      
-      setSelectedBlockId(activeId);
-      return;
-    }
-
-    // Fallback: if dropped on empty canvas, move to last section
-    if (over.id === 'empty-canvas' && sections.length > 0) {
-      const lastSection = sections[sections.length - 1];
-      if (lastSection.type === 'simple') {
-        // Remove from source
-        const sectionsAfterRemove = sections.map((section) => {
-          if (section.id !== activeLocation.sectionId) return section;
-          if (section.type === 'simple') {
-            return {
-              ...section,
-              slots: {
-                main: section.slots.main.filter(b => b.id !== activeId),
-              },
-            };
-          } else if (section.type === 'two-column') {
-            const newSlots = { ...section.slots };
-            if (activeLocation.slot === 'left') {
-              newSlots.left = section.slots.left.filter(b => b.id !== activeId);
-            } else {
-              newSlots.right = section.slots.right.filter(b => b.id !== activeId);
+        // Add to last row's first cell
+        setRows(
+          rowsAfterRemove.map((row, index) => {
+            if (index === rowsAfterRemove.length - 1 && row.cells.length > 0) {
+              return {
+                ...row,
+                cells: row.cells.map((cell, cellIndex) => {
+                  if (cellIndex === 0) {
+                    return {
+                      ...cell,
+                      resources: [...cell.resources, blockToMove],
+                    };
+                  }
+                  return cell;
+                }),
+              };
             }
-            return { ...section, slots: newSlots };
-          }
-          return section;
-        });
-
-        // Add to last section
-        setSections(sectionsAfterRemove.map((section, index) => {
-          if (index === sectionsAfterRemove.length - 1 && section.type === 'simple') {
-            return {
-              ...section,
-              slots: {
-                main: [...section.slots.main, blockToMove],
-              },
-            };
-          }
-          return section;
-        }));
-        setSelectedBlockId(activeId);
+            return row;
+          })
+        );
+        setSelectedBlockId(activeBlockId);
       }
     }
   };
@@ -665,7 +846,7 @@ function App() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedBlockId, editingBlockId, isPreview]);
+  }, [selectedBlockId, editingBlockId, isPreview, handleDeleteBlock]);
 
   return (
     <DndContext
@@ -693,12 +874,14 @@ function App() {
           </>
         ) : (
           <>
-            <TopBar
-              isPreview={isPreview}
-              onTogglePreview={() => setIsPreview(!isPreview)}
-              isRightSidebarOpen={isRightSidebarOpen}
-              onToggleRightSidebar={() => setIsRightSidebarOpen(!isRightSidebarOpen)}
-            />
+                    <TopBar
+                      isPreview={isPreview}
+                      onTogglePreview={() => setIsPreview(!isPreview)}
+                      isRightSidebarOpen={isRightSidebarOpen}
+                      onToggleRightSidebar={() => setIsRightSidebarOpen(!isRightSidebarOpen)}
+                      showStructureStrokes={showStructureStrokes}
+                      onToggleStructureStrokes={() => setShowStructureStrokes(!showStructureStrokes)}
+                    />
             <div className="app-content">
               <aside className="sidebar sidebar-left">
                 <BlocksPalette onInsertBlock={handleInsertBlock} />
@@ -706,6 +889,7 @@ function App() {
               <main className={`main-content${!isRightSidebarOpen ? ' main-content-full' : ''}`}>
                 <LessonCanvas
                   sections={sections}
+                  rows={rows}
                   selectedBlockId={selectedBlockId}
                   editingBlockId={editingBlockId}
                   onSelectBlock={setSelectedBlockId}
@@ -724,6 +908,7 @@ function App() {
                   isPreview={isPreview}
                   activeId={activeId}
                   allBlocks={blocks}
+                  showStructureStrokes={showStructureStrokes}
                 />
               </main>
               {isRightSidebarOpen && (
@@ -735,7 +920,7 @@ function App() {
                   />
                 </aside>
               )}
-      </div>
+            </div>
           </>
         )}
       </div>

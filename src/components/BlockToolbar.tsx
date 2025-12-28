@@ -16,7 +16,7 @@ const DuplicateIcon = () => (
 );
 
 const DragHandleIcon = () => (
-  <svg width="21" height="21" viewBox="0 0 21 21" fill="none" xmlns="http://www.w3.org/2000/svg" width="24" height="24">
+  <svg width="24" height="24" viewBox="0 0 21 21" fill="none" xmlns="http://www.w3.org/2000/svg">
     <path d="M4.26314 13.8631L0.899994 10.5M0.899994 10.5L4.26314 7.13685M0.899994 10.5H20.1M16.7368 13.8631L20.1 10.5M20.1 10.5L16.7368 7.13685M7.13685 4.26314L10.5 0.899994M10.5 0.899994L13.8631 4.26314M10.5 0.899994L10.5 20.1M7.13685 16.7368L10.5 20.1M10.5 20.1L13.8631 16.7368" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
   </svg>
 );
@@ -39,7 +39,6 @@ interface BlockToolbarProps {
   onDelete: () => void;
   onDuplicate: () => void;
   onDragStart: (e: React.MouseEvent) => void;
-  editor?: Editor | null;
   editorRef?: React.RefObject<Editor | null>;
   onOpenAiEdit?: () => void;
 }
@@ -50,7 +49,6 @@ export function BlockToolbar({
   onDelete,
   onDuplicate,
   onDragStart,
-  editor,
   editorRef,
   onOpenAiEdit,
 }: BlockToolbarProps) {

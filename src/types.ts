@@ -48,7 +48,48 @@ export type Block = TextBlock | HeaderBlock | ImageBlock | QuizBlock | ColumnsBl
 export interface Lesson {
   blocks: Block[];
   sections?: Section[]; // New: sections-based structure
+  rows?: Row[]; // New: Row/Cell/Resource model
 }
+
+/**
+ * Row/Cell/Resource Model
+ * 
+ * Row = Top-level vertical stack on the canvas (equivalent to Section)
+ * Cell = Children of a Row; cells flow horizontally
+ * Resource = Container inside a Cell that holds actual content (Block or nested Constructor)
+ * 
+ * Constructor = Row + one or more Cells (a Row may contain multiple Cells)
+ * Section = Row + exactly one Cell (a simple constructor)
+ */
+
+/**
+ * Resource can be either:
+ * - A Block (text, image, quiz, etc.)
+ * - A Constructor (nested Row+Cells for complex layouts)
+ */
+export type Resource = Block | Constructor;
+
+/**
+ * Cell contains Resources that flow vertically
+ */
+export interface Cell {
+  id: string;
+  resources: Resource[]; // Vertical stack of resources
+}
+
+/**
+ * Row contains Cells that flow horizontally
+ */
+export interface Row {
+  id: string;
+  cells: Cell[]; // Horizontal flow of cells
+  props?: Record<string, unknown>; // Future: row-specific props (padding, background, etc.)
+}
+
+/**
+ * Constructor is a Row (can be nested inside a Cell as a Resource)
+ */
+export type Constructor = Row;
 
 /**
  * Section Types
