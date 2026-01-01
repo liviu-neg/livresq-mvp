@@ -1507,6 +1507,49 @@ body {
   border-top: none;
 }
 
+/* Remove padding for image blocks */
+.canvas-block.no-header:has(.image-block-view) .block-card-content {
+  padding: 0 !important;
+}
+
+/* Add 24px padding for quiz blocks on canvas (read-only view) */
+.canvas-block:has(.quiz-block-view:not(.quiz-block-edit)) .block-card-content {
+  padding: 24px !important;
+}
+
+.canvas-block.selected:has(.quiz-block-view:not(.quiz-block-edit)) .block-card-content {
+  padding: 24px !important;
+}
+
+/* Also ensure image-block-view has no padding/margin */
+.image-block-view {
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
+.image-block-view .block-image-container {
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+/* Ensure no padding on image blocks specifically - target by block type */
+.canvas-block:has(.image-block-view) .block-card-content {
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
+/* Also target the selected state for image blocks */
+.canvas-block.selected:has(.image-block-view) .block-card-content {
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
+/* Fallback for browsers that don't support :has() - use class selector */
+.canvas-block.no-header .block-card-content {
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
 .text-block-content {
   padding: 1.5rem;
   overflow: visible;
@@ -1834,8 +1877,8 @@ body {
 }
 
 .block-question {
-  font-size: 1.1rem;
-  font-weight: 500;
+  font-size: 18px;
+  font-weight: bold;
   color: #333;
   margin-bottom: 0.5rem;
 }
@@ -1859,6 +1902,193 @@ body {
   background: #d4edda;
   border-color: #28a745;
   font-weight: 500;
+}
+
+/* Multiple choice quiz styling */
+.block-options.multiple-choice {
+  gap: 0.375rem;
+}
+
+.block-option.multiple-choice-option {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  background: white !important;
+  border: none !important;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.quiz-radio-button {
+  width: 20px;
+  height: 20px;
+  cursor: pointer;
+  accent-color: #4CAF50;
+  flex-shrink: 0;
+  margin: 0;
+  appearance: none;
+  -webkit-appearance: none;
+  border: 2.5px solid #000000;
+  border-radius: 50%;
+  background: white;
+  position: relative;
+}
+
+.quiz-radio-button:checked {
+  background: white;
+}
+
+.quiz-radio-button:checked::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #4CAF50;
+}
+
+.option-text {
+  flex: 1;
+  color: #333 !important;
+  font-size: 18px;
+  font-weight: normal;
+}
+
+/* Quiz Block Editing Styles */
+.quiz-block-edit {
+  padding: 1rem;
+}
+
+.quiz-block-edit .block-edit-field {
+  margin-bottom: 1.5rem;
+}
+
+.quiz-block-edit .block-edit-label {
+  margin-bottom: 0.75rem;
+}
+
+.block-options-edit {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.block-option-edit-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.block-option-edit-row:last-child {
+  border-bottom: none;
+}
+
+.quiz-edit-radio {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid #999;
+  background: white;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  padding: 0;
+  transition: all 0.2s ease;
+}
+
+.quiz-edit-radio:hover {
+  border-color: #666;
+}
+
+.quiz-edit-radio.selected {
+  background: #007bff;
+  border-color: #007bff;
+}
+
+.quiz-edit-radio .quiz-radio-check {
+  display: none;
+}
+
+.quiz-edit-radio .quiz-radio-x {
+  display: block;
+}
+
+.quiz-edit-radio.selected .quiz-radio-check {
+  display: block;
+}
+
+.quiz-edit-radio.selected .quiz-radio-x {
+  display: none;
+}
+
+.block-option-input {
+  flex: 1;
+  border: none;
+  border-bottom: 1px solid #e0e0e0;
+  border-radius: 0;
+  padding: 0.5rem 0;
+  background: transparent;
+  font-size: 16px;
+  color: #333;
+}
+
+.block-option-input:focus {
+  outline: none;
+  border-bottom-color: #007bff;
+  box-shadow: none;
+}
+
+.block-option-delete {
+  width: 24px;
+  height: 24px;
+  border: none;
+  background: transparent;
+  color: #999;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  transition: color 0.2s ease;
+}
+
+.block-option-delete:hover {
+  color: #333;
+}
+
+.block-add-option-button {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0;
+  border: none;
+  background: transparent;
+  color: #007bff;
+  font-size: 14px;
+  cursor: pointer;
+  transition: color 0.2s ease;
+  margin-top: 0.5rem;
+}
+
+.block-add-option-button:hover {
+  color: #0056b3;
+}
+
+.block-add-option-button svg {
+  width: 16px;
+  height: 16px;
+  stroke: currentColor;
 }
 
 /* Properties Panel - Framer Style */
@@ -1953,6 +2183,30 @@ body {
 .property-textarea:hover {
   border-color: #d0d0d0 !important;
   background: #fafafa !important;
+}
+
+.property-select {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #e0e0e0 !important;
+  border-radius: 6px;
+  font-size: 13px;
+  font-family: inherit;
+  transition: all 0.15s;
+  background: #f5f5f5 !important;
+  color: #1a1a1a !important;
+  cursor: pointer;
+}
+
+.property-select:hover {
+  border-color: #d0d0d0 !important;
+  background: #fafafa !important;
+}
+
+.property-select:focus {
+  outline: none;
+  border-color: #326CF6 !important;
+  box-shadow: 0 0 0 2px rgba(50, 108, 246, 0.1);
 }
 
 .property-input:focus,
@@ -3102,6 +3356,36 @@ body {
 /* Ensure cell-resources in columns block has minimum height when empty */
 .row-view.columns-block-row .cell-view .cell-resources {
   min-height: 120px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+/* Background color for empty cells in columns block (initial state) */
+.row-view.columns-block-row .cell-view .cell-resources:empty {
+  background-color: #FCEBD0;
+  justify-content: center;
+  align-items: center;
+}
+
+/* Background color when cell-resources has no resource-wrapper children (empty state) */
+.row-view.columns-block-row .cell-view .cell-resources:not(:has(.resource-wrapper)) {
+  background-color: #FCEBD0;
+  justify-content: center;
+  align-items: center;
+}
+
+/* Placeholder text for empty cells in columns blocks */
+.columns-block-empty-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 120px;
+  height: 100%;
+  color: #F19E39;
+  font-size: 16px;
+  pointer-events: none;
+  user-select: none;
 }
 
 .cell-view {
@@ -3195,6 +3479,21 @@ body {
 
 .resource-wrapper {
   width: 100%;
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
+/* Ensure image blocks in resource-wrapper have no padding */
+.resource-wrapper .image-block-view,
+.resource-wrapper .quiz-block-view:not(.quiz-block-edit) {
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
+/* Quiz block view on canvas should have padding from block-card-content, not from itself */
+.quiz-block-view:not(.quiz-block-edit) {
+  padding: 0 !important;
+  margin: 0 !important;
 }
 
 .resource-constructor {

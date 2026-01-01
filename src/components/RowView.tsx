@@ -172,6 +172,7 @@ export function RowView({
                 showStructureStrokes={showStructureStrokes}
                 isEmptyStateRow={true}
                 rowId={row.id}
+                isColumnsBlock={row.props?.isColumnsBlock === true}
               />
             ))}
           </div>
@@ -232,6 +233,7 @@ export function RowView({
               allBlocks={allBlocks}
               showStructureStrokes={showStructureStrokes}
               rowId={row.id}
+              isColumnsBlock={row.props?.isColumnsBlock === true}
             />
           ))}
         </div>
@@ -241,7 +243,8 @@ export function RowView({
          !selectedBlockId && 
          !selectedCellId && 
          !editingBlockId && 
-         onAddEmptyStateRow && (
+         onAddEmptyStateRow && 
+         !(row.props?.isColumnsBlock === true && row.cells.every(cell => cell.resources.length === 0)) && (
           <button
             type="button"
             className="row-add-section-button"
@@ -267,6 +270,7 @@ export function RowView({
           onDelete={onDeleteRow}
           onDuplicate={onDuplicateRow}
           onDragStart={handleDragStart}
+          isEmptyColumnsBlock={row.props?.isColumnsBlock === true && row.cells.every(cell => cell.resources.length === 0)}
         />
       )}
     </>

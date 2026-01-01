@@ -192,6 +192,8 @@ export function BlockToolbar({
         return 'Header';
       case 'image':
         return 'Image';
+      case 'quiz':
+        return 'Quiz';
       default:
         return '';
     }

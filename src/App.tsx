@@ -290,6 +290,10 @@ function App() {
     const location = findCellLocationInRows(rows, selectedCellId);
     if (!location) return;
 
+    // Find the row to check if it's a columns block
+    const row = rows.find(r => r.id === location.rowId);
+    const isColumnsBlock = row?.props?.isColumnsBlock === true;
+
     setRows((prev) =>
       prev.map((row) => {
         if (row.id !== location.rowId) {
@@ -316,7 +320,31 @@ function App() {
         }
         
         // This is the row containing the cell to delete
-            return {
+        if (isColumnsBlock) {
+          // For columns blocks, merge the deleted cell's resources into the remaining cells
+          // and update the columns count
+          const newCells = row.cells.filter((_, idx) => idx !== location.cellIndex);
+          const deletedCell = row.cells[location.cellIndex];
+          
+          // If there are remaining cells, merge deleted cell's resources into the first remaining cell
+          if (newCells.length > 0 && deletedCell) {
+            newCells[0].resources.push(...deletedCell.resources);
+          }
+          
+          const newColumns = Math.max(1, newCells.length); // Minimum 1 column
+          
+          return {
+            ...row,
+            cells: newCells,
+            props: {
+              ...row.props,
+              columns: newColumns,
+            },
+          };
+        }
+        
+        // Regular rows - just remove the cell
+        return {
           ...row,
           cells: row.cells.filter((_, idx) => idx !== location.cellIndex),
         };
@@ -340,10 +368,16 @@ function App() {
     const isColumnsBlock = row?.props?.isColumnsBlock === true;
     const currentColumns = (row?.props?.columns as number) || row?.cells.length || 2;
 
-    // For columns blocks, check if we've reached max columns (4)
-    if (isColumnsBlock && currentColumns >= 4) {
-      // Don't allow duplicating beyond 4 columns
-      return;
+    // For columns blocks, check if we've reached max columns (4) or min columns (1)
+    if (isColumnsBlock) {
+      if (currentColumns >= 4) {
+        // Don't allow duplicating beyond 4 columns
+        return;
+      }
+      if (currentColumns <= 1) {
+        // Don't allow duplicating if already at 1 column (can't go below 1)
+        // Actually, allow duplicating from 1 to 2
+      }
     }
 
     // Create a new cell with same properties but new ID and duplicated resources
@@ -380,15 +414,15 @@ function App() {
         // If it's a columns block, update the columns count
         if (isColumnsBlock) {
           const newColumns = Math.min(newCells.length, 4); // Cap at 4
-          return {
+            return {
             ...row,
             cells: newCells,
             props: {
               ...row.props,
               columns: newColumns,
-            },
-          };
-        }
+              },
+            };
+          }
         
         return { ...row, cells: newCells };
       })
@@ -633,6 +667,11 @@ function App() {
   const cleanupEmptyCellsAndRows = (rowsToClean: Row[]): Row[] => {
     return rowsToClean
       .map((row) => {
+        // Don't clean up columns block rows - they must maintain their cell structure
+        if (row.props?.isColumnsBlock === true) {
+          return row;
+        }
+        
         // Remove empty cells (cells with no resources)
         const nonEmptyCells = row.cells.filter((cell) => cell.resources.length > 0);
         

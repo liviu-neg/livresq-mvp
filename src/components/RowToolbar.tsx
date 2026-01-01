@@ -32,6 +32,7 @@ interface RowToolbarProps {
   onDuplicate: () => void;
   onDragStart: (e: React.MouseEvent) => void;
   isEmptyState?: boolean; // If true, only show delete button
+  isEmptyColumnsBlock?: boolean; // If true, only show delete and ellipsis buttons (for empty columns blocks)
 }
 
 export function RowToolbar({
@@ -40,6 +41,7 @@ export function RowToolbar({
   onDuplicate,
   onDragStart,
   isEmptyState = false,
+  isEmptyColumnsBlock = false,
 }: RowToolbarProps) {
   const toolbarRef = useRef<HTMLDivElement>(null);
   const [position, setPosition] = useState<{ top: number; left: number } | null>(null);
@@ -191,7 +193,7 @@ export function RowToolbar({
       >
         <TrashIcon />
       </button>
-      {!isEmptyState && (
+      {!isEmptyState && !isEmptyColumnsBlock && (
         <>
           <div className="row-toolbar-divider"></div>
           <button

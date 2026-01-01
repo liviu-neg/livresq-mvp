@@ -24,6 +24,7 @@ interface CellViewProps {
   showStructureStrokes?: boolean;
   isEmptyStateRow?: boolean; // True if this cell is in an empty state row
   rowId?: string; // Row ID for empty state row
+  isColumnsBlock?: boolean; // True if this cell is in a columns block row
 }
 
 export function CellView({
@@ -44,6 +45,7 @@ export function CellView({
   showStructureStrokes = false,
   isEmptyStateRow = false,
   rowId,
+  isColumnsBlock = false,
 }: CellViewProps) {
   const cellRef = useRef<HTMLDivElement>(null);
   const cellResourcesRef = useRef<HTMLDivElement>(null);
@@ -137,6 +139,11 @@ export function CellView({
           {cell.resources.length === 0 && isEmptyStateRow && rowId ? (
             // Show empty state UI when cell is empty and it's an empty state row
             <EmptyStateRow rowId={rowId} />
+          ) : cell.resources.length === 0 && isColumnsBlock ? (
+            // Show placeholder text for empty cells in columns blocks
+            <div className="columns-block-empty-placeholder">
+              Drag and drop content here
+            </div>
           ) : (
             cell.resources.map((resource) => {
               if (isBlock(resource)) {

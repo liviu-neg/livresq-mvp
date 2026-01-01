@@ -147,7 +147,8 @@ function SortableBlockItem({
         return (
           <QuizBlockView
             block={block}
-            isSelected={isEditing}
+            isSelected={isSelected}
+            isEditing={isEditing}
             isPreview={isPreview}
             onUpdate={handleUpdate}
           />
@@ -326,7 +327,7 @@ function SortableBlockItem({
       onDoubleClick={handleBlockDoubleClick}
       {...cardDragListeners}
     >
-      {(block.type === 'text' || block.type === 'header' || block.type === 'image') && isSelected && !isEditing && !isPreview && !isDragging && (
+      {(block.type === 'text' || block.type === 'header' || block.type === 'image' || block.type === 'quiz') && isSelected && !isEditing && !isPreview && !isDragging && (
         <BlockToolbar
           blockContainerRef={blockContentRef}
           blockType={block.type}
