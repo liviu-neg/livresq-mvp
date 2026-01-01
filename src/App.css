@@ -3085,6 +3085,25 @@ body {
   outline: none; /* Ensure no outline by default */
 }
 
+/* Columns block rows - use grid layout with column gap */
+.row-view.columns-block-row .row-cells.columns-block-cells {
+  display: grid;
+  grid-template-columns: repeat(var(--column-count, 2), 1fr);
+  gap: var(--column-gap, 16px);
+  padding: 8px 8px 8px 8px;
+  min-height: 120px; /* Minimum height for empty columns block */
+}
+
+/* Ensure cells in columns block have minimum height when empty */
+.row-view.columns-block-row .cell-view {
+  min-height: 120px;
+}
+
+/* Ensure cell-resources in columns block has minimum height when empty */
+.row-view.columns-block-row .cell-view .cell-resources {
+  min-height: 120px;
+}
+
 .cell-view {
   flex: 1;
   display: flex;
@@ -3095,6 +3114,11 @@ body {
   transition: border-color 0.2s;
   min-width: 0; /* Allow flex shrinking */
   /* Remove height: 100% - let flexbox align-items: stretch handle it */
+}
+
+.cell-view.drag-over {
+  border-color: #007bff !important;
+  background-color: rgba(0, 123, 255, 0.05);
 }
 
 .cell-view:hover {

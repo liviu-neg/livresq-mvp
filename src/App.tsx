@@ -335,6 +335,17 @@ function App() {
     const location = findCellLocationInRows(rows, selectedCellId);
     if (!location) return;
 
+    // Find the row to check if it's a columns block
+    const row = rows.find(r => r.id === location.rowId);
+    const isColumnsBlock = row?.props?.isColumnsBlock === true;
+    const currentColumns = (row?.props?.columns as number) || row?.cells.length || 2;
+
+    // For columns blocks, check if we've reached max columns (4)
+    if (isColumnsBlock && currentColumns >= 4) {
+      // Don't allow duplicating beyond 4 columns
+      return;
+    }
+
     // Create a new cell with same properties but new ID and duplicated resources
     const duplicatedCell: Cell = {
       id: crypto.randomUUID(),
@@ -365,6 +376,20 @@ function App() {
         if (row.id !== location.rowId) return row;
         const newCells = [...row.cells];
         newCells.splice(location.cellIndex + 1, 0, duplicatedCell);
+        
+        // If it's a columns block, update the columns count
+        if (isColumnsBlock) {
+          const newColumns = Math.min(newCells.length, 4); // Cap at 4
+          return {
+            ...row,
+            cells: newCells,
+            props: {
+              ...row.props,
+              columns: newColumns,
+            },
+          };
+        }
+        
         return { ...row, cells: newCells };
       })
     );
@@ -449,8 +474,8 @@ function App() {
           rowElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         }
       }, 100);
-      return;
-    }
+        return;
+      }
 
     // Create a new empty state row if no empty state row exists directly below
     const newEmptyStateRow: Row = {
@@ -485,9 +510,47 @@ function App() {
   };
 
   const handleInsertBlock = (blockType: BlockType) => {
-    const newBlock = createBlock(blockType);
+    // Special handling for columns block - it becomes a Row directly
+    if (blockType === 'columns') {
+      const columnsBlock = createBlock(blockType) as ColumnsBlock;
+      const newRow: Row = {
+        ...columnsBlock.row,
+        props: {
+          isColumnsBlock: true,
+          columns: columnsBlock.columns,
+          columnGap: columnsBlock.columnGap,
+          blockId: columnsBlock.id, // Store the block ID for reference
+        },
+      };
 
-    // Always create a new row when clicking a block from the sidebar
+      // If a Row is selected OR if a block is selected (use its parent row), insert new row below it
+      const rowIdForInsertion = selectedRowId || getSelectedBlockRowId();
+      if (rowIdForInsertion) {
+        const selectedRowIndex = rows.findIndex(r => r.id === rowIdForInsertion);
+        if (selectedRowIndex !== -1) {
+          setRows((prev) => {
+            const newRows = [...prev];
+            newRows.splice(selectedRowIndex + 1, 0, newRow);
+            return newRows;
+          });
+          
+          setSelectedRowId(newRow.id);
+          setSelectedBlockId(null);
+          setEditingBlockId(null);
+          return;
+        }
+      }
+
+      // If no rows exist or no row is selected, append at the end
+      setRows((prev) => [...prev, newRow]);
+      setSelectedRowId(newRow.id);
+      setSelectedBlockId(null);
+      setEditingBlockId(null);
+      return;
+    }
+
+    // Regular blocks - create a new row with the block as a resource
+    const newBlock = createBlock(blockType);
     const newRow = createNewRow();
     newRow.cells[0].resources = [newBlock];
 
@@ -501,9 +564,9 @@ function App() {
           newRows.splice(selectedRowIndex + 1, 0, newRow);
           return newRows;
         });
-        
-        setSelectedBlockId(newBlock.id);
-        setEditingBlockId(null);
+
+    setSelectedBlockId(newBlock.id);
+    setEditingBlockId(null);
         setNewlyInsertedBlockId(newBlock.id); // Trigger scroll effect
         return;
       }
@@ -706,7 +769,29 @@ function App() {
         return;
       }
 
-      // Rule B: Dropped on an existing block/cell - insert into target Cell's resources (vertical flow)
+      // Rule B1: Dropped directly on a cell - append to cell's resources
+      if (typeof over.id === 'string' && over.id.startsWith('cell:')) {
+        const cellId = over.id.replace('cell:', '');
+        const cellLocation = findCellLocationInRows(rows, cellId);
+        if (cellLocation) {
+          setRows((prev) =>
+            prev.map((row) => {
+              if (row.id !== cellLocation.rowId) return row;
+              return {
+                ...row,
+                cells: row.cells.map((cell, cellIndex) => {
+                  if (cellIndex !== cellLocation.cellIndex) return cell;
+                  return { ...cell, resources: [...cell.resources, newBlock] };
+                }),
+              };
+          })
+        );
+        setSelectedBlockId(newBlock.id);
+        return;
+        }
+      }
+
+      // Rule B2: Dropped on an existing block - insert into target Cell's resources (vertical flow)
       // Do NOT create new Rows/Cells
       const overLocation = findBlockLocationInRows(rows, over.id as string);
       if (overLocation) {
@@ -761,6 +846,57 @@ function App() {
     // Handle moving existing blocks within rows
     const activeBlockId = active.id as string;
     const activeLocation = findBlockLocationInRows(rows, activeBlockId);
+    
+    // Check if dropping directly on a cell
+    if (typeof over.id === 'string' && over.id.startsWith('cell:')) {
+      const cellId = over.id.replace('cell:', '');
+      const cellLocation = findCellLocationInRows(rows, cellId);
+      if (cellLocation && activeLocation) {
+        // Move block to the target cell
+        const blockToMove = findBlockInRows(rows, activeBlockId);
+        if (!blockToMove) return;
+
+        // Remove from source
+        let updatedRows = rows.map((row) => {
+          if (row.id !== activeLocation.rowId) return row;
+          return {
+            ...row,
+            cells: row.cells.map((cell, cellIndex) => {
+              if (cellIndex !== activeLocation.index) return cell;
+              return {
+                ...cell,
+                resources: cell.resources.filter((resource) => {
+                  if (isBlock(resource)) {
+                    return resource.id !== activeBlockId;
+                  }
+                  return true;
+                }),
+              };
+            }),
+          };
+        });
+
+        // Add to target cell
+        updatedRows = updatedRows.map((row) => {
+          if (row.id !== cellLocation.rowId) return row;
+          return {
+            ...row,
+            cells: row.cells.map((cell, cellIndex) => {
+              if (cellIndex !== cellLocation.cellIndex) return cell;
+              return {
+                ...cell,
+                resources: [...cell.resources, blockToMove],
+              };
+            }),
+          };
+        });
+
+        setRows(cleanupEmptyCellsAndRows(updatedRows));
+        setSelectedBlockId(activeBlockId);
+        return;
+      }
+    }
+
     const overLocation = findBlockLocationInRows(rows, over.id as string);
     
     // Handle reordering within the same cell (handled by handleDragOver, but ensure it's set)
@@ -1138,7 +1274,13 @@ function App() {
               <aside className="sidebar sidebar-right">
                 <PropertiesPanel
                   selectedBlock={selectedBlock}
+                  selectedRow={selectedRowId ? rows.find(r => r.id === selectedRowId) || null : null}
                   onUpdateBlock={handleUpdateBlock}
+                  onUpdateRow={(updatedRow) => {
+                    setRows((prev) =>
+                      prev.map((row) => (row.id === updatedRow.id ? updatedRow : row))
+                    );
+                  }}
                   onDeleteBlock={handleDeleteBlock}
                 />
               </aside>

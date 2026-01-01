@@ -198,11 +198,15 @@ export function RowView({
     <>
       <div
         ref={rowRef}
-        className={`row-view ${showStructureStrokes ? 'show-strokes' : ''} ${isSelected ? 'selected' : ''}`}
+        className={`row-view ${showStructureStrokes ? 'show-strokes' : ''} ${isSelected ? 'selected' : ''} ${row.props?.isColumnsBlock ? 'columns-block-row' : ''}`}
         data-row-id={row.id}
         onClick={handleRowClick}
+        style={row.props?.isColumnsBlock ? {
+          '--column-gap': `${row.props.columnGap || 16}px`,
+          '--column-count': row.props.columns || 2,
+        } as React.CSSProperties : undefined}
       >
-        <div ref={rowCellsRef} className="row-cells">
+        <div ref={rowCellsRef} className={`row-cells ${row.props?.isColumnsBlock ? 'columns-block-cells' : ''}`}>
           {row.cells.map((cell) => (
             <CellView
               key={cell.id}
@@ -227,6 +231,7 @@ export function RowView({
               activeId={activeId}
               allBlocks={allBlocks}
               showStructureStrokes={showStructureStrokes}
+              rowId={row.id}
             />
           ))}
         </div>

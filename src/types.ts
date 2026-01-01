@@ -40,7 +40,7 @@ export interface ColumnsBlock extends BaseBlock {
   type: 'columns';
   columns: number; // 2-4
   columnGap: number; // 8-32px, default 16
-  children: Block[][]; // Array of columns, each column is an array of blocks
+  row: Row; // The row containing the cells (one cell per column)
 }
 
 export type Block = TextBlock | HeaderBlock | ImageBlock | QuizBlock | ColumnsBlock;
@@ -158,7 +158,13 @@ export function createBlock(type: BlockType): Block {
         ...base,
         columns: 2,
         columnGap: 16,
-        children: [[], []], // Two empty columns
+        row: {
+          id: nanoid(),
+          cells: [
+            { id: nanoid(), resources: [] },
+            { id: nanoid(), resources: [] },
+          ],
+        },
       };
   }
 }

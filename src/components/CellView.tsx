@@ -1,4 +1,5 @@
 import React, { useRef } from 'react';
+import { useDroppable } from '@dnd-kit/core';
 import type { Cell, Resource, Block } from '../types';
 import { isBlock, isConstructor } from '../utils/sections';
 import { RowView } from './RowView';
@@ -47,6 +48,24 @@ export function CellView({
   const cellRef = useRef<HTMLDivElement>(null);
   const cellResourcesRef = useRef<HTMLDivElement>(null);
   const isSelected = selectedCellId === cell.id;
+
+  // Make cell droppable so blocks can be dropped into it
+  const { setNodeRef: setDroppableRef, isOver } = useDroppable({
+    id: `cell:${cell.id}`,
+    data: {
+      type: 'cell',
+      cellId: cell.id,
+      rowId: rowId,
+    },
+  });
+
+  // Combine refs - use droppable ref as primary, also set cellRef
+  const combinedRef = React.useCallback((node: HTMLDivElement | null) => {
+    setDroppableRef(node);
+    if (cellRef.current !== node) {
+      cellRef.current = node;
+    }
+  }, [setDroppableRef]);
 
   const handleCellClick = (e: React.MouseEvent) => {
     // Don't allow cell selection if it's in an empty state row
@@ -109,8 +128,8 @@ export function CellView({
   return (
     <>
       <div
-        ref={cellRef}
-        className={`cell-view ${isEmptyStateRow ? 'empty-state-cell' : ''} ${showStructureStrokes && !isEmptyStateRow ? 'show-strokes' : ''} ${isSelected ? 'selected' : ''}`}
+        ref={combinedRef}
+        className={`cell-view ${isEmptyStateRow ? 'empty-state-cell' : ''} ${showStructureStrokes && !isEmptyStateRow ? 'show-strokes' : ''} ${isSelected ? 'selected' : ''} ${isOver ? 'drag-over' : ''}`}
         data-cell-id={cell.id}
         onClick={handleCellClick}
       >

@@ -1,17 +1,131 @@
-import type { Block, TextBlock, HeaderBlock, ImageBlock, QuizBlock, ColumnsBlock } from '../types';
+import type { Block, TextBlock, HeaderBlock, ImageBlock, QuizBlock, ColumnsBlock, Row } from '../types';
 import { ImageFillPanel } from './ImageFillPanel';
+import { nanoid } from 'nanoid';
 
 interface PropertiesPanelProps {
   selectedBlock: Block | null;
+  selectedRow?: Row | null;
   onUpdateBlock: (block: Block) => void;
+  onUpdateRow?: (row: Row) => void;
   onDeleteBlock: () => void;
 }
 
 export function PropertiesPanel({
   selectedBlock,
+  selectedRow,
   onUpdateBlock,
+  onUpdateRow,
   onDeleteBlock,
 }: PropertiesPanelProps) {
+  // Check if selected row is a columns block
+  const isColumnsBlockRow = selectedRow?.props?.isColumnsBlock === true;
+
+  if (!selectedBlock && !isColumnsBlockRow) {
+    return (
+      <div className="properties-panel">
+        <h2 className="properties-title">Properties</h2>
+        <div className="properties-content">
+          <p className="properties-empty">Select a block or row to edit</p>
+        </div>
+      </div>
+    );
+  }
+
+  // If columns block row is selected, show column controls
+  if (isColumnsBlockRow && selectedRow) {
+    const columns = (selectedRow.props?.columns as number) || 2;
+    const columnGap = (selectedRow.props?.columnGap as number) || 16;
+
+    const handleUpdateColumns = (updates: { columns?: number; columnGap?: number }) => {
+      if (!onUpdateRow) return;
+      
+      if (updates.columns !== undefined) {
+        const currentColumns = columns;
+        const newColumns = updates.columns;
+        
+        if (newColumns > currentColumns) {
+          // Add empty cells
+          const newCells = [...selectedRow.cells];
+          for (let i = currentColumns; i < newColumns; i++) {
+            newCells.push({ id: nanoid(), resources: [] });
+          }
+          onUpdateRow({
+            ...selectedRow,
+            cells: newCells,
+            props: {
+              ...selectedRow.props,
+              columns: newColumns,
+            },
+          });
+        } else if (newColumns < currentColumns) {
+          // Merge extra cells into the last remaining cell
+          const newCells = [...selectedRow.cells];
+          const lastCell = newCells[newColumns - 1];
+          for (let i = newColumns; i < currentColumns; i++) {
+            lastCell.resources.push(...newCells[i].resources);
+          }
+          newCells.splice(newColumns);
+          onUpdateRow({
+            ...selectedRow,
+            cells: newCells,
+            props: {
+              ...selectedRow.props,
+              columns: newColumns,
+            },
+          });
+        }
+      } else if (updates.columnGap !== undefined) {
+        onUpdateRow({
+          ...selectedRow,
+          props: {
+            ...selectedRow.props,
+            columnGap: updates.columnGap,
+          },
+        });
+      }
+    };
+
+    return (
+      <div className="properties-panel">
+        <h2 className="properties-title">Properties</h2>
+        <div className="properties-content">
+          <div className="property-group">
+            <label htmlFor="columns-count">Number of Columns</label>
+            <div className="columns-count-selector">
+              {[2, 3, 4].map((count) => (
+                <button
+                  key={count}
+                  type="button"
+                  className={`column-count-button ${columns === count ? 'active' : ''}`}
+                  onClick={() => handleUpdateColumns({ columns: count })}
+                >
+                  {count}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="property-group">
+            <label htmlFor="column-gap">
+              Column Gap: {columnGap}px
+            </label>
+            <input
+              id="column-gap"
+              type="range"
+              min="8"
+              max="32"
+              step="4"
+              value={columnGap}
+              onChange={(e) =>
+                handleUpdateColumns({ columnGap: parseInt(e.target.value, 10) })
+              }
+              className="property-range"
+            />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (!selectedBlock) {
     return (
       <div className="properties-panel">

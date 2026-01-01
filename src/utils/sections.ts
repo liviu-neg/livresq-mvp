@@ -307,11 +307,19 @@ export function findCellLocationInRows(
     if (cellIndex !== -1) {
       return { rowId: row.id, cellIndex };
     }
-    // Also check nested constructors
+    // Also check nested constructors and columns blocks
     for (const cell of row.cells) {
       for (const resource of cell.resources) {
         if (isConstructor(resource)) {
           const nested = findCellLocationInRows([resource], cellId);
+          if (nested) {
+            return nested;
+          }
+        }
+        // Check columns blocks - they have a nested row
+        if (isBlock(resource) && resource.type === 'columns') {
+          const columnsBlock = resource as import('../types').ColumnsBlock;
+          const nested = findCellLocationInRows([columnsBlock.row], cellId);
           if (nested) {
             return nested;
           }
