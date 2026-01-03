@@ -3388,6 +3388,19 @@ body {
   user-select: none;
 }
 
+/* Placeholder text for empty regular cells (after block is removed) */
+.cell-empty-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 80px;
+  height: 100%;
+  color: #F19E39;
+  font-size: 16px;
+  pointer-events: none;
+  user-select: none;
+}
+
 .cell-view {
   flex: 1;
   display: flex;
@@ -3475,6 +3488,31 @@ body {
   flex: 1; /* Stretch to fill available cell height */
   /* Remove min-height: 100% - let flexbox handle stretching */
   outline: none; /* Ensure no outline by default */
+  min-height: 80px; /* Minimum height for empty cells */
+}
+
+/* Background color for empty regular cells (when block is removed) - exclude empty state rows and columns blocks */
+.row-view:not(.columns-block-row) .cell-view:not(.empty-state-cell) .cell-resources:empty {
+  background-color: #FCEBD0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Background color when cell-resources has no resource-wrapper children (empty state for regular cells) */
+.row-view:not(.columns-block-row) .cell-view:not(.empty-state-cell) .cell-resources:not(:has(.resource-wrapper)):not(:has(.cell-empty-placeholder)) {
+  background-color: #FCEBD0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Ensure cell-resources shows background when it only contains the placeholder */
+.row-view:not(.columns-block-row) .cell-view:not(.empty-state-cell) .cell-resources:has(.cell-empty-placeholder) {
+  background-color: #FCEBD0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .resource-wrapper {

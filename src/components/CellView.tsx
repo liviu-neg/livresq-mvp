@@ -144,6 +144,11 @@ export function CellView({
             <div className="columns-block-empty-placeholder">
               Drag and drop content here
             </div>
+          ) : cell.resources.length === 0 && !isEmptyStateRow && !isColumnsBlock ? (
+            // Show placeholder text for empty regular cells (after block is removed)
+            <div className="cell-empty-placeholder">
+              Drag and drop content here
+            </div>
           ) : (
             cell.resources.map((resource) => {
               if (isBlock(resource)) {
