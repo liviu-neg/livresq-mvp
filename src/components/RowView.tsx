@@ -1,4 +1,6 @@
 import React, { useRef } from 'react';
+import { useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import type { Row, Resource, Block } from '../types';
 import { isBlock, isConstructor } from '../utils/sections';
 import { CellView } from './CellView';
@@ -26,6 +28,7 @@ interface RowViewProps {
   activeId?: string | null;
   allBlocks?: Block[];
   showStructureStrokes?: boolean;
+  isRowDragging?: boolean; // Whether row dragging is enabled
 }
 
 export function RowView({
@@ -49,11 +52,68 @@ export function RowView({
   activeId,
   allBlocks,
   showStructureStrokes = false,
+  isRowDragging = false,
 }: RowViewProps) {
   const rowRef = useRef<HTMLDivElement>(null);
   const rowCellsRef = useRef<HTMLDivElement>(null);
+  const allowDragRef = useRef(false);
   // Row is only selected if selectedRowId matches AND no block/cell is selected
   const isSelected = selectedRowId === row.id && !selectedBlockId && !selectedCellId;
+
+  // Make row draggable (always enabled, but only triggered by button)
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ 
+    id: `row:${row.id}`,
+    disabled: isPreview, // Only disable in preview mode
+    data: {
+      type: 'row',
+      rowId: row.id,
+    },
+  });
+
+  const rowStyle = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  // Create custom listeners that check if drag is allowed
+  const customListeners = React.useMemo(() => {
+    if (!listeners) return {};
+    
+    const originalOnMouseDown = listeners.onMouseDown;
+    
+    return {
+      ...listeners,
+      onMouseDown: (e: React.MouseEvent) => {
+        // Check both the ref flag and data attribute
+        const allowDrag = allowDragRef.current || 
+          (e.currentTarget as HTMLElement)?.getAttribute('data-allow-drag') === 'true';
+        
+        // Only allow drag if flag is set (button was pressed)
+        if (!allowDrag) {
+          e.preventDefault();
+          e.stopPropagation();
+          return;
+        }
+        // Reset flag and attribute
+        allowDragRef.current = false;
+        if (e.currentTarget) {
+          (e.currentTarget as HTMLElement).removeAttribute('data-allow-drag');
+        }
+        // Call original listener
+        if (originalOnMouseDown) {
+          originalOnMouseDown(e as any);
+        }
+      },
+    };
+  }, [listeners]);
 
   const handleRowClick = (e: React.MouseEvent) => {
     // Only select row if clicking directly on the row container, not on nested content
@@ -131,8 +191,33 @@ export function RowView({
   };
 
   const handleDragStart = (e: React.MouseEvent) => {
-    // TODO: Implement row drag
-    e.stopPropagation();
+    // Set flag to allow drag
+    allowDragRef.current = true;
+    // Also set a data attribute on the row element as a backup
+    if (rowRef.current) {
+      rowRef.current.setAttribute('data-allow-drag', 'true');
+    }
+    // Use setTimeout to trigger the drag after a brief moment
+    // This ensures the flag is set before the drag starts
+    setTimeout(() => {
+      if (rowRef.current && listeners?.onMouseDown) {
+        // Create a proper mouse event that dnd-kit can handle
+        const rect = rowRef.current.getBoundingClientRect();
+        const mouseEvent = new MouseEvent('mousedown', {
+          bubbles: true,
+          cancelable: true,
+          view: window,
+          detail: 1,
+          screenX: e.clientX + window.screenX,
+          screenY: e.clientY + window.screenY,
+          clientX: e.clientX,
+          clientY: e.clientY,
+          button: 0,
+          buttons: 1,
+        });
+        rowRef.current.dispatchEvent(mouseEvent);
+      }
+    }, 10);
   };
 
   // If this is an empty state row, render it with cell structure but show empty state content
@@ -140,10 +225,18 @@ export function RowView({
     return (
       <>
         <div
-          ref={rowRef}
-          className={`row-view empty-state-row-view ${showStructureStrokes ? 'show-strokes' : ''} ${isSelected ? 'selected' : ''}`}
+          ref={(node) => {
+            setNodeRef(node);
+            if (rowRef.current !== node) {
+              rowRef.current = node;
+            }
+          }}
+          style={rowStyle}
+          className={`row-view empty-state-row-view ${showStructureStrokes ? 'show-strokes' : ''} ${isSelected ? 'selected' : ''} ${isDragging ? 'dragging' : ''}`}
           data-row-id={row.id}
           onClick={handleRowClick}
+          {...attributes}
+          {...customListeners}
         >
           <div ref={rowCellsRef} className="row-cells">
             {row.cells.map((cell) => (
@@ -198,14 +291,24 @@ export function RowView({
   return (
     <>
       <div
-        ref={rowRef}
-        className={`row-view ${showStructureStrokes ? 'show-strokes' : ''} ${isSelected ? 'selected' : ''} ${row.props?.isColumnsBlock ? 'columns-block-row' : ''}`}
+        ref={(node) => {
+          setNodeRef(node);
+          if (rowRef.current !== node) {
+            rowRef.current = node;
+          }
+        }}
+        style={{
+          ...rowStyle,
+          ...(row.props?.isColumnsBlock ? {
+            '--column-gap': `${row.props.columnGap || 16}px`,
+            '--column-count': row.props.columns || 2,
+          } as React.CSSProperties : {}),
+        }}
+        className={`row-view ${showStructureStrokes ? 'show-strokes' : ''} ${isSelected ? 'selected' : ''} ${row.props?.isColumnsBlock ? 'columns-block-row' : ''} ${isDragging ? 'dragging' : ''}`}
         data-row-id={row.id}
         onClick={handleRowClick}
-        style={row.props?.isColumnsBlock ? {
-          '--column-gap': `${row.props.columnGap || 16}px`,
-          '--column-count': row.props.columns || 2,
-        } as React.CSSProperties : undefined}
+        {...attributes}
+        {...customListeners}
       >
         <div ref={rowCellsRef} className={`row-cells ${row.props?.isColumnsBlock ? 'columns-block-cells' : ''}`}>
           {row.cells.map((cell) => (

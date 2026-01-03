@@ -657,17 +657,39 @@ function App() {
 
     const activeData = active.data.current;
 
+    // Handle row reordering
+    if (typeof active.id === 'string' && active.id.startsWith('row:')) {
+      // Prevent dropping rows inside cells (nested rows)
+      if (typeof over.id === 'string' && over.id.startsWith('cell:')) {
+        return; // Don't allow row to be dropped in a cell
+      }
+      
+      // Reorder rows at top level
+      if (typeof over.id === 'string' && over.id.startsWith('row:')) {
+        const activeRowId = active.id.replace('row:', '');
+        const overRowId = over.id.replace('row:', '');
+        const activeIndex = rows.findIndex(r => r.id === activeRowId);
+        const overIndex = rows.findIndex(r => r.id === overRowId);
+        
+        if (activeIndex !== -1 && overIndex !== -1 && activeIndex !== overIndex) {
+          setRows((prev) => arrayMove(prev, activeIndex, overIndex));
+        }
+      }
+      return;
+    }
+
     // Only reorder existing blocks within the same cell (not from palette, not in columns)
     if (activeData?.source !== 'palette' && !activeData?.containerId?.startsWith('columns:')) {
-      const activeLocation = findBlockLocationInRows(rows, active.id as string);
-      const overLocation = findBlockLocationInRows(rows, over.id as string);
-      
-      // Only reorder if both blocks are in the same row and cell
-      if (activeLocation && overLocation && 
-          activeLocation.rowId === overLocation.rowId &&
-          activeLocation.cellId === overLocation.cellId) {
-        setRows((prev) =>
-          prev.map((row) => {
+      // Use functional update to get current state
+      setRows((prev) => {
+        const activeLocation = findBlockLocationInRows(prev, active.id as string);
+        const overLocation = findBlockLocationInRows(prev, over.id as string);
+        
+        // Only reorder if both blocks are in the same row and cell
+        if (activeLocation && overLocation && 
+            activeLocation.rowId === overLocation.rowId &&
+            activeLocation.cellId === overLocation.cellId) {
+          return prev.map((row) => {
             if (row.id !== activeLocation.rowId) return row;
             return {
               ...row,
@@ -690,9 +712,10 @@ function App() {
                 return { ...cell, resources: newResources };
               }),
             };
-          })
-        );
-      }
+          });
+        }
+        return prev; // No change if not same cell
+      });
     }
   };
 
@@ -727,6 +750,32 @@ function App() {
     setActiveId(null);
 
     if (!over) return;
+
+    // Handle row reordering
+    if (typeof active.id === 'string' && active.id.startsWith('row:')) {
+      // Prevent dropping rows inside cells (nested rows)
+      if (typeof over.id === 'string' && (over.id.startsWith('cell:') || over.id.startsWith('palette-'))) {
+        return; // Don't allow row to be dropped in a cell or palette
+      }
+      
+      // Reorder rows at top level
+      if (typeof over.id === 'string' && over.id.startsWith('row:')) {
+        const activeRowId = active.id.replace('row:', '');
+        const overRowId = over.id.replace('row:', '');
+        const activeIndex = rows.findIndex(r => r.id === activeRowId);
+        const overIndex = rows.findIndex(r => r.id === overRowId);
+        
+        if (activeIndex !== -1 && overIndex !== -1 && activeIndex !== overIndex) {
+          setRows((prev) => arrayMove(prev, activeIndex, overIndex));
+          // Select the moved row
+          setSelectedRowId(activeRowId);
+          setSelectedBlockId(null);
+          setSelectedCellId(null);
+          setEditingBlockId(null);
+        }
+      }
+      return;
+    }
 
     const activeData = active.data.current;
     const overData = over.data.current;
@@ -1154,11 +1203,18 @@ function App() {
     const overLocation = findBlockLocationInRows(rows, over.id as string);
     
     // Handle reordering within the same cell (handled by handleDragOver, but ensure it's set)
+    // IMPORTANT: If blocks are in the same cell, we should NOT add the block again
     if (activeLocation && overLocation && 
         activeLocation.rowId === overLocation.rowId &&
         activeLocation.cellId === overLocation.cellId) {
-      // Already handled by handleDragOver
+      // Already handled by handleDragOver - just select the block and return
+      // Do NOT add the block again as it would cause duplication
       setSelectedBlockId(activeBlockId);
+      return;
+    }
+    
+    // If overLocation is null, it means we're not dropping on a block, so don't proceed with block-to-block movement
+    if (!overLocation) {
       return;
     }
 
@@ -1277,7 +1333,7 @@ function App() {
                   resources: cell.resources
                     .filter((resource) => {
                       if (isBlock(resource)) {
-                        return resource.id !== activeId;
+                        return resource.id !== activeBlockId;
                       }
                       if (isConstructor(resource)) {
                         return true; // Keep constructor, will filter inside
@@ -1304,7 +1360,7 @@ function App() {
                 ...cell,
                 resources: cell.resources.filter((resource) => {
                   if (isBlock(resource)) {
-                    return resource.id !== activeId;
+                    return resource.id !== activeBlockId;
                   }
                   if (isConstructor(resource)) {
                     // Recursively remove from nested constructors
@@ -1334,8 +1390,23 @@ function App() {
       rowsAfterRemove = cleanupEmptyCellsAndRows(rowsAfterRemove);
 
       // Add to destination
-      setRows(
-        rowsAfterRemove.map((row) => {
+      // IMPORTANT: Check if block is already in the destination to prevent duplication
+      setRows((prev) => {
+        // Check if block already exists in destination (shouldn't happen, but safety check)
+        const blockAlreadyExists = prev.some(row => 
+          row.id === overLocation.rowId && 
+          row.cells.some(cell => 
+            cell.id === overLocation.cellId && 
+            cell.resources.some(r => isBlock(r) && r.id === activeBlockId)
+          )
+        );
+        
+        if (blockAlreadyExists) {
+          // Block already in destination, don't add again
+          return prev;
+        }
+        
+        return rowsAfterRemove.map((row) => {
           if (row.id !== overLocation.rowId) return row;
           return {
             ...row,
@@ -1346,8 +1417,8 @@ function App() {
               return { ...cell, resources: newResources };
             }),
           };
-        })
-      );
+        });
+      });
       
       setSelectedBlockId(activeBlockId);
       return;

@@ -212,7 +212,8 @@ export function RowToolbar({
             type="button"
             className="row-toolbar-button row-toolbar-drag"
             onMouseDown={(e) => {
-              e.stopPropagation();
+              // Don't stop propagation - let it bubble to row element
+              // Just call onDragStart to set the flag
               onDragStart(e);
             }}
             aria-label="Drag"
