@@ -112,31 +112,39 @@ export function RichTextEditor({ content, isEditable, onUpdate, onBlur, defaultF
   React.useEffect(() => {
     if (isEditable && editor) {
       setTimeout(() => {
+        const docSize = editor.state.doc.content.size;
+        
         // Apply default font size if specified and not already set
-        if (defaultFontSize) {
-          const docSize = editor.state.doc.content.size;
-          if (docSize > 0) {
-            // Check if any text has a fontSize mark
-            let hasFontSizeMark = false;
-            editor.state.doc.nodesBetween(0, docSize, (node) => {
-              if (node.isText && node.marks.some(mark => mark.type.name === 'textStyle' && mark.attrs.fontSize)) {
-                hasFontSizeMark = true;
-                return false;
-              }
-            });
-            
-            // Apply default font size if no fontSize mark exists
-            if (!hasFontSizeMark) {
-              const { from, to } = editor.state.selection;
-              editor.chain()
-                .setTextSelection({ from: 0, to: docSize })
-                .setFontSize(defaultFontSize)
-                .setTextSelection({ from, to })
-                .run();
+        if (defaultFontSize && docSize > 0) {
+          // Check if any text has a fontSize mark
+          let hasFontSizeMark = false;
+          editor.state.doc.nodesBetween(0, docSize, (node) => {
+            if (node.isText && node.marks.some(mark => mark.type.name === 'textStyle' && mark.attrs.fontSize)) {
+              hasFontSizeMark = true;
+              return false;
             }
+          });
+          
+          // Apply default font size if no fontSize mark exists
+          if (!hasFontSizeMark) {
+            const { from, to } = editor.state.selection;
+            editor.chain()
+              .setTextSelection({ from: 0, to: docSize })
+              .setFontSize(defaultFontSize)
+              .setTextSelection({ from, to })
+              .run();
           }
         }
-        editor.commands.focus('end');
+        
+        // Select all text when entering edit mode
+        if (docSize > 0) {
+          editor.chain()
+            .setTextSelection({ from: 0, to: docSize })
+            .focus()
+            .run();
+        } else {
+          editor.commands.focus('end');
+        }
       }, 0);
     }
   }, [isEditable, editor, defaultFontSize]);

@@ -251,7 +251,7 @@ export function PropertiesPanel({
             <div className="property-group">
               <label htmlFor="columns-count">Number of Columns</label>
               <div className="columns-count-selector">
-                {[2, 3, 4].map((count) => (
+                {[1, 2, 3, 4].map((count) => (
                   <button
                     key={count}
                     type="button"
@@ -262,21 +262,41 @@ export function PropertiesPanel({
                       const newColumns = count;
                       
                       if (newColumns > currentColumns) {
-                        // Add empty columns
-                        const newChildren = [...columnsBlock.children];
+                        // Add empty cells (columns)
+                        const newCells = [...columnsBlock.row.cells];
                         for (let i = currentColumns; i < newColumns; i++) {
-                          newChildren.push([]);
+                          newCells.push({ id: crypto.randomUUID(), resources: [] });
                         }
-                        handleUpdate({ columns: newColumns, children: newChildren } as Partial<ColumnsBlock>);
+                        handleUpdate({
+                          columns: newColumns,
+                          row: {
+                            ...columnsBlock.row,
+                            cells: newCells,
+                            props: {
+                              ...columnsBlock.row.props,
+                              columns: newColumns,
+                            },
+                          },
+                        } as Partial<ColumnsBlock>);
                       } else if (newColumns < currentColumns) {
-                        // Merge extra columns into the last remaining column
-                        const newChildren = [...columnsBlock.children];
-                        const lastColumn = newChildren[newColumns - 1];
+                        // Merge extra cells into the last remaining cell
+                        const newCells = [...columnsBlock.row.cells];
+                        const lastCell = newCells[newColumns - 1];
                         for (let i = newColumns; i < currentColumns; i++) {
-                          lastColumn.push(...newChildren[i]);
+                          lastCell.resources.push(...newCells[i].resources);
                         }
-                        newChildren.splice(newColumns);
-                        handleUpdate({ columns: newColumns, children: newChildren } as Partial<ColumnsBlock>);
+                        newCells.splice(newColumns);
+                        handleUpdate({
+                          columns: newColumns,
+                          row: {
+                            ...columnsBlock.row,
+                            cells: newCells,
+                            props: {
+                              ...columnsBlock.row.props,
+                              columns: newColumns,
+                            },
+                          },
+                        } as Partial<ColumnsBlock>);
                       }
                     }}
                   >
@@ -299,6 +319,13 @@ export function PropertiesPanel({
                 onChange={(e) =>
                   handleUpdate({
                     columnGap: parseInt(e.target.value, 10),
+                    row: {
+                      ...(selectedBlock as ColumnsBlock).row,
+                      props: {
+                        ...(selectedBlock as ColumnsBlock).row.props,
+                        columnGap: parseInt(e.target.value, 10),
+                      },
+                    },
                   } as Partial<ColumnsBlock>)
                 }
                 className="property-range"

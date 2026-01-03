@@ -122,6 +122,60 @@ export interface TwoColumnSection extends BaseSection {
 
 export type Section = SimpleSection | TwoColumnSection;
 
+/**
+ * Section Template - defines a reusable section that can be placed on canvas
+ * A section is a Row with one Cell containing multiple Blocks
+ */
+export interface SectionTemplate {
+  id: string;
+  name: string;
+  description?: string;
+  blocks: BlockType[]; // Array of block types that make up this section
+  createSection: () => Row; // Function to create a Row with Cell containing the blocks
+}
+
+/**
+ * Create predefined section templates
+ */
+export function createSectionTemplate(
+  id: string,
+  name: string,
+  blockTypes: BlockType[]
+): SectionTemplate {
+  return {
+    id,
+    name,
+    blocks: blockTypes,
+    createSection: () => {
+      const rowId = nanoid();
+      const cellId = nanoid();
+      const resources: Resource[] = blockTypes.map((blockType) => createBlock(blockType));
+      
+      return {
+        id: rowId,
+        cells: [
+          {
+            id: cellId,
+            resources,
+          },
+        ],
+      };
+    },
+  };
+}
+
+/**
+ * Get all predefined section templates
+ */
+export function getPredefinedSections(): SectionTemplate[] {
+  return [
+    createSectionTemplate('header-text', 'Header + Text', ['header', 'text']),
+    createSectionTemplate('header-image', 'Header + Image', ['header', 'image']),
+    createSectionTemplate('header-quiz', 'Header + Quiz', ['header', 'quiz']),
+    createSectionTemplate('header-text-columns', 'Header + Text + Columns', ['header', 'text', 'columns']),
+  ];
+}
+
 export function createBlock(type: BlockType): Block {
   const id = nanoid();
   const base: BaseBlock = { id, type, title: 'Untitled' };

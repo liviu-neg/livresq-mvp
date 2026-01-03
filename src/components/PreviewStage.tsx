@@ -1,19 +1,22 @@
 import { useRef, useEffect, useState } from 'react';
 import type { DeviceType } from './PreviewToolbar';
 import { deviceConfigs } from './PreviewToolbar';
-import type { Block } from '../types';
+import type { Block, Resource, Row } from '../types';
 import { TextBlockView } from './TextBlockView';
 import { ImageBlockView } from './ImageBlockView';
 import { QuizBlockView } from './QuizBlockView';
 import { ColumnsBlockView } from './ColumnsBlockView';
+import { RowView } from './RowView';
+import { isBlock } from '../utils/sections';
 
 interface PreviewStageProps {
-  blocks: Block[];
+  blocks?: Block[]; // For backward compatibility
+  rows?: Row[]; // New: Use rows for proper structure
   deviceType: DeviceType;
   deviceConfig: typeof deviceConfigs[DeviceType];
 }
 
-export function PreviewStage({ blocks, deviceType, deviceConfig }: PreviewStageProps) {
+export function PreviewStage({ blocks, rows, deviceType, deviceConfig }: PreviewStageProps) {
   const stageRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(1);
 
@@ -55,11 +58,130 @@ export function PreviewStage({ blocks, deviceType, deviceConfig }: PreviewStageP
         }}
       >
         <div className="preview-content-wrapper" style={{ width: `${deviceConfig.width}px` }}>
-          {blocks.length === 0 ? (
-            <div className="preview-empty-state">
-              <p>No content to preview</p>
+          {rows && rows.length > 0 ? (
+            <div className="preview-lesson-content">
+              {rows.map((row) => (
+                <RowView
+                  key={row.id}
+                  row={row}
+                  selectedBlockId={null}
+                  selectedCellId={null}
+                  selectedRowId={null}
+                  editingBlockId={null}
+                  isPreview={true}
+                  onSelectBlock={() => {}}
+                  onSelectCell={() => {}}
+                  onSelectRow={() => {}}
+                  onEditBlock={() => {}}
+                  onUpdateBlock={() => {}}
+                  onDeleteCell={() => {}}
+                  onDuplicateCell={() => {}}
+                  onDeleteRow={() => {}}
+                  onDuplicateRow={() => {}}
+                  onAddEmptyStateRow={() => {}}
+                  renderResource={(resource) => {
+                    if (isBlock(resource)) {
+                      switch (resource.type) {
+                        case 'text':
+                        case 'header':
+                          return (
+                            <TextBlockView
+                              block={resource}
+                              isSelected={false}
+                              isEditing={false}
+                              isPreview={true}
+                              onUpdate={() => {}}
+                            />
+                          );
+                        case 'image':
+                          return (
+                            <ImageBlockView
+                              block={resource}
+                              isSelected={false}
+                              isPreview={true}
+                              onUpdate={() => {}}
+                            />
+                          );
+                        case 'quiz':
+                          return (
+                            <QuizBlockView
+                              block={resource}
+                              isSelected={false}
+                              isEditing={false}
+                              isPreview={true}
+                              onUpdate={() => {}}
+                            />
+                          );
+                        case 'columns':
+                          return (
+                            <ColumnsBlockView
+                              block={resource}
+                              isSelected={false}
+                              isPreview={true}
+                              selectedBlockId={null}
+                              selectedCellId={null}
+                              editingBlockId={null}
+                              onSelectBlock={() => {}}
+                              onSelectCell={() => {}}
+                              onEditBlock={() => {}}
+                              onUpdateBlock={() => {}}
+                              renderResource={(nestedResource) => {
+                                if (isBlock(nestedResource)) {
+                                  switch (nestedResource.type) {
+                                    case 'text':
+                                    case 'header':
+                                      return (
+                                        <TextBlockView
+                                          block={nestedResource}
+                                          isSelected={false}
+                                          isEditing={false}
+                                          isPreview={true}
+                                          onUpdate={() => {}}
+                                        />
+                                      );
+                                    case 'image':
+                                      return (
+                                        <ImageBlockView
+                                          block={nestedResource}
+                                          isSelected={false}
+                                          isPreview={true}
+                                          onUpdate={() => {}}
+                                        />
+                                      );
+                                    case 'quiz':
+                                      return (
+                                        <QuizBlockView
+                                          block={nestedResource}
+                                          isSelected={false}
+                                          isEditing={false}
+                                          isPreview={true}
+                                          onUpdate={() => {}}
+                                        />
+                                      );
+                                    default:
+                                      return null;
+                                  }
+                                }
+                                return null;
+                              }}
+                              activeId={undefined}
+                              allBlocks={[]}
+                              showStructureStrokes={false}
+                            />
+                          );
+                        default:
+                          return null;
+                      }
+                    }
+                    return null;
+                  }}
+                  activeId={undefined}
+                  allBlocks={[]}
+                  showStructureStrokes={false}
+                />
+              ))}
             </div>
-          ) : (
+          ) : blocks && blocks.length > 0 ? (
             <div className="preview-lesson-content">
               {blocks.map((block) => {
                 switch (block.type) {
@@ -103,18 +225,64 @@ export function PreviewStage({ blocks, deviceType, deviceConfig }: PreviewStageP
                         isSelected={false}
                         isPreview={true}
                         selectedBlockId={null}
+                        selectedCellId={null}
                         editingBlockId={null}
                         onSelectBlock={() => {}}
+                        onSelectCell={() => {}}
                         onEditBlock={() => {}}
                         onUpdateBlock={() => {}}
-                        onUpdateColumnsBlock={() => {}}
+                        renderResource={(resource) => {
+                          if (isBlock(resource)) {
+                            switch (resource.type) {
+                              case 'text':
+                              case 'header':
+                                return (
+                                  <TextBlockView
+                                    block={resource}
+                                    isSelected={false}
+                                    isEditing={false}
+                                    isPreview={true}
+                                    onUpdate={() => {}}
+                                  />
+                                );
+                              case 'image':
+                                return (
+                                  <ImageBlockView
+                                    block={resource}
+                                    isSelected={false}
+                                    isPreview={true}
+                                    onUpdate={() => {}}
+                                  />
+                                );
+                              case 'quiz':
+                                return (
+                                  <QuizBlockView
+                                    block={resource}
+                                    isSelected={false}
+                                    isEditing={false}
+                                    isPreview={true}
+                                    onUpdate={() => {}}
+                                  />
+                                );
+                              default:
+                                return null;
+                            }
+                          }
+                          return null;
+                        }}
                         activeId={undefined}
+                        allBlocks={blocks}
+                        showStructureStrokes={false}
                       />
                     );
                   default:
                     return null;
                 }
               })}
+            </div>
+          ) : (
+            <div className="preview-empty-state">
+              <p>No content to preview</p>
             </div>
           )}
         </div>

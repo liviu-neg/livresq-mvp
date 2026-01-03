@@ -23,8 +23,8 @@ import { PreviewToolbar, deviceConfigs } from './components/PreviewToolbar';
 import { PreviewStage } from './components/PreviewStage';
 import { ImageFillModal } from './components/ImageFillModal';
 import type { DeviceType } from './components/PreviewToolbar';
-import type { Block, BlockType, ColumnsBlock, Row, Cell, Resource } from './types';
-import { createBlock } from './types';
+import type { Block, BlockType, ColumnsBlock, Row, Cell, Resource, SectionTemplate } from './types';
+import { createBlock, getPredefinedSections } from './types';
 import { 
   extractBlocksFromSections, 
   findBlockInSections, 
@@ -389,7 +389,7 @@ function App() {
         }
         // For constructors, recursively duplicate
         if (isConstructor(resource)) {
-          return {
+            return {
             ...resource,
             id: crypto.randomUUID(),
             cells: resource.cells.map((cell) => ({
@@ -541,6 +541,39 @@ function App() {
         rowElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
       }
     }, 100);
+  };
+
+  const handleInsertSection = (section: SectionTemplate) => {
+    // Create a row with one cell containing all the section's blocks
+    const newRow = section.createSection();
+
+    // If a Row is selected OR if a block is selected (use its parent row), insert new row below it
+    const rowIdForInsertion = selectedRowId || getSelectedBlockRowId();
+    if (rowIdForInsertion) {
+      const selectedRowIndex = rows.findIndex(r => r.id === rowIdForInsertion);
+      if (selectedRowIndex !== -1) {
+        setRows((prev) => {
+          const newRows = [...prev];
+          newRows.splice(selectedRowIndex + 1, 0, newRow);
+          return newRows;
+        });
+        
+        // Select the row and clear all other selections
+        setSelectedRowId(newRow.id);
+        setSelectedBlockId(null);
+        setSelectedCellId(null);
+        setEditingBlockId(null);
+        return;
+      }
+    }
+
+    // If no rows exist or no row is selected, append at the end
+    setRows((prev) => [...prev, newRow]);
+    // Select the row and clear all other selections
+    setSelectedRowId(newRow.id);
+    setSelectedBlockId(null);
+    setSelectedCellId(null);
+    setEditingBlockId(null);
   };
 
   const handleInsertBlock = (blockType: BlockType) => {
@@ -698,6 +731,147 @@ function App() {
     const activeData = active.data.current;
     const overData = over.data.current;
 
+    // Handle dropping sections from palette
+    if (activeData?.source === 'palette-section') {
+      const sectionId = activeData.sectionId as string;
+      const sections = getPredefinedSections();
+      const section = sections.find(s => s.id === sectionId);
+      
+      if (section) {
+        const newRow = section.createSection();
+        
+        // Rule A: Dropped outside any existing Section/Cell
+        if (over.id === 'empty-canvas') {
+          setRows([newRow]);
+          setSelectedRowId(newRow.id);
+          setSelectedBlockId(null);
+          setSelectedCellId(null);
+          setEditingBlockId(null);
+          return;
+        }
+
+        // Rule B1: Dropped directly on a cell - append to cell's resources
+        if (typeof over.id === 'string' && over.id.startsWith('cell:')) {
+          const cellId = over.id.replace('cell:', '');
+          const cellLocation = findCellLocationInRows(rows, cellId);
+          if (cellLocation) {
+            // Helper function to recursively update nested rows (including columns blocks)
+            const updateCellInRows = (rowsToUpdate: Row[]): Row[] => {
+              return rowsToUpdate.map((row) => {
+                if (row.id === cellLocation.rowId) {
+                  // Found the target row
+                  return {
+                    ...row,
+                    cells: row.cells.map((cell, cellIndex) => {
+                      if (cellIndex === cellLocation.cellIndex) {
+                        return { ...cell, resources: [...cell.resources, ...newRow.cells[0].resources] };
+                      }
+                      return cell;
+                    }),
+                  };
+                }
+                // Check nested resources (columns blocks and constructors)
+                return {
+                  ...row,
+                  cells: row.cells.map((cell) => ({
+                    ...cell,
+                    resources: cell.resources.map((resource) => {
+                      if (isBlock(resource) && resource.type === 'columns') {
+                        const columnsBlock = resource as ColumnsBlock;
+                        const nestedLocation = findCellLocationInRows([columnsBlock.row], cellId);
+                        if (nestedLocation) {
+                          // Update the nested columns block's row
+                          const updatedRow = {
+                            ...columnsBlock.row,
+                            cells: columnsBlock.row.cells.map((cell, cellIndex) => {
+                              if (cellIndex === nestedLocation.cellIndex) {
+                                return { ...cell, resources: [...cell.resources, ...newRow.cells[0].resources] };
+                              }
+                              return cell;
+                            }),
+                          };
+                          return {
+                            ...columnsBlock,
+                            row: updatedRow,
+                          };
+                        }
+                      } else if (isConstructor(resource)) {
+                        // Recursively check nested constructors
+                        const nestedRows = updateCellInRows([resource]);
+                        return nestedRows[0] || resource;
+                      }
+                      return resource;
+                    }),
+                  })),
+                };
+              });
+            };
+
+            setRows((prev) => updateCellInRows(prev));
+            setSelectedRowId(cellLocation.rowId);
+            setSelectedBlockId(null);
+            setSelectedCellId(null);
+            setEditingBlockId(null);
+            return;
+          }
+        }
+
+        // Rule B2: Dropped on an existing block - insert into target Cell's resources
+        const overLocation = findBlockLocationInRows(rows, over.id as string);
+        if (overLocation) {
+          setRows((prev) =>
+            prev.map((row) => {
+              if (row.id !== overLocation.rowId) return row;
+              return {
+                ...row,
+                cells: row.cells.map((cell) => {
+                  if (cell.id !== overLocation.cellId) return cell;
+                  const newResources = [...cell.resources];
+                  newResources.splice(overLocation.index, 0, ...newRow.cells[0].resources);
+                  return { ...cell, resources: newResources };
+                }),
+              };
+            })
+          );
+          setSelectedRowId(overLocation.rowId);
+          setSelectedBlockId(null);
+          setSelectedCellId(null);
+          setEditingBlockId(null);
+          return;
+        }
+
+        // Fallback: append to last row's first cell or create new row
+        if (rows.length > 0 && rows[rows.length - 1].cells.length > 0) {
+          setRows((prev) =>
+            prev.map((row, index) => {
+              if (index === prev.length - 1 && row.cells.length > 0) {
+                return {
+                  ...row,
+                  cells: row.cells.map((cell, cellIndex) => {
+                    if (cellIndex === 0) {
+                      return {
+                        ...cell,
+                        resources: [...cell.resources, ...newRow.cells[0].resources],
+                      };
+                    }
+                    return cell;
+                  }),
+                };
+              }
+              return row;
+            })
+          );
+        } else {
+          setRows((prev) => [...prev, newRow]);
+        }
+        setSelectedRowId(newRow.id);
+        setSelectedBlockId(null);
+        setSelectedCellId(null);
+        setEditingBlockId(null);
+        return;
+      }
+    }
+
     // Handle dropping from palette
     if (activeData?.source === 'palette') {
       const blockType = activeData.type as BlockType;
@@ -813,20 +987,61 @@ function App() {
         const cellId = over.id.replace('cell:', '');
         const cellLocation = findCellLocationInRows(rows, cellId);
         if (cellLocation) {
-          setRows((prev) =>
-            prev.map((row) => {
-              if (row.id !== cellLocation.rowId) return row;
+          // Helper function to recursively update nested rows (including columns blocks)
+          const updateCellInRows = (rowsToUpdate: Row[]): Row[] => {
+            return rowsToUpdate.map((row) => {
+              if (row.id === cellLocation.rowId) {
+                // Found the target row
+                return {
+                  ...row,
+                  cells: row.cells.map((cell, cellIndex) => {
+                    if (cellIndex === cellLocation.cellIndex) {
+                      return { ...cell, resources: [...cell.resources, newBlock] };
+                    }
+                    return cell;
+                  }),
+                };
+              }
+              // Check nested resources (columns blocks and constructors)
               return {
                 ...row,
-                cells: row.cells.map((cell, cellIndex) => {
-                  if (cellIndex !== cellLocation.cellIndex) return cell;
-                  return { ...cell, resources: [...cell.resources, newBlock] };
-                }),
+                cells: row.cells.map((cell) => ({
+                  ...cell,
+                  resources: cell.resources.map((resource) => {
+                    if (isBlock(resource) && resource.type === 'columns') {
+                      const columnsBlock = resource as ColumnsBlock;
+                      const nestedLocation = findCellLocationInRows([columnsBlock.row], cellId);
+                      if (nestedLocation) {
+                        // Update the nested columns block's row
+                        const updatedRow = {
+                          ...columnsBlock.row,
+                          cells: columnsBlock.row.cells.map((cell, cellIndex) => {
+                            if (cellIndex === nestedLocation.cellIndex) {
+                              return { ...cell, resources: [...cell.resources, newBlock] };
+                            }
+                            return cell;
+                          }),
+                        };
+                        return {
+                          ...columnsBlock,
+                          row: updatedRow,
+                        };
+                      }
+                    } else if (isConstructor(resource)) {
+                      // Recursively check nested constructors
+                      const nestedRows = updateCellInRows([resource]);
+                      return nestedRows[0] || resource;
+                    }
+                    return resource;
+                  }),
+                })),
               };
-          })
-        );
-        setSelectedBlockId(newBlock.id);
-        return;
+            });
+          };
+
+          setRows((prev) => updateCellInRows(prev));
+          setSelectedBlockId(newBlock.id);
+          return;
         }
       }
 
@@ -1255,6 +1470,7 @@ function App() {
             />
             <div className="preview-container">
               <PreviewStage
+                rows={rows}
                 blocks={blocks}
                 deviceType={selectedDevice}
                 deviceConfig={deviceConfigs[selectedDevice]}
@@ -1273,7 +1489,7 @@ function App() {
             />
             <div className="app-content">
               <aside className="sidebar sidebar-left">
-                <BlocksPalette onInsertBlock={handleInsertBlock} />
+                <BlocksPalette onInsertBlock={handleInsertBlock} onInsertSection={handleInsertSection} />
               </aside>
               <main className={`main-content${!isRightSidebarOpen ? ' main-content-full' : ''}`}>
                 <LessonCanvas

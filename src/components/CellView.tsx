@@ -152,8 +152,9 @@ export function CellView({
           ) : (
             cell.resources.map((resource) => {
               if (isBlock(resource)) {
+                const isColumnsBlock = resource.type === 'columns';
                 return (
-                  <div key={resource.id} className="resource-wrapper">
+                  <div key={resource.id} className={`resource-wrapper ${isColumnsBlock ? 'resource-wrapper-columns' : ''}`}>
                     {renderResource(resource)}
                   </div>
                 );

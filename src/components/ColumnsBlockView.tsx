@@ -69,10 +69,22 @@ export function ColumnsBlockView({
     // This maintains the column structure
   };
 
+  // Ensure the row has the correct props for columns block styling and behavior
+  const rowWithProps = {
+    ...block.row,
+    props: {
+      ...block.row.props,
+      isColumnsBlock: true,
+      columns: block.columns,
+      columnGap: block.columnGap,
+      blockId: block.id, // Store the block ID for reference
+    },
+  };
+
   // Render directly as RowView - no wrapper divs
   return (
     <RowView
-      row={block.row}
+      row={rowWithProps}
       selectedBlockId={selectedBlockId}
       selectedCellId={selectedCellId}
       selectedRowId={null} // Don't allow row selection inside columns block
