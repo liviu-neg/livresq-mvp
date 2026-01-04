@@ -657,27 +657,6 @@ function App() {
 
     const activeData = active.data.current;
 
-    // Handle row reordering
-    if (typeof active.id === 'string' && active.id.startsWith('row:')) {
-      // Prevent dropping rows inside cells (nested rows)
-      if (typeof over.id === 'string' && over.id.startsWith('cell:')) {
-        return; // Don't allow row to be dropped in a cell
-      }
-      
-      // Reorder rows at top level
-      if (typeof over.id === 'string' && over.id.startsWith('row:')) {
-        const activeRowId = active.id.replace('row:', '');
-        const overRowId = over.id.replace('row:', '');
-        const activeIndex = rows.findIndex(r => r.id === activeRowId);
-        const overIndex = rows.findIndex(r => r.id === overRowId);
-        
-        if (activeIndex !== -1 && overIndex !== -1 && activeIndex !== overIndex) {
-          setRows((prev) => arrayMove(prev, activeIndex, overIndex));
-        }
-      }
-      return;
-    }
-
     // Only reorder existing blocks within the same cell (not from palette, not in columns)
     if (activeData?.source !== 'palette' && !activeData?.containerId?.startsWith('columns:')) {
       // Use functional update to get current state
@@ -750,32 +729,6 @@ function App() {
     setActiveId(null);
 
     if (!over) return;
-
-    // Handle row reordering
-    if (typeof active.id === 'string' && active.id.startsWith('row:')) {
-      // Prevent dropping rows inside cells (nested rows)
-      if (typeof over.id === 'string' && (over.id.startsWith('cell:') || over.id.startsWith('palette-'))) {
-        return; // Don't allow row to be dropped in a cell or palette
-      }
-      
-      // Reorder rows at top level
-      if (typeof over.id === 'string' && over.id.startsWith('row:')) {
-        const activeRowId = active.id.replace('row:', '');
-        const overRowId = over.id.replace('row:', '');
-        const activeIndex = rows.findIndex(r => r.id === activeRowId);
-        const overIndex = rows.findIndex(r => r.id === overRowId);
-        
-        if (activeIndex !== -1 && overIndex !== -1 && activeIndex !== overIndex) {
-          setRows((prev) => arrayMove(prev, activeIndex, overIndex));
-          // Select the moved row
-          setSelectedRowId(activeRowId);
-          setSelectedBlockId(null);
-          setSelectedCellId(null);
-          setEditingBlockId(null);
-        }
-      }
-      return;
-    }
 
     const activeData = active.data.current;
     const overData = over.data.current;

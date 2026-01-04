@@ -1730,14 +1730,16 @@ body {
   align-items: center;
   gap: 0;
   background: white;
-  border-radius: 4px;
+  border-radius: 6px;
+  border-bottom-left-radius: 6px;
+  border-bottom-right-radius: 0px;
   padding: 0;
   box-shadow: 0 10px 10px 0 rgba(0, 0, 0, 0.15);
   border: 3px solid #326CF6;
   z-index: 1000;
   position: fixed;
   pointer-events: auto;
-  height: 50px;
+  height: 54px;
   min-width: fit-content;
 }
 
@@ -1845,7 +1847,7 @@ body {
   background: #326CF6;
   color: white;
   padding: 0 12px;
-  height: 44px;
+  height: 48px;
   width: auto;
   min-width: 54px;
   border-radius: 0;

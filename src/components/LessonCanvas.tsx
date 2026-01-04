@@ -457,12 +457,6 @@ export function LessonCanvas({
         cell.resources.filter(isBlock).map(r => (r as Block).id)
       )
     );
-    
-    // Get all row IDs for row dragging
-    const allRowIds = rows.map(row => `row:${row.id}`);
-    
-    // Combine block IDs and row IDs for SortableContext
-    const allSortableIds = [...allBlockIds, ...allRowIds];
 
     return (
       <>
@@ -474,7 +468,7 @@ export function LessonCanvas({
           }}
         >
           <SortableContext
-            items={allSortableIds}
+            items={allBlockIds}
             strategy={verticalListSortingStrategy}
           >
                     {rows.map((row) => (
@@ -500,7 +494,6 @@ export function LessonCanvas({
                         activeId={activeId}
                         allBlocks={allBlocksList}
                         showStructureStrokes={showStructureStrokes}
-                        isRowDragging={true} // Always enable row dragging (button triggers it)
                       />
                     ))}
           </SortableContext>
@@ -508,31 +501,7 @@ export function LessonCanvas({
         {activeId && (
           <DragOverlay>
           <div className="drag-overlay">
-            {activeId.startsWith('row:') ? (
-              // Row dragging preview
-              (() => {
-                const rowId = activeId.replace('row:', '');
-                const row = rows.find(r => r.id === rowId);
-                if (!row) return null;
-                return (
-                  <div className="row-view dragging" style={{ opacity: 0.8 }}>
-                    <div className="row-cells">
-                      {row.cells.map((cell) => (
-                        <div key={cell.id} className="cell-view">
-                          <div className="cell-resources">
-                            {cell.resources.length > 0 ? (
-                              <div style={{ padding: '8px', color: '#666' }}>Row content...</div>
-                            ) : (
-                              <div style={{ padding: '8px', color: '#999' }}>Empty row</div>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                );
-              })()
-            ) : activeId.startsWith('palette-') ? (
+            {activeId.startsWith('palette-') ? (
               <div className="palette-block dragging">
                 {activeId === 'palette-text' && '📝 Text'}
                 {activeId === 'palette-header' && '📝 Header'}
