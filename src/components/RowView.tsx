@@ -42,6 +42,7 @@ export function RowView({
   onUpdateBlock,
   onDeleteCell,
   onDuplicateCell,
+  onEditCell,
   onDeleteRow,
   onDuplicateRow,
   onAddEmptyStateRow,
@@ -228,6 +229,7 @@ export function RowView({
               onUpdateBlock={onUpdateBlock}
               onDeleteCell={onDeleteCell}
               onDuplicateCell={onDuplicateCell}
+              onEditCell={onEditCell}
               renderResource={renderResource}
               activeId={activeId}
               allBlocks={allBlocks}

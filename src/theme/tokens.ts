@@ -54,6 +54,22 @@ export interface ShadowTokens {
   subtle: string;
 }
 
+export interface CellPaddingDefaults {
+  uniform?: number;
+  top?: number;
+  right?: number;
+  bottom?: number;
+  left?: number;
+  mode?: 'uniform' | 'individual';
+}
+
+export interface CellBackgroundDefaults {
+  backgroundColor?: string; // Default background color for cells
+  backgroundColorOpacity?: number; // Default opacity for background color (0-1)
+  backgroundImage?: string; // Default background image URL for cells
+  backgroundImageOpacity?: number; // Default opacity for background image (0-1)
+}
+
 export interface Theme {
   name: string;
   colors: ColorTokens;
@@ -61,6 +77,8 @@ export interface Theme {
   spacing: SpacingTokens;
   radius: RadiusTokens;
   shadow: ShadowTokens;
+  cellPadding?: CellPaddingDefaults; // Default cell padding for this theme
+  cellBackground?: CellBackgroundDefaults; // Default cell background for this theme
 }
 
 /**
@@ -110,6 +128,16 @@ export const plainTheme: Theme = {
   shadow: {
     subtle: '0 1px 3px rgba(0, 0, 0, 0.1)',
   },
+  cellPadding: {
+    mode: 'uniform',
+    uniform: 0,
+  },
+  cellBackground: {
+    backgroundColor: '#ffffff',
+    backgroundColorOpacity: 1,
+    backgroundImage: undefined,
+    backgroundImageOpacity: 1,
+  },
 };
 
 /**
@@ -158,6 +186,14 @@ export const neonTheme: Theme = {
   },
   shadow: {
     subtle: '0 4px 12px rgba(0, 0, 0, 0.4)',
+  },
+  cellPadding: {
+    mode: 'uniform',
+    uniform: 0,
+  },
+  cellBackground: {
+    backgroundColor: '#1a1a2e',
+    backgroundImage: undefined,
   },
 };
 

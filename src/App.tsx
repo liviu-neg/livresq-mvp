@@ -354,6 +354,41 @@ function App() {
     setSelectedCellId(null);
   };
 
+  const handleEditCell = () => {
+    if (!selectedCellId) return;
+    setIsRightSidebarOpen(true);
+    // Cell is already selected via selectedCellId, PropertiesPanel will find it
+  };
+
+  const handleUpdateCell = (updatedCell: Cell) => {
+    setRows((prev) => {
+      const updateCellInRow = (row: Row): Row => {
+        // Check if this row contains the cell
+        const cellIndex = row.cells.findIndex(c => c.id === updatedCell.id);
+        if (cellIndex !== -1) {
+          return {
+            ...row,
+            cells: row.cells.map((cell, idx) => idx === cellIndex ? updatedCell : cell),
+          };
+        }
+        // Recursively check nested constructors
+        return {
+          ...row,
+          cells: row.cells.map((cell) => ({
+            ...cell,
+            resources: cell.resources.map((resource) => {
+              if (isConstructor(resource)) {
+                return updateCellInRow(resource);
+              }
+              return resource;
+            }),
+          })),
+        };
+      };
+      return prev.map(updateCellInRow);
+    });
+  };
+
   const handleDuplicateCell = () => {
     if (!selectedCellId) return;
     
@@ -665,7 +700,7 @@ function App() {
         const overLocation = findBlockLocationInRows(prev, over.id as string);
         
         // Only reorder if both blocks are in the same row and cell
-        if (activeLocation && overLocation && 
+      if (activeLocation && overLocation && 
             activeLocation.rowId === overLocation.rowId &&
             activeLocation.cellId === overLocation.cellId) {
           return prev.map((row) => {
@@ -1117,8 +1152,8 @@ function App() {
           if (row.id !== activeLocation.rowId) return row;
           return {
             ...row,
-            cells: row.cells.map((cell, cellIndex) => {
-              if (cellIndex !== activeLocation.index) return cell;
+            cells: row.cells.map((cell) => {
+              if (cell.id !== activeLocation.cellId) return cell;
               return {
                 ...cell,
                 resources: cell.resources.filter((resource) => {
@@ -1165,7 +1200,7 @@ function App() {
       setSelectedBlockId(activeBlockId);
       return;
     }
-    
+
     // If overLocation is null, it means we're not dropping on a block, so don't proceed with block-to-block movement
     if (!overLocation) {
       return;
@@ -1540,6 +1575,7 @@ function App() {
                   onDuplicateBlock={handleDuplicateBlock}
                   onDeleteCell={handleDeleteCell}
                   onDuplicateCell={handleDuplicateCell}
+                  onEditCell={handleEditCell}
                   onDeleteRow={handleDeleteRow}
                   onDuplicateRow={handleDuplicateRow}
                   onAddEmptyStateRow={handleAddEmptyStateRow}
@@ -1554,12 +1590,14 @@ function App() {
                 <PropertiesPanel
                   selectedBlock={selectedBlock}
                   selectedRow={selectedRowId ? rows.find(r => r.id === selectedRowId) || null : null}
+                  selectedCell={selectedCellId ? findCellInRows(rows, selectedCellId) : null}
                   onUpdateBlock={handleUpdateBlock}
                   onUpdateRow={(updatedRow) => {
                     setRows((prev) =>
                       prev.map((row) => (row.id === updatedRow.id ? updatedRow : row))
                     );
                   }}
+                  onUpdateCell={handleUpdateCell}
                   onDeleteBlock={handleDeleteBlock}
                 />
               </aside>

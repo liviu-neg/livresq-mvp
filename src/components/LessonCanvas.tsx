@@ -40,6 +40,7 @@ interface LessonCanvasProps {
   onDuplicateBlock: () => void;
   onDeleteCell?: () => void;
   onDuplicateCell?: () => void;
+  onEditCell?: () => void;
   onDeleteRow?: () => void;
   onDuplicateRow?: () => void;
   onAddEmptyStateRow?: () => void;
@@ -319,6 +320,7 @@ function SortableBlockItem({
         setNodeRef(node);
         blockContainerRef.current = node;
       }}
+      data-block-id={block.id}
       style={style}
       className={`canvas-block ${isSelected ? 'selected' : ''} ${
         isEditing ? 'editing' : ''
@@ -386,6 +388,7 @@ export function LessonCanvas({
   onDuplicateBlock,
   onDeleteCell,
   onDuplicateCell,
+  onEditCell,
   onDeleteRow,
   onDuplicateRow,
   onAddEmptyStateRow,
@@ -487,6 +490,7 @@ export function LessonCanvas({
                         onUpdateBlock={onUpdateBlock}
                         onDeleteCell={onDeleteCell}
                         onDuplicateCell={onDuplicateCell}
+                        onEditCell={onEditCell}
                         onDeleteRow={onDeleteRow}
                         onDuplicateRow={onDuplicateRow}
                         onAddEmptyStateRow={onAddEmptyStateRow}

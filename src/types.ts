@@ -76,6 +76,22 @@ export type Resource = Block | Constructor;
 export interface Cell {
   id: string;
   resources: Resource[]; // Vertical stack of resources
+  props?: {
+    verticalAlign?: 'top' | 'middle' | 'bottom'; // Vertical alignment of content
+    padding?: {
+      uniform?: number; // Uniform padding (all sides same)
+      top?: number;
+      right?: number;
+      bottom?: number;
+      left?: number;
+      mode?: 'uniform' | 'individual'; // Padding mode
+    };
+    backgroundColor?: string; // Background color for the cell
+    backgroundColorOpacity?: number; // Opacity for background color (0-1)
+    backgroundImage?: string; // Background image URL for the cell
+    backgroundImageOpacity?: number; // Opacity for background image (0-1)
+    [key: string]: unknown;
+  };
 }
 
 /**

@@ -33,9 +33,17 @@ const MoreOptionsIcon = () => (
   </svg>
 );
 
+// Speech icon component - 32x32px icon for the "Add speech" button
+const SpeechIcon = () => (
+  <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M26 23V25H6V23H26Z" fill="currentColor"/>
+    <path d="M16 17C18.0277 17 19.7951 18.221 20.5635 20H23C23.5523 20 24 19.5523 24 19V10C24 9.44772 23.5523 9 23 9H9C8.44772 9 8 9.44772 8 10V19C8 19.5523 8.44772 20 9 20H11.4365C12.2049 18.221 13.9723 17 16 17ZM16 19C15.122 19 14.3273 19.3847 13.7803 20H18.2197C17.6727 19.3847 16.878 19 16 19ZM17 13C17 12.4477 16.5523 12 16 12C15.4477 12 15 12.4477 15 13C15 13.5523 15.4477 14 16 14C16.5523 14 17 13.5523 17 13ZM19 13C19 14.6569 17.6569 16 16 16C14.3431 16 13 14.6569 13 13C13 11.3431 14.3431 10 16 10C17.6569 10 19 11.3431 19 13ZM26 19C26 20.6569 24.6569 22 23 22H9C7.34315 22 6 20.6569 6 19V10C6 8.34315 7.34315 7 9 7H23C24.6569 7 26 8.34315 26 10V19Z" fill="currentColor"/>
+  </svg>
+);
+
 interface BlockToolbarProps {
   blockContainerRef: React.RefObject<HTMLElement>;
-  blockType: 'text' | 'header' | 'image';
+  blockType: 'text' | 'header' | 'image' | 'quiz';
   onDelete: () => void;
   onDuplicate: () => void;
   onDragStart: (e: React.MouseEvent) => void;
@@ -215,6 +223,21 @@ export function BlockToolbar({
       onClick={(e) => e.stopPropagation()}
       onMouseDown={(e) => e.stopPropagation()}
     >
+        {/* Add speech button - currently non-functional, placeholder for future speech feature */}
+        <button
+          type="button"
+          className="block-toolbar-button block-toolbar-speech-button"
+          onClick={(e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            // TODO: Implement speech functionality
+          }}
+          aria-label="Add speech"
+        >
+          <SpeechIcon />
+          <span className="block-toolbar-speech-text">Add speech</span>
+        </button>
+        <div className="block-toolbar-divider"></div>
         <button
           type="button"
           className="block-toolbar-button"

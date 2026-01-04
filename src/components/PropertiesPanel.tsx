@@ -1,24 +1,423 @@
-import type { Block, TextBlock, HeaderBlock, ImageBlock, QuizBlock, ColumnsBlock, Row } from '../types';
+import type { Block, TextBlock, HeaderBlock, ImageBlock, QuizBlock, ColumnsBlock, Row, Cell } from '../types';
 import { ImageFillPanel } from './ImageFillPanel';
 import { nanoid } from 'nanoid';
+import { useTheme } from '../theme/ThemeProvider';
 
 interface PropertiesPanelProps {
   selectedBlock: Block | null;
   selectedRow?: Row | null;
+  selectedCell?: Cell | null;
   onUpdateBlock: (block: Block) => void;
   onUpdateRow?: (row: Row) => void;
+  onUpdateCell?: (cell: Cell) => void;
   onDeleteBlock: () => void;
 }
 
 export function PropertiesPanel({
   selectedBlock,
   selectedRow,
+  selectedCell,
   onUpdateBlock,
   onUpdateRow,
+  onUpdateCell,
   onDeleteBlock,
 }: PropertiesPanelProps) {
   // Check if selected row is a columns block
   const isColumnsBlockRow = selectedRow?.props?.isColumnsBlock === true;
+
+  // If cell is selected, show cell properties
+  if (selectedCell && !selectedBlock && !isColumnsBlockRow) {
+    const theme = useTheme();
+    const defaultPadding = theme.cellPadding || { mode: 'uniform', uniform: 0 };
+    const defaultBackground = theme.cellBackground || { backgroundColor: '#ffffff', backgroundColorOpacity: 1, backgroundImage: undefined, backgroundImageOpacity: 1 };
+    
+    const verticalAlign = selectedCell.props?.verticalAlign || 'top';
+    const padding = selectedCell.props?.padding || defaultPadding;
+    const backgroundColor = selectedCell.props?.backgroundColor ?? defaultBackground.backgroundColor;
+    const backgroundColorOpacity = selectedCell.props?.backgroundColorOpacity ?? defaultBackground.backgroundColorOpacity ?? 1;
+    const backgroundImage = selectedCell.props?.backgroundImage ?? defaultBackground.backgroundImage;
+    const backgroundImageOpacity = selectedCell.props?.backgroundImageOpacity ?? defaultBackground.backgroundImageOpacity ?? 1;
+    const paddingMode = padding.mode || defaultPadding.mode || 'uniform';
+    const uniformPadding = padding.uniform ?? defaultPadding.uniform ?? 0;
+    const topPadding = padding.top ?? defaultPadding.top ?? 0;
+    const rightPadding = padding.right ?? defaultPadding.right ?? 0;
+    const bottomPadding = padding.bottom ?? defaultPadding.bottom ?? 0;
+    const leftPadding = padding.left ?? defaultPadding.left ?? 0;
+
+    const handleUpdateCell = (updates: Partial<Cell>) => {
+      if (!onUpdateCell) return;
+      onUpdateCell({
+        ...selectedCell,
+        ...updates,
+        props: {
+          ...selectedCell.props,
+          ...(updates.props || {}),
+        },
+      });
+    };
+
+    const handlePaddingModeChange = (mode: 'uniform' | 'individual') => {
+      handleUpdateCell({
+        props: {
+          ...selectedCell.props,
+          padding: {
+            ...padding,
+            mode,
+            // When switching to uniform, use the first individual value or 0
+            uniform: mode === 'uniform' ? (topPadding || 0) : padding.uniform,
+          },
+        },
+      });
+    };
+
+    const handleUniformPaddingChange = (value: number) => {
+      handleUpdateCell({
+        props: {
+          ...selectedCell.props,
+          padding: {
+            ...padding,
+            uniform: value,
+            mode: 'uniform',
+          },
+        },
+      });
+    };
+
+    const handleIndividualPaddingChange = (side: 'top' | 'right' | 'bottom' | 'left', value: number) => {
+      handleUpdateCell({
+        props: {
+          ...selectedCell.props,
+          padding: {
+            ...padding,
+            [side]: value,
+            mode: 'individual',
+          },
+        },
+      });
+    };
+
+    const handleResetPadding = () => {
+      handleUpdateCell({
+        props: {
+          ...selectedCell.props,
+          padding: defaultPadding,
+        },
+      });
+    };
+
+    const handleBackgroundColorChange = (value: string) => {
+      handleUpdateCell({
+        props: {
+          ...selectedCell.props,
+          backgroundColor: value || undefined,
+        },
+      });
+    };
+
+    const handleBackgroundColorOpacityChange = (value: number) => {
+      handleUpdateCell({
+        props: {
+          ...selectedCell.props,
+          backgroundColorOpacity: value,
+        },
+      });
+    };
+
+    const handleBackgroundImageChange = (value: string) => {
+      handleUpdateCell({
+        props: {
+          ...selectedCell.props,
+          backgroundImage: value || undefined,
+        },
+      });
+    };
+
+    const handleBackgroundImageOpacityChange = (value: number) => {
+      handleUpdateCell({
+        props: {
+          ...selectedCell.props,
+          backgroundImageOpacity: value,
+        },
+      });
+    };
+
+    const handleResetBackground = () => {
+      handleUpdateCell({
+        props: {
+          ...selectedCell.props,
+          backgroundColor: defaultBackground.backgroundColor,
+          backgroundColorOpacity: defaultBackground.backgroundColorOpacity,
+          backgroundImage: defaultBackground.backgroundImage,
+          backgroundImageOpacity: defaultBackground.backgroundImageOpacity,
+        },
+      });
+    };
+
+    return (
+      <div className="properties-panel">
+        <h2 className="properties-title">Properties</h2>
+        <div className="properties-content">
+          <div className="property-group">
+            <label htmlFor="cell-vertical-align">Vertical Align</label>
+            <div className="vertical-align-selector">
+              {(['top', 'middle', 'bottom'] as const).map((align) => (
+                <button
+                  key={align}
+                  type="button"
+                  className={`vertical-align-button ${verticalAlign === align ? 'active' : ''}`}
+                  onClick={() => handleUpdateCell({
+                    props: {
+                      ...selectedCell.props,
+                      verticalAlign: align,
+                    },
+                  })}
+                >
+                  {align === 'top' && 'Top'}
+                  {align === 'middle' && 'Middle'}
+                  {align === 'bottom' && 'Bottom'}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="property-group">
+            <div className="property-label-with-icon">
+              <span className="property-icon">+</span>
+              <label htmlFor="cell-padding">Padding</label>
+              <button
+                type="button"
+                className="property-reset-button"
+                onClick={handleResetPadding}
+                aria-label="Reset to default"
+                title="Reset to theme default"
+              >
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                  <path d="M2 8a6 6 0 0 1 6-6v2M14 8a6 6 0 0 1-6 6v-2M8 2L6 4M8 14l2-2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </button>
+            </div>
+            <div className="padding-controls">
+              <div className="padding-top-row">
+                {paddingMode === 'uniform' ? (
+                  <>
+                    <input
+                      id="cell-padding-uniform"
+                      type="number"
+                      min="0"
+                      value={uniformPadding}
+                      onChange={(e) => handleUniformPaddingChange(parseInt(e.target.value, 10) || 0)}
+                      className="property-input padding-input"
+                    />
+                    <div className="padding-mode-toggle">
+                      <button
+                        type="button"
+                        className={`padding-mode-button ${paddingMode === 'uniform' ? 'active' : ''}`}
+                        onClick={() => handlePaddingModeChange('uniform')}
+                        aria-label="Uniform padding"
+                      >
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                          <rect x="3" y="3" width="10" height="10" stroke="currentColor" strokeWidth="1.5" fill="none"/>
+                        </svg>
+                      </button>
+                      <button
+                        type="button"
+                        className={`padding-mode-button ${paddingMode === 'individual' ? 'active' : ''}`}
+                        onClick={() => handlePaddingModeChange('individual')}
+                        aria-label="Individual padding"
+                      >
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                          <path d="M3 3h10v10H3z" stroke="currentColor" strokeWidth="1.5" fill="none" strokeDasharray="2 2"/>
+                          <path d="M8 3v10M3 8h10" stroke="currentColor" strokeWidth="1" strokeDasharray="1 1"/>
+                        </svg>
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <input
+                      type="number"
+                      min="0"
+                      value=""
+                      readOnly
+                      className="property-input padding-input"
+                      style={{ opacity: 0.5, pointerEvents: 'none' }}
+                    />
+                    <input
+                      type="number"
+                      min="0"
+                      value="0"
+                      readOnly
+                      className="property-input padding-input"
+                      style={{ opacity: 0.5, pointerEvents: 'none' }}
+                    />
+                    <div className="padding-mode-toggle">
+                      <button
+                        type="button"
+                        className={`padding-mode-button ${paddingMode === 'uniform' ? 'active' : ''}`}
+                        onClick={() => handlePaddingModeChange('uniform')}
+                        aria-label="Uniform padding"
+                      >
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                          <rect x="3" y="3" width="10" height="10" stroke="currentColor" strokeWidth="1.5" fill="none"/>
+                        </svg>
+                      </button>
+                      <button
+                        type="button"
+                        className={`padding-mode-button ${paddingMode === 'individual' ? 'active' : ''}`}
+                        onClick={() => handlePaddingModeChange('individual')}
+                        aria-label="Individual padding"
+                      >
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                          <path d="M3 3h10v10H3z" stroke="currentColor" strokeWidth="1.5" fill="none" strokeDasharray="2 2"/>
+                          <path d="M8 3v10M3 8h10" stroke="currentColor" strokeWidth="1" strokeDasharray="1 1"/>
+                        </svg>
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+              {paddingMode === 'individual' && (
+                <div className="padding-individual-row">
+                  <div className="padding-input-group">
+                    <input
+                      id="cell-padding-top"
+                      type="number"
+                      min="0"
+                      value={topPadding}
+                      onChange={(e) => handleIndividualPaddingChange('top', parseInt(e.target.value, 10) || 0)}
+                      className="property-input padding-input"
+                    />
+                    <label htmlFor="cell-padding-top" className="padding-label">T</label>
+                  </div>
+                  <div className="padding-input-group">
+                    <input
+                      id="cell-padding-right"
+                      type="number"
+                      min="0"
+                      value={rightPadding}
+                      onChange={(e) => handleIndividualPaddingChange('right', parseInt(e.target.value, 10) || 0)}
+                      className="property-input padding-input"
+                    />
+                    <label htmlFor="cell-padding-right" className="padding-label">R</label>
+                  </div>
+                  <div className="padding-input-group">
+                    <input
+                      id="cell-padding-bottom"
+                      type="number"
+                      min="0"
+                      value={bottomPadding}
+                      onChange={(e) => handleIndividualPaddingChange('bottom', parseInt(e.target.value, 10) || 0)}
+                      className="property-input padding-input"
+                    />
+                    <label htmlFor="cell-padding-bottom" className="padding-label">B</label>
+                  </div>
+                  <div className="padding-input-group">
+                    <input
+                      id="cell-padding-left"
+                      type="number"
+                      min="0"
+                      value={leftPadding}
+                      onChange={(e) => handleIndividualPaddingChange('left', parseInt(e.target.value, 10) || 0)}
+                      className="property-input padding-input"
+                    />
+                    <label htmlFor="cell-padding-left" className="padding-label">L</label>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+          <div className="property-group">
+            <div className="property-label-with-icon">
+              <span className="property-icon">+</span>
+              <label htmlFor="cell-background">Background</label>
+              <button
+                type="button"
+                className="property-reset-button"
+                onClick={handleResetBackground}
+                aria-label="Reset to default"
+                title="Reset to theme default"
+              >
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                  <path d="M2 8a6 6 0 0 1 6-6v2M14 8a6 6 0 0 1-6 6v-2M8 2L6 4M8 14l2-2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </button>
+            </div>
+            <div className="background-controls">
+              <div className="property-group">
+                <label htmlFor="cell-background-color">Background Color</label>
+                <div className="color-input-wrapper">
+                  <input
+                    id="cell-background-color"
+                    type="color"
+                    value={backgroundColor || '#ffffff'}
+                    onChange={(e) => handleBackgroundColorChange(e.target.value)}
+                    className="property-color-input"
+                  />
+                  <input
+                    type="text"
+                    value={backgroundColor || ''}
+                    onChange={(e) => handleBackgroundColorChange(e.target.value)}
+                    className="property-input color-text-input"
+                    placeholder="#ffffff"
+                  />
+                </div>
+                <div className="opacity-control">
+                  <label htmlFor="cell-background-color-opacity">Opacity: {Math.round(backgroundColorOpacity * 100)}%</label>
+                  <input
+                    id="cell-background-color-opacity"
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.01"
+                    value={backgroundColorOpacity}
+                    onChange={(e) => handleBackgroundColorOpacityChange(parseFloat(e.target.value))}
+                    className="property-range opacity-range"
+                  />
+                </div>
+              </div>
+              <div className="property-group">
+                <label htmlFor="cell-background-image">Background Image URL</label>
+                <input
+                  id="cell-background-image"
+                  type="text"
+                  value={backgroundImage || ''}
+                  onChange={(e) => handleBackgroundImageChange(e.target.value)}
+                  className="property-input"
+                  placeholder="https://example.com/image.jpg"
+                />
+                {backgroundImage && (
+                  <>
+                    <div className="background-image-preview">
+                      <img
+                        src={backgroundImage}
+                        alt="Background preview"
+                        className="background-preview-img"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).style.display = 'none';
+                        }}
+                      />
+                    </div>
+                    <div className="opacity-control">
+                      <label htmlFor="cell-background-image-opacity">Opacity: {Math.round(backgroundImageOpacity * 100)}%</label>
+                      <input
+                        id="cell-background-image-opacity"
+                        type="range"
+                        min="0"
+                        max="1"
+                        step="0.01"
+                        value={backgroundImageOpacity}
+                        onChange={(e) => handleBackgroundImageOpacityChange(parseFloat(e.target.value))}
+                        className="property-range opacity-range"
+                      />
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (!selectedBlock && !isColumnsBlockRow) {
     return (

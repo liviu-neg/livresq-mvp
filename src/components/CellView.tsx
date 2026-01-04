@@ -18,6 +18,7 @@ interface CellViewProps {
   onUpdateBlock: (block: Block) => void;
   onDeleteCell?: () => void;
   onDuplicateCell?: () => void;
+  onEditCell?: () => void; // Open properties panel for cell
   renderResource: (resource: Resource) => React.ReactNode;
   activeId?: string | null;
   allBlocks?: Block[];
@@ -39,6 +40,7 @@ export function CellView({
   onUpdateBlock,
   onDeleteCell,
   onDuplicateCell,
+  onEditCell,
   renderResource,
   activeId,
   allBlocks,
@@ -134,8 +136,60 @@ export function CellView({
         className={`cell-view ${isEmptyStateRow ? 'empty-state-cell' : ''} ${showStructureStrokes && !isEmptyStateRow ? 'show-strokes' : ''} ${isSelected ? 'selected' : ''} ${isOver ? 'drag-over' : ''}`}
         data-cell-id={cell.id}
         onClick={handleCellClick}
+        style={{
+          position: 'relative',
+        }}
       >
-        <div ref={cellResourcesRef} className="cell-resources">
+        {cell.props?.backgroundColor && (
+          <div 
+            className="cell-background-color-layer"
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: cell.props.backgroundColor,
+              opacity: cell.props?.backgroundColorOpacity !== undefined ? cell.props.backgroundColorOpacity : 1,
+              zIndex: 0,
+              pointerEvents: 'none',
+            }}
+          />
+        )}
+        {cell.props?.backgroundImage && (
+          <div 
+            className="cell-background-image-layer"
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundImage: `url(${cell.props.backgroundImage})`,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+              backgroundRepeat: 'no-repeat',
+              opacity: cell.props?.backgroundImageOpacity !== undefined ? cell.props.backgroundImageOpacity : 1,
+              zIndex: 1,
+              pointerEvents: 'none',
+            }}
+          />
+        )}
+        <div 
+          ref={cellResourcesRef} 
+          className="cell-resources"
+          data-vertical-align={cell.props?.verticalAlign || 'top'}
+          style={{
+            padding: cell.props?.padding?.mode === 'uniform' 
+              ? `${cell.props.padding.uniform || 0}px`
+              : cell.props?.padding?.mode === 'individual'
+              ? `${cell.props.padding.top || 0}px ${cell.props.padding.right || 0}px ${cell.props.padding.bottom || 0}px ${cell.props.padding.left || 0}px`
+              : undefined,
+            position: 'relative',
+            zIndex: 2,
+            backgroundColor: 'transparent', // Ensure content area is transparent so backgrounds show through
+          }}
+        >
           {cell.resources.length === 0 && isEmptyStateRow && rowId ? (
             // Show empty state UI when cell is empty and it's an empty state row
             <EmptyStateRow rowId={rowId} />
@@ -198,6 +252,7 @@ export function CellView({
           onDelete={onDeleteCell}
           onDuplicate={onDuplicateCell}
           onDragStart={handleDragStart}
+          onEdit={onEditCell}
         />
       )}
     </>
