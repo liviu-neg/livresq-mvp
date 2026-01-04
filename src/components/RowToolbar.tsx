@@ -26,11 +26,19 @@ const MoreOptionsIcon = () => (
   </svg>
 );
 
+// Edit icon component - same as CellToolbar, used for opening row properties panel
+const EditIcon = () => (
+  <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" width="24" height="24" className="c-bxOhME c-bxOhME-dvzWZT-size-medium">
+    <path fill="currentColor" fillRule="evenodd" d="M13.98 2.84a3 3 0 0 1 4.164-.405l1.876 1.5a3 3 0 0 1 .416 4.28L10.582 19.86l-.266.088-6 2-1.302-1.112 1-6 .045-.271 9.92-11.725ZM5.94 15.436l-.681 4.09 4.158-1.386 6.48-7.66-3.406-2.787-6.55 7.743Zm10.954-11.44a1 1 0 0 0-1.387.135l-1.724 2.036 3.406 2.787 1.72-2.03a1 1 0 0 0-.14-1.427l-1.874-1.5Z" clipRule="evenodd"></path>
+  </svg>
+);
+
 interface RowToolbarProps {
   rowContainerRef: React.RefObject<HTMLElement>;
   onDelete: () => void;
   onDuplicate: () => void;
   onDragStart: (e: React.MouseEvent) => void;
+  onEdit?: () => void; // Open properties panel for row
   isEmptyState?: boolean; // If true, only show delete button
   isEmptyColumnsBlock?: boolean; // If true, only show delete and ellipsis buttons (for empty columns blocks)
 }
@@ -40,6 +48,7 @@ export function RowToolbar({
   onDelete,
   onDuplicate,
   onDragStart,
+  onEdit,
   isEmptyState = false,
   isEmptyColumnsBlock = false,
 }: RowToolbarProps) {
@@ -182,6 +191,23 @@ export function RowToolbar({
       onClick={(e) => e.stopPropagation()}
       onMouseDown={(e) => e.stopPropagation()}
     >
+      {/* Edit button - opens properties panel for row (only shown for regular rows, not empty state or columns blocks) */}
+      {onEdit && !isEmptyState && !isEmptyColumnsBlock && (
+        <>
+          <button
+            type="button"
+            className="row-toolbar-button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onEdit();
+            }}
+            aria-label="Edit"
+          >
+            <EditIcon />
+          </button>
+          <div className="row-toolbar-divider"></div>
+        </>
+      )}
       <button
         type="button"
         className="row-toolbar-button"

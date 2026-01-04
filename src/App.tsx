@@ -360,6 +360,14 @@ function App() {
     // Cell is already selected via selectedCellId, PropertiesPanel will find it
   };
 
+  // Handle row edit - opens properties panel for row editing
+  // Similar to handleEditCell, but for row-level properties
+  const handleEditRow = () => {
+    if (!selectedRowId) return;
+    setIsRightSidebarOpen(true);
+    // Row is already selected via selectedRowId, PropertiesPanel will find it
+  };
+
   const handleUpdateCell = (updatedCell: Cell) => {
     setRows((prev) => {
       const updateCellInRow = (row: Row): Row => {
@@ -1576,6 +1584,7 @@ function App() {
                   onDeleteCell={handleDeleteCell}
                   onDuplicateCell={handleDuplicateCell}
                   onEditCell={handleEditCell}
+                  onEditRow={handleEditRow}
                   onDeleteRow={handleDeleteRow}
                   onDuplicateRow={handleDuplicateRow}
                   onAddEmptyStateRow={handleAddEmptyStateRow}

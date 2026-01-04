@@ -2469,6 +2469,40 @@ body {
   justify-content: flex-end;
 }
 
+/* Row vertical alignment */
+.row-cells[data-vertical-align="top"] {
+  align-items: flex-start;
+}
+
+.row-cells[data-vertical-align="middle"] {
+  align-items: center;
+}
+
+.row-cells[data-vertical-align="bottom"] {
+  align-items: flex-end;
+}
+
+/* Row background layers */
+.row-background-color-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.row-background-image-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1;
+  pointer-events: none;
+}
+
 /* Padding controls for cells */
 .property-label-with-icon {
   display: flex;

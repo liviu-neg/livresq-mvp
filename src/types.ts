@@ -96,11 +96,30 @@ export interface Cell {
 
 /**
  * Row contains Cells that flow horizontally
+ * Row properties mirror cell properties for consistency:
+ * - verticalAlign: Controls vertical alignment of cells within the row
+ * - padding: Uniform or individual padding for the row
+ * - backgroundColor/backgroundImage: Background styling with opacity support
  */
 export interface Row {
   id: string;
   cells: Cell[]; // Horizontal flow of cells
-  props?: Record<string, unknown>; // Future: row-specific props (padding, background, etc.)
+  props?: {
+    verticalAlign?: 'top' | 'middle' | 'bottom'; // Vertical alignment of content
+    padding?: {
+      uniform?: number; // Uniform padding (all sides same)
+      top?: number;
+      right?: number;
+      bottom?: number;
+      left?: number;
+      mode?: 'uniform' | 'individual'; // Padding mode
+    };
+    backgroundColor?: string; // Background color for the row
+    backgroundColorOpacity?: number; // Opacity for background color (0-1)
+    backgroundImage?: string; // Background image URL for the row
+    backgroundImageOpacity?: number; // Opacity for background image (0-1)
+    [key: string]: unknown;
+  };
   isEmptyState?: boolean; // True if this is an empty state row (for adding new sections)
 }
 

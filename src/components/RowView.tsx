@@ -19,8 +19,10 @@ interface RowViewProps {
   onUpdateBlock: (block: Block) => void;
   onDeleteCell?: () => void;
   onDuplicateCell?: () => void;
+  onEditCell?: () => void; // Open properties panel for cell
   onDeleteRow?: () => void;
   onDuplicateRow?: () => void;
+  onEditRow?: () => void; // Open properties panel for row
   onAddEmptyStateRow?: () => void;
   renderResource: (resource: Resource) => React.ReactNode;
   activeId?: string | null;
@@ -45,6 +47,7 @@ export function RowView({
   onEditCell,
   onDeleteRow,
   onDuplicateRow,
+  onEditRow,
   onAddEmptyStateRow,
   renderResource,
   activeId,
@@ -203,12 +206,68 @@ export function RowView({
         className={`row-view ${showStructureStrokes ? 'show-strokes' : ''} ${isSelected ? 'selected' : ''} ${row.props?.isColumnsBlock ? 'columns-block-row' : ''}`}
         data-row-id={row.id}
         onClick={handleRowClick}
-        style={row.props?.isColumnsBlock ? {
-          '--column-gap': `${row.props.columnGap || 16}px`,
-          '--column-count': row.props.columns || 2,
-        } as React.CSSProperties : undefined}
+        style={{
+          ...(row.props?.isColumnsBlock ? {
+            '--column-gap': `${row.props.columnGap || 16}px`,
+            '--column-count': row.props.columns || 2,
+          } as React.CSSProperties : {}),
+          position: 'relative',
+        }}
       >
-        <div ref={rowCellsRef} className={`row-cells ${row.props?.isColumnsBlock ? 'columns-block-cells' : ''}`}>
+        {/* Row background layers - separate layers for color and image to allow independent opacity control */}
+        {/* Background color layer (z-index: 0) */}
+        {row.props?.backgroundColor && (
+          <div 
+            className="row-background-color-layer"
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: row.props.backgroundColor,
+              opacity: row.props.backgroundColorOpacity ?? 1,
+              zIndex: 0,
+              pointerEvents: 'none',
+            }}
+          />
+        )}
+        {/* Background image layer (z-index: 1, above color layer) */}
+        {row.props?.backgroundImage && (
+          <div 
+            className="row-background-image-layer"
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundImage: `url(${row.props.backgroundImage})`,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+              backgroundRepeat: 'no-repeat',
+              opacity: row.props.backgroundImageOpacity ?? 1,
+              zIndex: 1,
+              pointerEvents: 'none',
+            }}
+          />
+        )}
+        {/* Row cells container - applies padding and vertical alignment from row props */}
+        {/* z-index: 2 ensures content appears above background layers */}
+        <div 
+          ref={rowCellsRef} 
+          className={`row-cells ${row.props?.isColumnsBlock ? 'columns-block-cells' : ''}`}
+          data-vertical-align={row.props?.verticalAlign || 'top'}
+          style={{
+            padding: row.props?.padding?.mode === 'uniform' 
+              ? `${row.props.padding.uniform || 0}px`
+              : row.props?.padding?.mode === 'individual'
+              ? `${row.props.padding.top || 0}px ${row.props.padding.right || 0}px ${row.props.padding.bottom || 0}px ${row.props.padding.left || 0}px`
+              : undefined,
+            position: 'relative',
+            zIndex: 2,
+          }}
+        >
           {row.cells.map((cell) => (
             <CellView
               key={cell.id}
@@ -267,13 +326,14 @@ export function RowView({
        !editingBlockId && // Don't show row toolbar if a block is being edited
        onDeleteRow && 
        onDuplicateRow && (
-        <RowToolbar
-          rowContainerRef={rowRef}
-          onDelete={onDeleteRow}
-          onDuplicate={onDuplicateRow}
-          onDragStart={handleDragStart}
-          isEmptyColumnsBlock={row.props?.isColumnsBlock === true && row.cells.every(cell => cell.resources.length === 0)}
-        />
+          <RowToolbar
+            rowContainerRef={rowRef}
+            onDelete={onDeleteRow}
+            onDuplicate={onDuplicateRow}
+            onDragStart={handleDragStart}
+            onEdit={onEditRow}
+            isEmptyColumnsBlock={row.props?.isColumnsBlock === true && row.cells.every(cell => cell.resources.length === 0)}
+          />
       )}
     </>
   );

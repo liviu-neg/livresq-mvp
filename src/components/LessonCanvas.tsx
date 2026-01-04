@@ -41,6 +41,7 @@ interface LessonCanvasProps {
   onDeleteCell?: () => void;
   onDuplicateCell?: () => void;
   onEditCell?: () => void;
+  onEditRow?: () => void;
   onDeleteRow?: () => void;
   onDuplicateRow?: () => void;
   onAddEmptyStateRow?: () => void;
@@ -389,6 +390,7 @@ export function LessonCanvas({
   onDeleteCell,
   onDuplicateCell,
   onEditCell,
+  onEditRow,
   onDeleteRow,
   onDuplicateRow,
   onAddEmptyStateRow,
@@ -491,6 +493,7 @@ export function LessonCanvas({
                         onDeleteCell={onDeleteCell}
                         onDuplicateCell={onDuplicateCell}
                         onEditCell={onEditCell}
+                        onEditRow={onEditRow}
                         onDeleteRow={onDeleteRow}
                         onDuplicateRow={onDuplicateRow}
                         onAddEmptyStateRow={onAddEmptyStateRow}

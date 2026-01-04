@@ -70,6 +70,26 @@ export interface CellBackgroundDefaults {
   backgroundImageOpacity?: number; // Default opacity for background image (0-1)
 }
 
+// Row property defaults - theme-level configuration for row padding
+// Mirrors CellPaddingDefaults structure for consistency
+export interface RowPaddingDefaults {
+  uniform?: number;
+  top?: number;
+  right?: number;
+  bottom?: number;
+  left?: number;
+  mode?: 'uniform' | 'individual';
+}
+
+// Row property defaults - theme-level configuration for row background
+// Mirrors CellBackgroundDefaults structure for consistency
+export interface RowBackgroundDefaults {
+  backgroundColor?: string; // Default background color for rows
+  backgroundColorOpacity?: number; // Default opacity for background color (0-1)
+  backgroundImage?: string; // Default background image URL for rows
+  backgroundImageOpacity?: number; // Default opacity for background image (0-1)
+}
+
 export interface Theme {
   name: string;
   colors: ColorTokens;
@@ -138,6 +158,16 @@ export const plainTheme: Theme = {
     backgroundImage: undefined,
     backgroundImageOpacity: 1,
   },
+  rowPadding: {
+    mode: 'uniform',
+    uniform: 0,
+  },
+  rowBackground: {
+    backgroundColor: '#ffffff',
+    backgroundColorOpacity: 1,
+    backgroundImage: undefined,
+    backgroundImageOpacity: 1,
+  },
 };
 
 /**
@@ -194,6 +224,16 @@ export const neonTheme: Theme = {
   cellBackground: {
     backgroundColor: '#1a1a2e',
     backgroundImage: undefined,
+  },
+  rowPadding: {
+    mode: 'uniform',
+    uniform: 0,
+  },
+  rowBackground: {
+    backgroundColor: '#1a1a2e',
+    backgroundColorOpacity: 1,
+    backgroundImage: undefined,
+    backgroundImageOpacity: 1,
   },
 };
 
