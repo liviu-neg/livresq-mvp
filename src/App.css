@@ -2250,7 +2250,7 @@ body {
   overflow-x: hidden;
   overflow-y: auto;
   box-sizing: border-box;
-  /* Hide scrollbar but keep scroll functionality */
+  /* Hide scrollbar but keep scroll functionality - cross-browser support */
   scrollbar-width: none; /* Firefox */
   -ms-overflow-style: none; /* IE and Edge */
 }
@@ -2734,7 +2734,7 @@ body {
 
 .border-radius-top-row {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: wrap; /* Allow mode toggle buttons to wrap to second line if needed */
   gap: 8px;
   align-items: center;
   width: 100%;
@@ -2744,11 +2744,11 @@ body {
 
 .border-radius-top-row > input {
   flex: 1;
-  min-width: 80px;
+  min-width: 80px; /* Ensure input doesn't get too small */
 }
 
 .border-radius-top-row > .border-radius-mode-toggle {
-  flex-shrink: 0;
+  flex-shrink: 0; /* Prevent mode toggle from shrinking */
 }
 
 .border-radius-input {

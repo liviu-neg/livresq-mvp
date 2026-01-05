@@ -163,6 +163,7 @@ export function CellView({
           position: 'relative',
         }}
       >
+        {/* Background color layer - applies border radius to match cell-resources border radius */}
         {themeProps.backgroundColor && (
           <div 
             className="cell-background-color-layer"
@@ -176,6 +177,7 @@ export function CellView({
               opacity: themeProps.backgroundColorOpacity !== undefined ? themeProps.backgroundColorOpacity : 1,
               zIndex: 0,
               pointerEvents: 'none',
+              // Apply border radius to background color layer to create rounded rectangle effect
               borderRadius: themeProps.borderRadius?.mode === 'uniform' && themeProps.borderRadius.uniform !== undefined
                 ? `${themeProps.borderRadius.uniform}px`
                 : themeProps.borderRadius?.mode === 'individual'
@@ -184,6 +186,7 @@ export function CellView({
             }}
           />
         )}
+        {/* Background image layer - applies border radius to match cell-resources border radius */}
         {themeProps.backgroundImage && (
           <div 
             className="cell-background-image-layer"
@@ -200,6 +203,7 @@ export function CellView({
               opacity: themeProps.backgroundImageOpacity !== undefined ? themeProps.backgroundImageOpacity : 1,
               zIndex: 1,
               pointerEvents: 'none',
+              // Apply border radius to background image layer to create rounded rectangle effect
               borderRadius: themeProps.borderRadius?.mode === 'uniform' && themeProps.borderRadius.uniform !== undefined
                 ? `${themeProps.borderRadius.uniform}px`
                 : themeProps.borderRadius?.mode === 'individual'
