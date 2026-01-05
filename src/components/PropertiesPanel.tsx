@@ -1,7 +1,8 @@
-import type { Block, TextBlock, HeaderBlock, ImageBlock, QuizBlock, ColumnsBlock, Row, Cell } from '../types';
+import type { Block, TextBlock, HeaderBlock, ImageBlock, QuizBlock, ColumnsBlock, Row, Cell, ThemeSpecificCellProps, ThemeSpecificRowProps } from '../types';
 import { ImageFillPanel } from './ImageFillPanel';
 import { nanoid } from 'nanoid';
-import { useTheme } from '../theme/ThemeProvider';
+import { useTheme, useThemeSwitcher } from '../theme/ThemeProvider';
+import type { ThemeId } from '../theme/ThemeProvider';
 
 interface PropertiesPanelProps {
   selectedBlock: Block | null;
@@ -13,6 +14,46 @@ interface PropertiesPanelProps {
   onDeleteBlock: () => void;
 }
 
+// Helper function to get theme-specific cell properties with fallback to legacy props
+function getCellThemeProps(cell: Cell, themeId: ThemeId): ThemeSpecificCellProps {
+  const themeProps = cell.props?.themes?.[themeId];
+  // If theme-specific props exist, use them; otherwise fall back to legacy props
+  if (themeProps) {
+    return themeProps;
+  }
+  // Fallback to legacy props for backward compatibility
+  return {
+    verticalAlign: cell.props?.verticalAlign,
+    padding: cell.props?.padding,
+    backgroundColor: cell.props?.backgroundColor,
+    backgroundColorOpacity: cell.props?.backgroundColorOpacity,
+    backgroundImage: cell.props?.backgroundImage,
+    backgroundImageOpacity: cell.props?.backgroundImageOpacity,
+    border: cell.props?.border,
+    borderRadius: cell.props?.borderRadius,
+  };
+}
+
+// Helper function to get theme-specific row properties with fallback to legacy props
+function getRowThemeProps(row: Row, themeId: ThemeId): ThemeSpecificRowProps {
+  const themeProps = row.props?.themes?.[themeId];
+  // If theme-specific props exist, use them; otherwise fall back to legacy props
+  if (themeProps) {
+    return themeProps;
+  }
+  // Fallback to legacy props for backward compatibility
+  return {
+    verticalAlign: row.props?.verticalAlign,
+    padding: row.props?.padding,
+    backgroundColor: row.props?.backgroundColor,
+    backgroundColorOpacity: row.props?.backgroundColorOpacity,
+    backgroundImage: row.props?.backgroundImage,
+    backgroundImageOpacity: row.props?.backgroundImageOpacity,
+    border: row.props?.border,
+    borderRadius: row.props?.borderRadius,
+  };
+}
+
 export function PropertiesPanel({
   selectedBlock,
   selectedRow,
@@ -22,6 +63,7 @@ export function PropertiesPanel({
   onUpdateCell,
   onDeleteBlock,
 }: PropertiesPanelProps) {
+  const { themeId } = useThemeSwitcher();
   // Check if selected row is a columns block
   const isColumnsBlockRow = selectedRow?.props?.isColumnsBlock === true;
 
@@ -32,19 +74,60 @@ export function PropertiesPanel({
     const theme = useTheme();
     const defaultPadding = theme.rowPadding || { mode: 'uniform', uniform: 0 };
     const defaultBackground = theme.rowBackground || { backgroundColor: '#ffffff', backgroundColorOpacity: 1, backgroundImage: undefined, backgroundImageOpacity: 1 };
+    const defaultBorder = theme.rowBorder || { color: undefined, width: { mode: 'uniform', uniform: 0 }, style: 'solid' };
+    const defaultBorderRadius = theme.rowBorderRadius || { mode: 'uniform', uniform: 0 };
     
-    const verticalAlign = selectedRow.props?.verticalAlign || 'top';
-    const padding = selectedRow.props?.padding || defaultPadding;
-    const backgroundColor = selectedRow.props?.backgroundColor ?? defaultBackground.backgroundColor;
-    const backgroundColorOpacity = selectedRow.props?.backgroundColorOpacity ?? defaultBackground.backgroundColorOpacity ?? 1;
-    const backgroundImage = selectedRow.props?.backgroundImage ?? defaultBackground.backgroundImage;
-    const backgroundImageOpacity = selectedRow.props?.backgroundImageOpacity ?? defaultBackground.backgroundImageOpacity ?? 1;
+    // Get theme-specific properties
+    const themeProps = getRowThemeProps(selectedRow, themeId);
+    
+    const verticalAlign = themeProps.verticalAlign || 'top';
+    const padding = themeProps.padding || defaultPadding;
+    const backgroundColor = themeProps.backgroundColor ?? defaultBackground.backgroundColor;
+    const backgroundColorOpacity = themeProps.backgroundColorOpacity ?? defaultBackground.backgroundColorOpacity ?? 1;
+    const backgroundImage = themeProps.backgroundImage ?? defaultBackground.backgroundImage;
+    const backgroundImageOpacity = themeProps.backgroundImageOpacity ?? defaultBackground.backgroundImageOpacity ?? 1;
+    const border = themeProps.border || defaultBorder;
+    const borderColor = border.color ?? defaultBorder.color ?? '#222222';
+    const borderWidth = border.width || defaultBorder.width || { mode: 'uniform', uniform: 0 };
+    const borderWidthMode = borderWidth.mode || defaultBorder.width?.mode || 'uniform';
+    const uniformBorderWidth = borderWidth.uniform ?? defaultBorder.width?.uniform ?? 0;
+    const topBorderWidth = borderWidth.top ?? defaultBorder.width?.top ?? 0;
+    const rightBorderWidth = borderWidth.right ?? defaultBorder.width?.right ?? 0;
+    const bottomBorderWidth = borderWidth.bottom ?? defaultBorder.width?.bottom ?? 0;
+    const leftBorderWidth = borderWidth.left ?? defaultBorder.width?.left ?? 0;
+    const borderStyle = border.style || defaultBorder.style || 'solid';
+    const borderRadius = themeProps.borderRadius || defaultBorderRadius;
+    const borderRadiusMode = borderRadius.mode || defaultBorderRadius.mode || 'uniform';
+    const uniformBorderRadius = borderRadius.uniform ?? defaultBorderRadius.uniform ?? 0;
+    const topLeftRadius = borderRadius.topLeft ?? defaultBorderRadius.topLeft ?? 0;
+    const topRightRadius = borderRadius.topRight ?? defaultBorderRadius.topRight ?? 0;
+    const bottomRightRadius = borderRadius.bottomRight ?? defaultBorderRadius.bottomRight ?? 0;
+    const bottomLeftRadius = borderRadius.bottomLeft ?? defaultBorderRadius.bottomLeft ?? 0;
     const paddingMode = padding.mode || defaultPadding.mode || 'uniform';
     const uniformPadding = padding.uniform ?? defaultPadding.uniform ?? 0;
     const topPadding = padding.top ?? defaultPadding.top ?? 0;
     const rightPadding = padding.right ?? defaultPadding.right ?? 0;
     const bottomPadding = padding.bottom ?? defaultPadding.bottom ?? 0;
     const leftPadding = padding.left ?? defaultPadding.left ?? 0;
+
+    // Helper to update theme-specific row properties
+    const handleUpdateRowThemeProps = (updates: Partial<ThemeSpecificRowProps>) => {
+      if (!onUpdateRow) return;
+      const currentThemeProps = selectedRow.props?.themes?.[themeId] || {};
+      onUpdateRow({
+        ...selectedRow,
+        props: {
+          ...selectedRow.props,
+          themes: {
+            ...selectedRow.props?.themes,
+            [themeId]: {
+              ...currentThemeProps,
+              ...updates,
+            },
+          },
+        },
+      });
+    };
 
     const handleUpdateRow = (updates: Partial<Row>) => {
       if (!onUpdateRow) return;
@@ -59,24 +142,106 @@ export function PropertiesPanel({
     };
 
     const handlePaddingModeChange = (mode: 'uniform' | 'individual') => {
-      handleUpdateRow({
-        props: {
-          ...selectedRow.props,
-          padding: {
-            ...padding,
-            mode,
-            uniform: mode === 'uniform' ? (topPadding || 0) : padding.uniform,
-          },
+      handleUpdateRowThemeProps({
+        padding: {
+          ...padding,
+          mode,
+          uniform: mode === 'uniform' ? (topPadding || 0) : padding.uniform,
         },
       });
     };
 
     const handleUniformPaddingChange = (value: number) => {
-      handleUpdateRow({
-        props: {
-          ...selectedRow.props,
-          padding: {
-            ...padding,
+      handleUpdateRowThemeProps({
+        padding: {
+          ...padding,
+          uniform: value,
+          mode: 'uniform',
+        },
+      });
+    };
+
+    const handleIndividualPaddingChange = (side: 'top' | 'right' | 'bottom' | 'left', value: number) => {
+      handleUpdateRowThemeProps({
+        padding: {
+          ...padding,
+          [side]: value,
+          mode: 'individual',
+        },
+      });
+    };
+
+    const handleResetPadding = () => {
+      handleUpdateRowThemeProps({
+        padding: defaultPadding,
+      });
+    };
+
+    const handleBackgroundColorChange = (value: string) => {
+      handleUpdateRowThemeProps({
+        backgroundColor: value || undefined,
+      });
+    };
+
+    const handleBackgroundColorOpacityChange = (value: number) => {
+      handleUpdateRowThemeProps({
+        backgroundColorOpacity: value,
+      });
+    };
+
+    const handleBackgroundImageChange = (value: string) => {
+      handleUpdateRowThemeProps({
+        backgroundImage: value || undefined,
+      });
+    };
+
+    const handleBackgroundImageOpacityChange = (value: number) => {
+      handleUpdateRowThemeProps({
+        backgroundImageOpacity: value,
+      });
+    };
+
+    const handleResetBackground = () => {
+      handleUpdateRowThemeProps({
+        backgroundColor: defaultBackground.backgroundColor,
+        backgroundColorOpacity: defaultBackground.backgroundColorOpacity,
+        backgroundImage: defaultBackground.backgroundImage,
+        backgroundImageOpacity: defaultBackground.backgroundImageOpacity,
+      });
+    };
+
+    const handleBorderColorChange = (value: string) => {
+      handleUpdateRowThemeProps({
+        border: {
+          ...border,
+          color: value || undefined,
+        },
+      });
+    };
+
+    const handleBorderWidthModeChange = (mode: 'uniform' | 'individual') => {
+      handleUpdateRowThemeProps({
+        border: {
+          ...border,
+          // Ensure color is set if width is being set (use current color or default)
+          color: border.color || borderColor || '#222222',
+          width: {
+            ...borderWidth,
+            mode,
+            uniform: mode === 'uniform' ? (topBorderWidth || 0) : borderWidth.uniform,
+          },
+        },
+      });
+    };
+
+    const handleUniformBorderWidthChange = (value: number) => {
+      handleUpdateRowThemeProps({
+        border: {
+          ...border,
+          // Ensure color is set if width is being set (use current color or default)
+          color: border.color || borderColor || '#222222',
+          width: {
+            ...borderWidth,
             uniform: value,
             mode: 'uniform',
           },
@@ -84,12 +249,14 @@ export function PropertiesPanel({
       });
     };
 
-    const handleIndividualPaddingChange = (side: 'top' | 'right' | 'bottom' | 'left', value: number) => {
-      handleUpdateRow({
-        props: {
-          ...selectedRow.props,
-          padding: {
-            ...padding,
+    const handleIndividualBorderWidthChange = (side: 'top' | 'right' | 'bottom' | 'left', value: number) => {
+      handleUpdateRowThemeProps({
+        border: {
+          ...border,
+          // Ensure color is set if width is being set (use current color or default)
+          color: border.color || borderColor || '#222222',
+          width: {
+            ...borderWidth,
             [side]: value,
             mode: 'individual',
           },
@@ -97,60 +264,54 @@ export function PropertiesPanel({
       });
     };
 
-    const handleResetPadding = () => {
-      handleUpdateRow({
-        props: {
-          ...selectedRow.props,
-          padding: defaultPadding,
+    const handleBorderStyleChange = (value: 'solid' | 'dashed' | 'dotted' | 'double') => {
+      handleUpdateRowThemeProps({
+        border: {
+          ...border,
+          style: value,
         },
       });
     };
 
-    const handleBackgroundColorChange = (value: string) => {
-      handleUpdateRow({
-        props: {
-          ...selectedRow.props,
-          backgroundColor: value || undefined,
+    const handleResetBorder = () => {
+      handleUpdateRowThemeProps({
+        border: defaultBorder,
+      });
+    };
+
+    const handleBorderRadiusModeChange = (mode: 'uniform' | 'individual') => {
+      handleUpdateRowThemeProps({
+        borderRadius: {
+          ...borderRadius,
+          mode,
+          uniform: mode === 'uniform' ? (topLeftRadius || 0) : borderRadius.uniform,
         },
       });
     };
 
-    const handleBackgroundColorOpacityChange = (value: number) => {
-      handleUpdateRow({
-        props: {
-          ...selectedRow.props,
-          backgroundColorOpacity: value,
+    const handleUniformBorderRadiusChange = (value: number) => {
+      handleUpdateRowThemeProps({
+        borderRadius: {
+          ...borderRadius,
+          uniform: value,
+          mode: 'uniform',
         },
       });
     };
 
-    const handleBackgroundImageChange = (value: string) => {
-      handleUpdateRow({
-        props: {
-          ...selectedRow.props,
-          backgroundImage: value || undefined,
+    const handleIndividualBorderRadiusChange = (corner: 'topLeft' | 'topRight' | 'bottomRight' | 'bottomLeft', value: number) => {
+      handleUpdateRowThemeProps({
+        borderRadius: {
+          ...borderRadius,
+          [corner]: value,
+          mode: 'individual',
         },
       });
     };
 
-    const handleBackgroundImageOpacityChange = (value: number) => {
-      handleUpdateRow({
-        props: {
-          ...selectedRow.props,
-          backgroundImageOpacity: value,
-        },
-      });
-    };
-
-    const handleResetBackground = () => {
-      handleUpdateRow({
-        props: {
-          ...selectedRow.props,
-          backgroundColor: defaultBackground.backgroundColor,
-          backgroundColorOpacity: defaultBackground.backgroundColorOpacity,
-          backgroundImage: defaultBackground.backgroundImage,
-          backgroundImageOpacity: defaultBackground.backgroundImageOpacity,
-        },
+    const handleResetBorderRadius = () => {
+      handleUpdateRowThemeProps({
+        borderRadius: defaultBorderRadius,
       });
     };
 
@@ -166,11 +327,8 @@ export function PropertiesPanel({
                   key={align}
                   type="button"
                   className={`vertical-align-button ${verticalAlign === align ? 'active' : ''}`}
-                  onClick={() => handleUpdateRow({
-                    props: {
-                      ...selectedRow.props,
-                      verticalAlign: align,
-                    },
+                  onClick={() => handleUpdateRowThemeProps({
+                    verticalAlign: align,
                   })}
                 >
                   {align === 'top' && 'Top'}
@@ -395,6 +553,315 @@ export function PropertiesPanel({
               </div>
             </div>
           </div>
+          <div className="property-group">
+            <div className="property-label-with-icon">
+              <span className="property-icon">+</span>
+              <label htmlFor="row-border">Border</label>
+              <button
+                type="button"
+                className="property-reset-button"
+                onClick={handleResetBorder}
+                aria-label="Reset to default"
+                title="Reset to theme default"
+              >
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                  <path d="M2 8a6 6 0 0 1 6-6v2M14 8a6 6 0 0 1-6 6v-2M8 2L6 4M8 14l2-2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </button>
+            </div>
+            <div className="border-controls">
+              <div className="property-group">
+                <label htmlFor="row-border-color">Color</label>
+                <div className="color-input-wrapper">
+                  <input
+                    id="row-border-color"
+                    type="color"
+                    value={borderColor || '#222222'}
+                    onChange={(e) => handleBorderColorChange(e.target.value)}
+                    className="property-color-input"
+                  />
+                  <input
+                    type="text"
+                    value={borderColor || ''}
+                    onChange={(e) => handleBorderColorChange(e.target.value)}
+                    className="property-input color-text-input"
+                    placeholder="#222222"
+                  />
+                </div>
+              </div>
+              <div className="property-group">
+                <label htmlFor="row-border-width">Width</label>
+                <div className="border-width-controls">
+                  <div className="border-width-top-row">
+                    {borderWidthMode === 'uniform' ? (
+                      <>
+                        <input
+                          id="row-border-width-uniform"
+                          type="number"
+                          min="0"
+                          value={uniformBorderWidth}
+                          onChange={(e) => handleUniformBorderWidthChange(parseInt(e.target.value, 10) || 0)}
+                          className="property-input border-width-input"
+                        />
+                        <div className="border-width-mode-toggle">
+                          <button
+                            type="button"
+                            className={`border-width-mode-button ${borderWidthMode === 'uniform' ? 'active' : ''}`}
+                            onClick={() => handleBorderWidthModeChange('uniform')}
+                            aria-label="Uniform border width"
+                          >
+                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                              <rect x="3" y="3" width="10" height="10" stroke="currentColor" strokeWidth="1.5" fill="none"/>
+                            </svg>
+                          </button>
+                          <button
+                            type="button"
+                            className={`border-width-mode-button ${borderWidthMode === 'individual' ? 'active' : ''}`}
+                            onClick={() => handleBorderWidthModeChange('individual')}
+                            aria-label="Individual border width"
+                          >
+                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                              <path d="M3 3h10v10H3z" stroke="currentColor" strokeWidth="1.5" fill="none"/>
+                              <path d="M8 3v10M3 8h10" stroke="currentColor" strokeWidth="1.5"/>
+                            </svg>
+                          </button>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="border-width-individual-row">
+                        <div className="border-width-input-group">
+                          <input
+                            id="row-border-width-top"
+                            type="number"
+                            min="0"
+                            value={topBorderWidth}
+                            onChange={(e) => handleIndividualBorderWidthChange('top', parseInt(e.target.value, 10) || 0)}
+                            className="property-input border-width-input"
+                          />
+                        </div>
+                        <div className="border-width-input-group">
+                          <input
+                            id="row-border-width-right"
+                            type="number"
+                            min="0"
+                            value={rightBorderWidth}
+                            onChange={(e) => handleIndividualBorderWidthChange('right', parseInt(e.target.value, 10) || 0)}
+                            className="property-input border-width-input"
+                          />
+                        </div>
+                        <div className="border-width-input-group">
+                          <input
+                            id="row-border-width-bottom"
+                            type="number"
+                            min="0"
+                            value={bottomBorderWidth}
+                            onChange={(e) => handleIndividualBorderWidthChange('bottom', parseInt(e.target.value, 10) || 0)}
+                            className="property-input border-width-input"
+                          />
+                        </div>
+                        <div className="border-width-input-group">
+                          <input
+                            id="row-border-width-left"
+                            type="number"
+                            min="0"
+                            value={leftBorderWidth}
+                            onChange={(e) => handleIndividualBorderWidthChange('left', parseInt(e.target.value, 10) || 0)}
+                            className="property-input border-width-input"
+                          />
+                        </div>
+                        <div className="border-width-labels">
+                          <span className="border-width-label">T</span>
+                          <span className="border-width-label">R</span>
+                          <span className="border-width-label">B</span>
+                          <span className="border-width-label">L</span>
+                        </div>
+                        <div className="border-width-mode-toggle">
+                          <button
+                            type="button"
+                            className={`border-width-mode-button ${borderWidthMode === 'uniform' ? 'active' : ''}`}
+                            onClick={() => handleBorderWidthModeChange('uniform')}
+                            aria-label="Uniform border width"
+                          >
+                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                              <rect x="3" y="3" width="10" height="10" stroke="currentColor" strokeWidth="1.5" fill="none"/>
+                            </svg>
+                          </button>
+                          <button
+                            type="button"
+                            className={`border-width-mode-button ${borderWidthMode === 'individual' ? 'active' : ''}`}
+                            onClick={() => handleBorderWidthModeChange('individual')}
+                            aria-label="Individual border width"
+                          >
+                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                              <path d="M3 3h10v10H3z" stroke="currentColor" strokeWidth="1.5" fill="none"/>
+                              <path d="M8 3v10M3 8h10" stroke="currentColor" strokeWidth="1.5"/>
+                            </svg>
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+              <div className="property-group">
+                <label htmlFor="row-border-style">Style</label>
+                <select
+                  id="row-border-style"
+                  value={borderStyle}
+                  onChange={(e) => handleBorderStyleChange(e.target.value as 'solid' | 'dashed' | 'dotted' | 'double')}
+                  className="property-select"
+                >
+                  <option value="solid">Solid</option>
+                  <option value="dashed">Dashed</option>
+                  <option value="dotted">Dotted</option>
+                  <option value="double">Double</option>
+                </select>
+              </div>
+            </div>
+          </div>
+          {/* Border Radius */}
+          <div className="property-section">
+            <div className="property-section-header">
+              <div className="property-section-title">
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style={{ marginRight: '6px' }}>
+                  <path d="M3 3h10v10H3z" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round"/>
+                </svg>
+                <label htmlFor="row-border-radius">Radius</label>
+              </div>
+              <button
+                type="button"
+                className="property-reset-button"
+                onClick={handleResetBorderRadius}
+                aria-label="Reset to default"
+                title="Reset to theme default"
+              >
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                  <path d="M2 8a6 6 0 0 1 6-6v2M14 8a6 6 0 0 1-6 6v-2M8 2L6 4M8 14l2-2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </button>
+            </div>
+            <div className="border-radius-controls">
+              <div className="border-radius-top-row">
+                {borderRadiusMode === 'uniform' ? (
+                  <>
+                    <input
+                      id="row-border-radius-uniform"
+                      type="number"
+                      min="0"
+                      value={uniformBorderRadius}
+                      onChange={(e) => handleUniformBorderRadiusChange(parseInt(e.target.value, 10) || 0)}
+                      className="property-input border-radius-input"
+                    />
+                    <div className="border-radius-mode-toggle">
+                      <button
+                        type="button"
+                        className={`border-radius-mode-button ${borderRadiusMode === 'uniform' ? 'active' : ''}`}
+                        onClick={() => handleBorderRadiusModeChange('uniform')}
+                        aria-label="Uniform border radius"
+                      >
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                          <rect x="3" y="3" width="10" height="10" stroke="currentColor" strokeWidth="1.5" fill="none"/>
+                        </svg>
+                      </button>
+                      <button
+                        type="button"
+                        className={`border-radius-mode-button ${borderRadiusMode === 'individual' ? 'active' : ''}`}
+                        onClick={() => handleBorderRadiusModeChange('individual')}
+                        aria-label="Individual border radius"
+                      >
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                          <path d="M3 3h10v10H3z" stroke="currentColor" strokeWidth="1.5" fill="none"/>
+                          <path d="M8 3v10M3 8h10" stroke="currentColor" strokeWidth="1" strokeDasharray="1 1"/>
+                        </svg>
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <input
+                      type="number"
+                      min="0"
+                      value=""
+                      readOnly
+                      className="property-input border-radius-input"
+                      style={{ opacity: 0.5, pointerEvents: 'none' }}
+                    />
+                    <div className="border-radius-mode-toggle">
+                      <button
+                        type="button"
+                        className={`border-radius-mode-button ${borderRadiusMode === 'uniform' ? 'active' : ''}`}
+                        onClick={() => handleBorderRadiusModeChange('uniform')}
+                        aria-label="Uniform border radius"
+                      >
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                          <rect x="3" y="3" width="10" height="10" stroke="currentColor" strokeWidth="1.5" fill="none"/>
+                        </svg>
+                      </button>
+                      <button
+                        type="button"
+                        className={`border-radius-mode-button ${borderRadiusMode === 'individual' ? 'active' : ''}`}
+                        onClick={() => handleBorderRadiusModeChange('individual')}
+                        aria-label="Individual border radius"
+                      >
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                          <path d="M3 3h10v10H3z" stroke="currentColor" strokeWidth="1.5" fill="none"/>
+                          <path d="M8 3v10M3 8h10" stroke="currentColor" strokeWidth="1" strokeDasharray="1 1"/>
+                        </svg>
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+              {borderRadiusMode === 'individual' && (
+                <div className="border-radius-individual-row">
+                  <div className="border-radius-input-group">
+                    <input
+                      id="row-border-radius-top-left"
+                      type="number"
+                      min="0"
+                      value={topLeftRadius}
+                      onChange={(e) => handleIndividualBorderRadiusChange('topLeft', parseInt(e.target.value, 10) || 0)}
+                      className="property-input border-radius-input"
+                    />
+                    <label htmlFor="row-border-radius-top-left" className="border-radius-label">TL</label>
+                  </div>
+                  <div className="border-radius-input-group">
+                    <input
+                      id="row-border-radius-top-right"
+                      type="number"
+                      min="0"
+                      value={topRightRadius}
+                      onChange={(e) => handleIndividualBorderRadiusChange('topRight', parseInt(e.target.value, 10) || 0)}
+                      className="property-input border-radius-input"
+                    />
+                    <label htmlFor="row-border-radius-top-right" className="border-radius-label">TR</label>
+                  </div>
+                  <div className="border-radius-input-group">
+                    <input
+                      id="row-border-radius-bottom-right"
+                      type="number"
+                      min="0"
+                      value={bottomRightRadius}
+                      onChange={(e) => handleIndividualBorderRadiusChange('bottomRight', parseInt(e.target.value, 10) || 0)}
+                      className="property-input border-radius-input"
+                    />
+                    <label htmlFor="row-border-radius-bottom-right" className="border-radius-label">BR</label>
+                  </div>
+                  <div className="border-radius-input-group">
+                    <input
+                      id="row-border-radius-bottom-left"
+                      type="number"
+                      min="0"
+                      value={bottomLeftRadius}
+                      onChange={(e) => handleIndividualBorderRadiusChange('bottomLeft', parseInt(e.target.value, 10) || 0)}
+                      className="property-input border-radius-input"
+                    />
+                    <label htmlFor="row-border-radius-bottom-left" className="border-radius-label">BL</label>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -405,19 +872,60 @@ export function PropertiesPanel({
     const theme = useTheme();
     const defaultPadding = theme.cellPadding || { mode: 'uniform', uniform: 0 };
     const defaultBackground = theme.cellBackground || { backgroundColor: '#ffffff', backgroundColorOpacity: 1, backgroundImage: undefined, backgroundImageOpacity: 1 };
+    const defaultBorder = theme.cellBorder || { color: undefined, width: { mode: 'uniform', uniform: 0 }, style: 'solid' };
+    const defaultBorderRadius = theme.cellBorderRadius || { mode: 'uniform', uniform: 0 };
     
-    const verticalAlign = selectedCell.props?.verticalAlign || 'top';
-    const padding = selectedCell.props?.padding || defaultPadding;
-    const backgroundColor = selectedCell.props?.backgroundColor ?? defaultBackground.backgroundColor;
-    const backgroundColorOpacity = selectedCell.props?.backgroundColorOpacity ?? defaultBackground.backgroundColorOpacity ?? 1;
-    const backgroundImage = selectedCell.props?.backgroundImage ?? defaultBackground.backgroundImage;
-    const backgroundImageOpacity = selectedCell.props?.backgroundImageOpacity ?? defaultBackground.backgroundImageOpacity ?? 1;
+    // Get theme-specific properties
+    const themeProps = getCellThemeProps(selectedCell, themeId);
+    
+    const verticalAlign = themeProps.verticalAlign || 'top';
+    const padding = themeProps.padding || defaultPadding;
+    const backgroundColor = themeProps.backgroundColor ?? defaultBackground.backgroundColor;
+    const backgroundColorOpacity = themeProps.backgroundColorOpacity ?? defaultBackground.backgroundColorOpacity ?? 1;
+    const backgroundImage = themeProps.backgroundImage ?? defaultBackground.backgroundImage;
+    const backgroundImageOpacity = themeProps.backgroundImageOpacity ?? defaultBackground.backgroundImageOpacity ?? 1;
+    const border = themeProps.border || defaultBorder;
+    const borderColor = border.color ?? defaultBorder.color ?? '#222222';
+    const borderWidth = border.width || defaultBorder.width || { mode: 'uniform', uniform: 0 };
+    const borderWidthMode = borderWidth.mode || defaultBorder.width?.mode || 'uniform';
+    const uniformBorderWidth = borderWidth.uniform ?? defaultBorder.width?.uniform ?? 0;
+    const topBorderWidth = borderWidth.top ?? defaultBorder.width?.top ?? 0;
+    const rightBorderWidth = borderWidth.right ?? defaultBorder.width?.right ?? 0;
+    const bottomBorderWidth = borderWidth.bottom ?? defaultBorder.width?.bottom ?? 0;
+    const leftBorderWidth = borderWidth.left ?? defaultBorder.width?.left ?? 0;
+    const borderStyle = border.style || defaultBorder.style || 'solid';
+    const borderRadius = themeProps.borderRadius || defaultBorderRadius;
+    const borderRadiusMode = borderRadius.mode || defaultBorderRadius.mode || 'uniform';
+    const uniformBorderRadius = borderRadius.uniform ?? defaultBorderRadius.uniform ?? 0;
+    const topLeftRadius = borderRadius.topLeft ?? defaultBorderRadius.topLeft ?? 0;
+    const topRightRadius = borderRadius.topRight ?? defaultBorderRadius.topRight ?? 0;
+    const bottomRightRadius = borderRadius.bottomRight ?? defaultBorderRadius.bottomRight ?? 0;
+    const bottomLeftRadius = borderRadius.bottomLeft ?? defaultBorderRadius.bottomLeft ?? 0;
     const paddingMode = padding.mode || defaultPadding.mode || 'uniform';
     const uniformPadding = padding.uniform ?? defaultPadding.uniform ?? 0;
     const topPadding = padding.top ?? defaultPadding.top ?? 0;
     const rightPadding = padding.right ?? defaultPadding.right ?? 0;
     const bottomPadding = padding.bottom ?? defaultPadding.bottom ?? 0;
     const leftPadding = padding.left ?? defaultPadding.left ?? 0;
+
+    // Helper to update theme-specific cell properties
+    const handleUpdateCellThemeProps = (updates: Partial<ThemeSpecificCellProps>) => {
+      if (!onUpdateCell) return;
+      const currentThemeProps = selectedCell.props?.themes?.[themeId] || {};
+      onUpdateCell({
+        ...selectedCell,
+        props: {
+          ...selectedCell.props,
+          themes: {
+            ...selectedCell.props?.themes,
+            [themeId]: {
+              ...currentThemeProps,
+              ...updates,
+            },
+          },
+        },
+      });
+    };
 
     const handleUpdateCell = (updates: Partial<Cell>) => {
       if (!onUpdateCell) return;
@@ -432,25 +940,107 @@ export function PropertiesPanel({
     };
 
     const handlePaddingModeChange = (mode: 'uniform' | 'individual') => {
-      handleUpdateCell({
-        props: {
-          ...selectedCell.props,
-          padding: {
-            ...padding,
-            mode,
-            // When switching to uniform, use the first individual value or 0
-            uniform: mode === 'uniform' ? (topPadding || 0) : padding.uniform,
-          },
+      handleUpdateCellThemeProps({
+        padding: {
+          ...padding,
+          mode,
+          // When switching to uniform, use the first individual value or 0
+          uniform: mode === 'uniform' ? (topPadding || 0) : padding.uniform,
         },
       });
     };
 
     const handleUniformPaddingChange = (value: number) => {
-      handleUpdateCell({
-        props: {
-          ...selectedCell.props,
-          padding: {
-            ...padding,
+      handleUpdateCellThemeProps({
+        padding: {
+          ...padding,
+          uniform: value,
+          mode: 'uniform',
+        },
+      });
+    };
+
+    const handleIndividualPaddingChange = (side: 'top' | 'right' | 'bottom' | 'left', value: number) => {
+      handleUpdateCellThemeProps({
+        padding: {
+          ...padding,
+          [side]: value,
+          mode: 'individual',
+        },
+      });
+    };
+
+    const handleResetPadding = () => {
+      handleUpdateCellThemeProps({
+        padding: defaultPadding,
+      });
+    };
+
+    const handleBackgroundColorChange = (value: string) => {
+      handleUpdateCellThemeProps({
+        backgroundColor: value || undefined,
+      });
+    };
+
+    const handleBackgroundColorOpacityChange = (value: number) => {
+      handleUpdateCellThemeProps({
+        backgroundColorOpacity: value,
+      });
+    };
+
+    const handleBackgroundImageChange = (value: string) => {
+      handleUpdateCellThemeProps({
+        backgroundImage: value || undefined,
+      });
+    };
+
+    const handleBackgroundImageOpacityChange = (value: number) => {
+      handleUpdateCellThemeProps({
+        backgroundImageOpacity: value,
+      });
+    };
+
+    const handleResetBackground = () => {
+      handleUpdateCellThemeProps({
+        backgroundColor: defaultBackground.backgroundColor,
+        backgroundColorOpacity: defaultBackground.backgroundColorOpacity,
+        backgroundImage: defaultBackground.backgroundImage,
+        backgroundImageOpacity: defaultBackground.backgroundImageOpacity,
+      });
+    };
+
+    const handleBorderColorChange = (value: string) => {
+      handleUpdateCellThemeProps({
+        border: {
+          ...border,
+          color: value || undefined,
+        },
+      });
+    };
+
+    const handleBorderWidthModeChange = (mode: 'uniform' | 'individual') => {
+      handleUpdateCellThemeProps({
+        border: {
+          ...border,
+          // Ensure color is set if width is being set (use current color or default)
+          color: border.color || borderColor || '#222222',
+          width: {
+            ...borderWidth,
+            mode,
+            uniform: mode === 'uniform' ? (topBorderWidth || 0) : borderWidth.uniform,
+          },
+        },
+      });
+    };
+
+    const handleUniformBorderWidthChange = (value: number) => {
+      handleUpdateCellThemeProps({
+        border: {
+          ...border,
+          // Ensure color is set if width is being set (use current color or default)
+          color: border.color || borderColor || '#222222',
+          width: {
+            ...borderWidth,
             uniform: value,
             mode: 'uniform',
           },
@@ -458,12 +1048,14 @@ export function PropertiesPanel({
       });
     };
 
-    const handleIndividualPaddingChange = (side: 'top' | 'right' | 'bottom' | 'left', value: number) => {
-      handleUpdateCell({
-        props: {
-          ...selectedCell.props,
-          padding: {
-            ...padding,
+    const handleIndividualBorderWidthChange = (side: 'top' | 'right' | 'bottom' | 'left', value: number) => {
+      handleUpdateCellThemeProps({
+        border: {
+          ...border,
+          // Ensure color is set if width is being set (use current color or default)
+          color: border.color || borderColor || '#222222',
+          width: {
+            ...borderWidth,
             [side]: value,
             mode: 'individual',
           },
@@ -471,60 +1063,54 @@ export function PropertiesPanel({
       });
     };
 
-    const handleResetPadding = () => {
-      handleUpdateCell({
-        props: {
-          ...selectedCell.props,
-          padding: defaultPadding,
+    const handleBorderStyleChange = (value: 'solid' | 'dashed' | 'dotted' | 'double') => {
+      handleUpdateCellThemeProps({
+        border: {
+          ...border,
+          style: value,
         },
       });
     };
 
-    const handleBackgroundColorChange = (value: string) => {
-      handleUpdateCell({
-        props: {
-          ...selectedCell.props,
-          backgroundColor: value || undefined,
+    const handleResetBorder = () => {
+      handleUpdateCellThemeProps({
+        border: defaultBorder,
+      });
+    };
+
+    const handleBorderRadiusModeChange = (mode: 'uniform' | 'individual') => {
+      handleUpdateCellThemeProps({
+        borderRadius: {
+          ...borderRadius,
+          mode,
+          uniform: mode === 'uniform' ? (topLeftRadius || 0) : borderRadius.uniform,
         },
       });
     };
 
-    const handleBackgroundColorOpacityChange = (value: number) => {
-      handleUpdateCell({
-        props: {
-          ...selectedCell.props,
-          backgroundColorOpacity: value,
+    const handleUniformBorderRadiusChange = (value: number) => {
+      handleUpdateCellThemeProps({
+        borderRadius: {
+          ...borderRadius,
+          uniform: value,
+          mode: 'uniform',
         },
       });
     };
 
-    const handleBackgroundImageChange = (value: string) => {
-      handleUpdateCell({
-        props: {
-          ...selectedCell.props,
-          backgroundImage: value || undefined,
+    const handleIndividualBorderRadiusChange = (corner: 'topLeft' | 'topRight' | 'bottomRight' | 'bottomLeft', value: number) => {
+      handleUpdateCellThemeProps({
+        borderRadius: {
+          ...borderRadius,
+          [corner]: value,
+          mode: 'individual',
         },
       });
     };
 
-    const handleBackgroundImageOpacityChange = (value: number) => {
-      handleUpdateCell({
-        props: {
-          ...selectedCell.props,
-          backgroundImageOpacity: value,
-        },
-      });
-    };
-
-    const handleResetBackground = () => {
-      handleUpdateCell({
-        props: {
-          ...selectedCell.props,
-          backgroundColor: defaultBackground.backgroundColor,
-          backgroundColorOpacity: defaultBackground.backgroundColorOpacity,
-          backgroundImage: defaultBackground.backgroundImage,
-          backgroundImageOpacity: defaultBackground.backgroundImageOpacity,
-        },
+    const handleResetBorderRadius = () => {
+      handleUpdateCellThemeProps({
+        borderRadius: defaultBorderRadius,
       });
     };
 
@@ -540,11 +1126,8 @@ export function PropertiesPanel({
                   key={align}
                   type="button"
                   className={`vertical-align-button ${verticalAlign === align ? 'active' : ''}`}
-                  onClick={() => handleUpdateCell({
-                    props: {
-                      ...selectedCell.props,
-                      verticalAlign: align,
-                    },
+                  onClick={() => handleUpdateCellThemeProps({
+                    verticalAlign: align,
                   })}
                 >
                   {align === 'top' && 'Top'}
@@ -787,6 +1370,315 @@ export function PropertiesPanel({
                   </>
                 )}
               </div>
+            </div>
+          </div>
+          <div className="property-group">
+            <div className="property-label-with-icon">
+              <span className="property-icon">+</span>
+              <label htmlFor="cell-border">Border</label>
+              <button
+                type="button"
+                className="property-reset-button"
+                onClick={handleResetBorder}
+                aria-label="Reset to default"
+                title="Reset to theme default"
+              >
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                  <path d="M2 8a6 6 0 0 1 6-6v2M14 8a6 6 0 0 1-6 6v-2M8 2L6 4M8 14l2-2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </button>
+            </div>
+            <div className="border-controls">
+              <div className="property-group">
+                <label htmlFor="cell-border-color">Color</label>
+                <div className="color-input-wrapper">
+                  <input
+                    id="cell-border-color"
+                    type="color"
+                    value={borderColor || '#222222'}
+                    onChange={(e) => handleBorderColorChange(e.target.value)}
+                    className="property-color-input"
+                  />
+                  <input
+                    type="text"
+                    value={borderColor || ''}
+                    onChange={(e) => handleBorderColorChange(e.target.value)}
+                    className="property-input color-text-input"
+                    placeholder="#222222"
+                  />
+                </div>
+              </div>
+              <div className="property-group">
+                <label htmlFor="cell-border-width">Width</label>
+                <div className="border-width-controls">
+                  <div className="border-width-top-row">
+                    {borderWidthMode === 'uniform' ? (
+                      <>
+                        <input
+                          id="cell-border-width-uniform"
+                          type="number"
+                          min="0"
+                          value={uniformBorderWidth}
+                          onChange={(e) => handleUniformBorderWidthChange(parseInt(e.target.value, 10) || 0)}
+                          className="property-input border-width-input"
+                        />
+                        <div className="border-width-mode-toggle">
+                          <button
+                            type="button"
+                            className={`border-width-mode-button ${borderWidthMode === 'uniform' ? 'active' : ''}`}
+                            onClick={() => handleBorderWidthModeChange('uniform')}
+                            aria-label="Uniform border width"
+                          >
+                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                              <rect x="3" y="3" width="10" height="10" stroke="currentColor" strokeWidth="1.5" fill="none"/>
+                            </svg>
+                          </button>
+                          <button
+                            type="button"
+                            className={`border-width-mode-button ${borderWidthMode === 'individual' ? 'active' : ''}`}
+                            onClick={() => handleBorderWidthModeChange('individual')}
+                            aria-label="Individual border width"
+                          >
+                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                              <path d="M3 3h10v10H3z" stroke="currentColor" strokeWidth="1.5" fill="none"/>
+                              <path d="M8 3v10M3 8h10" stroke="currentColor" strokeWidth="1.5"/>
+                            </svg>
+                          </button>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="border-width-individual-row">
+                        <div className="border-width-input-group">
+                          <input
+                            id="cell-border-width-top"
+                            type="number"
+                            min="0"
+                            value={topBorderWidth}
+                            onChange={(e) => handleIndividualBorderWidthChange('top', parseInt(e.target.value, 10) || 0)}
+                            className="property-input border-width-input"
+                          />
+                        </div>
+                        <div className="border-width-input-group">
+                          <input
+                            id="cell-border-width-right"
+                            type="number"
+                            min="0"
+                            value={rightBorderWidth}
+                            onChange={(e) => handleIndividualBorderWidthChange('right', parseInt(e.target.value, 10) || 0)}
+                            className="property-input border-width-input"
+                          />
+                        </div>
+                        <div className="border-width-input-group">
+                          <input
+                            id="cell-border-width-bottom"
+                            type="number"
+                            min="0"
+                            value={bottomBorderWidth}
+                            onChange={(e) => handleIndividualBorderWidthChange('bottom', parseInt(e.target.value, 10) || 0)}
+                            className="property-input border-width-input"
+                          />
+                        </div>
+                        <div className="border-width-input-group">
+                          <input
+                            id="cell-border-width-left"
+                            type="number"
+                            min="0"
+                            value={leftBorderWidth}
+                            onChange={(e) => handleIndividualBorderWidthChange('left', parseInt(e.target.value, 10) || 0)}
+                            className="property-input border-width-input"
+                          />
+                        </div>
+                        <div className="border-width-labels">
+                          <span className="border-width-label">T</span>
+                          <span className="border-width-label">R</span>
+                          <span className="border-width-label">B</span>
+                          <span className="border-width-label">L</span>
+                        </div>
+                        <div className="border-width-mode-toggle">
+                          <button
+                            type="button"
+                            className={`border-width-mode-button ${borderWidthMode === 'uniform' ? 'active' : ''}`}
+                            onClick={() => handleBorderWidthModeChange('uniform')}
+                            aria-label="Uniform border width"
+                          >
+                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                              <rect x="3" y="3" width="10" height="10" stroke="currentColor" strokeWidth="1.5" fill="none"/>
+                            </svg>
+                          </button>
+                          <button
+                            type="button"
+                            className={`border-width-mode-button ${borderWidthMode === 'individual' ? 'active' : ''}`}
+                            onClick={() => handleBorderWidthModeChange('individual')}
+                            aria-label="Individual border width"
+                          >
+                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                              <path d="M3 3h10v10H3z" stroke="currentColor" strokeWidth="1.5" fill="none"/>
+                              <path d="M8 3v10M3 8h10" stroke="currentColor" strokeWidth="1.5"/>
+                            </svg>
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+              <div className="property-group">
+                <label htmlFor="cell-border-style">Style</label>
+                <select
+                  id="cell-border-style"
+                  value={borderStyle}
+                  onChange={(e) => handleBorderStyleChange(e.target.value as 'solid' | 'dashed' | 'dotted' | 'double')}
+                  className="property-select"
+                >
+                  <option value="solid">Solid</option>
+                  <option value="dashed">Dashed</option>
+                  <option value="dotted">Dotted</option>
+                  <option value="double">Double</option>
+                </select>
+              </div>
+            </div>
+          </div>
+          {/* Border Radius */}
+          <div className="property-section">
+            <div className="property-section-header">
+              <div className="property-section-title">
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style={{ marginRight: '6px' }}>
+                  <path d="M3 3h10v10H3z" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round"/>
+                </svg>
+                <label htmlFor="cell-border-radius">Radius</label>
+              </div>
+              <button
+                type="button"
+                className="property-reset-button"
+                onClick={handleResetBorderRadius}
+                aria-label="Reset to default"
+                title="Reset to theme default"
+              >
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                  <path d="M2 8a6 6 0 0 1 6-6v2M14 8a6 6 0 0 1-6 6v-2M8 2L6 4M8 14l2-2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </button>
+            </div>
+            <div className="border-radius-controls">
+              <div className="border-radius-top-row">
+                {borderRadiusMode === 'uniform' ? (
+                  <>
+                    <input
+                      id="cell-border-radius-uniform"
+                      type="number"
+                      min="0"
+                      value={uniformBorderRadius}
+                      onChange={(e) => handleUniformBorderRadiusChange(parseInt(e.target.value, 10) || 0)}
+                      className="property-input border-radius-input"
+                    />
+                    <div className="border-radius-mode-toggle">
+                      <button
+                        type="button"
+                        className={`border-radius-mode-button ${borderRadiusMode === 'uniform' ? 'active' : ''}`}
+                        onClick={() => handleBorderRadiusModeChange('uniform')}
+                        aria-label="Uniform border radius"
+                      >
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                          <rect x="3" y="3" width="10" height="10" stroke="currentColor" strokeWidth="1.5" fill="none"/>
+                        </svg>
+                      </button>
+                      <button
+                        type="button"
+                        className={`border-radius-mode-button ${borderRadiusMode === 'individual' ? 'active' : ''}`}
+                        onClick={() => handleBorderRadiusModeChange('individual')}
+                        aria-label="Individual border radius"
+                      >
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                          <path d="M3 3h10v10H3z" stroke="currentColor" strokeWidth="1.5" fill="none"/>
+                          <path d="M8 3v10M3 8h10" stroke="currentColor" strokeWidth="1" strokeDasharray="1 1"/>
+                        </svg>
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <input
+                      type="number"
+                      min="0"
+                      value=""
+                      readOnly
+                      className="property-input border-radius-input"
+                      style={{ opacity: 0.5, pointerEvents: 'none' }}
+                    />
+                    <div className="border-radius-mode-toggle">
+                      <button
+                        type="button"
+                        className={`border-radius-mode-button ${borderRadiusMode === 'uniform' ? 'active' : ''}`}
+                        onClick={() => handleBorderRadiusModeChange('uniform')}
+                        aria-label="Uniform border radius"
+                      >
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                          <rect x="3" y="3" width="10" height="10" stroke="currentColor" strokeWidth="1.5" fill="none"/>
+                        </svg>
+                      </button>
+                      <button
+                        type="button"
+                        className={`border-radius-mode-button ${borderRadiusMode === 'individual' ? 'active' : ''}`}
+                        onClick={() => handleBorderRadiusModeChange('individual')}
+                        aria-label="Individual border radius"
+                      >
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                          <path d="M3 3h10v10H3z" stroke="currentColor" strokeWidth="1.5" fill="none"/>
+                          <path d="M8 3v10M3 8h10" stroke="currentColor" strokeWidth="1" strokeDasharray="1 1"/>
+                        </svg>
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+              {borderRadiusMode === 'individual' && (
+                <div className="border-radius-individual-row">
+                  <div className="border-radius-input-group">
+                    <input
+                      id="cell-border-radius-top-left"
+                      type="number"
+                      min="0"
+                      value={topLeftRadius}
+                      onChange={(e) => handleIndividualBorderRadiusChange('topLeft', parseInt(e.target.value, 10) || 0)}
+                      className="property-input border-radius-input"
+                    />
+                    <label htmlFor="cell-border-radius-top-left" className="border-radius-label">TL</label>
+                  </div>
+                  <div className="border-radius-input-group">
+                    <input
+                      id="cell-border-radius-top-right"
+                      type="number"
+                      min="0"
+                      value={topRightRadius}
+                      onChange={(e) => handleIndividualBorderRadiusChange('topRight', parseInt(e.target.value, 10) || 0)}
+                      className="property-input border-radius-input"
+                    />
+                    <label htmlFor="cell-border-radius-top-right" className="border-radius-label">TR</label>
+                  </div>
+                  <div className="border-radius-input-group">
+                    <input
+                      id="cell-border-radius-bottom-right"
+                      type="number"
+                      min="0"
+                      value={bottomRightRadius}
+                      onChange={(e) => handleIndividualBorderRadiusChange('bottomRight', parseInt(e.target.value, 10) || 0)}
+                      className="property-input border-radius-input"
+                    />
+                    <label htmlFor="cell-border-radius-bottom-right" className="border-radius-label">BR</label>
+                  </div>
+                  <div className="border-radius-input-group">
+                    <input
+                      id="cell-border-radius-bottom-left"
+                      type="number"
+                      min="0"
+                      value={bottomLeftRadius}
+                      onChange={(e) => handleIndividualBorderRadiusChange('bottomLeft', parseInt(e.target.value, 10) || 0)}
+                      className="property-input border-radius-input"
+                    />
+                    <label htmlFor="cell-border-radius-bottom-left" className="border-radius-label">BL</label>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>

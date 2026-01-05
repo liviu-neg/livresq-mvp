@@ -1,10 +1,11 @@
 import React, { useRef } from 'react';
 import { useDroppable } from '@dnd-kit/core';
-import type { Cell, Resource, Block } from '../types';
+import type { Cell, Resource, Block, ThemeSpecificCellProps } from '../types';
 import { isBlock, isConstructor } from '../utils/sections';
 import { RowView } from './RowView';
 import { CellToolbar } from './CellToolbar';
 import { EmptyStateRow } from './EmptyStateRow';
+import { useThemeSwitcher } from '../theme/ThemeProvider';
 
 interface CellViewProps {
   cell: Cell;
@@ -28,6 +29,25 @@ interface CellViewProps {
   isColumnsBlock?: boolean; // True if this cell is in a columns block row
 }
 
+// Helper function to get theme-specific cell properties with fallback to legacy props
+function getCellThemeProps(cell: Cell, themeId: 'plain' | 'neon'): ThemeSpecificCellProps {
+  const themeProps = cell.props?.themes?.[themeId];
+  // If theme-specific props exist, use them; otherwise fall back to legacy props
+  if (themeProps) {
+    return themeProps;
+  }
+  // Fallback to legacy props for backward compatibility
+  return {
+    verticalAlign: cell.props?.verticalAlign,
+    padding: cell.props?.padding,
+    backgroundColor: cell.props?.backgroundColor,
+    backgroundColorOpacity: cell.props?.backgroundColorOpacity,
+    backgroundImage: cell.props?.backgroundImage,
+    backgroundImageOpacity: cell.props?.backgroundImageOpacity,
+    border: cell.props?.border,
+  };
+}
+
 export function CellView({
   cell,
   selectedBlockId,
@@ -49,6 +69,9 @@ export function CellView({
   rowId,
   isColumnsBlock = false,
 }: CellViewProps) {
+  const { themeId } = useThemeSwitcher();
+  // Get theme-specific properties
+  const themeProps = getCellThemeProps(cell, themeId);
   const cellRef = useRef<HTMLDivElement>(null);
   const cellResourcesRef = useRef<HTMLDivElement>(null);
   const isSelected = selectedCellId === cell.id;
@@ -140,7 +163,7 @@ export function CellView({
           position: 'relative',
         }}
       >
-        {cell.props?.backgroundColor && (
+        {themeProps.backgroundColor && (
           <div 
             className="cell-background-color-layer"
             style={{
@@ -149,14 +172,19 @@ export function CellView({
               left: 0,
               right: 0,
               bottom: 0,
-              backgroundColor: cell.props.backgroundColor,
-              opacity: cell.props?.backgroundColorOpacity !== undefined ? cell.props.backgroundColorOpacity : 1,
+              backgroundColor: themeProps.backgroundColor,
+              opacity: themeProps.backgroundColorOpacity !== undefined ? themeProps.backgroundColorOpacity : 1,
               zIndex: 0,
               pointerEvents: 'none',
+              borderRadius: themeProps.borderRadius?.mode === 'uniform' && themeProps.borderRadius.uniform !== undefined
+                ? `${themeProps.borderRadius.uniform}px`
+                : themeProps.borderRadius?.mode === 'individual'
+                ? `${themeProps.borderRadius.topLeft || 0}px ${themeProps.borderRadius.topRight || 0}px ${themeProps.borderRadius.bottomRight || 0}px ${themeProps.borderRadius.bottomLeft || 0}px`
+                : undefined,
             }}
           />
         )}
-        {cell.props?.backgroundImage && (
+        {themeProps.backgroundImage && (
           <div 
             className="cell-background-image-layer"
             style={{
@@ -165,25 +193,52 @@ export function CellView({
               left: 0,
               right: 0,
               bottom: 0,
-              backgroundImage: `url(${cell.props.backgroundImage})`,
+              backgroundImage: `url(${themeProps.backgroundImage})`,
               backgroundSize: 'cover',
               backgroundPosition: 'center',
               backgroundRepeat: 'no-repeat',
-              opacity: cell.props?.backgroundImageOpacity !== undefined ? cell.props.backgroundImageOpacity : 1,
+              opacity: themeProps.backgroundImageOpacity !== undefined ? themeProps.backgroundImageOpacity : 1,
               zIndex: 1,
               pointerEvents: 'none',
+              borderRadius: themeProps.borderRadius?.mode === 'uniform' && themeProps.borderRadius.uniform !== undefined
+                ? `${themeProps.borderRadius.uniform}px`
+                : themeProps.borderRadius?.mode === 'individual'
+                ? `${themeProps.borderRadius.topLeft || 0}px ${themeProps.borderRadius.topRight || 0}px ${themeProps.borderRadius.bottomRight || 0}px ${themeProps.borderRadius.bottomLeft || 0}px`
+                : undefined,
             }}
           />
         )}
         <div 
           ref={cellResourcesRef} 
           className="cell-resources"
-          data-vertical-align={cell.props?.verticalAlign || 'top'}
+          data-vertical-align={themeProps.verticalAlign || 'top'}
           style={{
-            padding: cell.props?.padding?.mode === 'uniform' 
-              ? `${cell.props.padding.uniform || 0}px`
-              : cell.props?.padding?.mode === 'individual'
-              ? `${cell.props.padding.top || 0}px ${cell.props.padding.right || 0}px ${cell.props.padding.bottom || 0}px ${cell.props.padding.left || 0}px`
+            ...(themeProps.border?.color && themeProps.border.width ? (
+              themeProps.border.width.mode === 'uniform' && themeProps.border.width.uniform && themeProps.border.width.uniform > 0 ? {
+                border: `${themeProps.border.width.uniform}px ${themeProps.border.style || 'solid'} ${themeProps.border.color}`,
+                boxSizing: 'border-box',
+              } : themeProps.border.width.mode === 'individual' && (
+                (themeProps.border.width.top && themeProps.border.width.top > 0) ||
+                (themeProps.border.width.right && themeProps.border.width.right > 0) ||
+                (themeProps.border.width.bottom && themeProps.border.width.bottom > 0) ||
+                (themeProps.border.width.left && themeProps.border.width.left > 0)
+              ) ? {
+                borderTop: themeProps.border.width.top ? `${themeProps.border.width.top}px ${themeProps.border.style || 'solid'} ${themeProps.border.color}` : 'none',
+                borderRight: themeProps.border.width.right ? `${themeProps.border.width.right}px ${themeProps.border.style || 'solid'} ${themeProps.border.color}` : 'none',
+                borderBottom: themeProps.border.width.bottom ? `${themeProps.border.width.bottom}px ${themeProps.border.style || 'solid'} ${themeProps.border.color}` : 'none',
+                borderLeft: themeProps.border.width.left ? `${themeProps.border.width.left}px ${themeProps.border.style || 'solid'} ${themeProps.border.color}` : 'none',
+                boxSizing: 'border-box',
+              } : {}
+            ) : {}),
+            padding: themeProps.padding?.mode === 'uniform' 
+              ? `${themeProps.padding.uniform || 0}px`
+              : themeProps.padding?.mode === 'individual'
+              ? `${themeProps.padding.top || 0}px ${themeProps.padding.right || 0}px ${themeProps.padding.bottom || 0}px ${themeProps.padding.left || 0}px`
+              : undefined,
+            borderRadius: themeProps.borderRadius?.mode === 'uniform' && themeProps.borderRadius.uniform !== undefined
+              ? `${themeProps.borderRadius.uniform}px`
+              : themeProps.borderRadius?.mode === 'individual'
+              ? `${themeProps.borderRadius.topLeft || 0}px ${themeProps.borderRadius.topRight || 0}px ${themeProps.borderRadius.bottomRight || 0}px ${themeProps.borderRadius.bottomLeft || 0}px`
               : undefined,
             position: 'relative',
             zIndex: 2,

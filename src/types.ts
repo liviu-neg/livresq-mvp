@@ -73,10 +73,53 @@ export type Resource = Block | Constructor;
 /**
  * Cell contains Resources that flow vertically
  */
+// Theme-specific properties for cells and rows
+export interface ThemeSpecificCellProps {
+  verticalAlign?: 'top' | 'middle' | 'bottom';
+  padding?: {
+    uniform?: number;
+    top?: number;
+    right?: number;
+    bottom?: number;
+    left?: number;
+    mode?: 'uniform' | 'individual';
+  };
+  backgroundColor?: string;
+  backgroundColorOpacity?: number;
+  backgroundImage?: string;
+  backgroundImageOpacity?: number;
+  border?: {
+    color?: string;
+    width?: {
+      uniform?: number;
+      top?: number;
+      right?: number;
+      bottom?: number;
+      left?: number;
+      mode?: 'uniform' | 'individual';
+    };
+    style?: 'solid' | 'dashed' | 'dotted' | 'double';
+  };
+  borderRadius?: {
+    uniform?: number;
+    topLeft?: number;
+    topRight?: number;
+    bottomRight?: number;
+    bottomLeft?: number;
+    mode?: 'uniform' | 'individual';
+  };
+}
+
 export interface Cell {
   id: string;
   resources: Resource[]; // Vertical stack of resources
   props?: {
+    // Theme-specific properties - each theme can have its own values
+    themes?: {
+      plain?: ThemeSpecificCellProps;
+      neon?: ThemeSpecificCellProps;
+    };
+    // Legacy properties (for backward compatibility, will be migrated to themes)
     verticalAlign?: 'top' | 'middle' | 'bottom'; // Vertical alignment of content
     padding?: {
       uniform?: number; // Uniform padding (all sides same)
@@ -90,7 +133,56 @@ export interface Cell {
     backgroundColorOpacity?: number; // Opacity for background color (0-1)
     backgroundImage?: string; // Background image URL for the cell
     backgroundImageOpacity?: number; // Opacity for background image (0-1)
+    border?: {
+      color?: string; // Border color (hex format)
+      width?: {
+        uniform?: number; // Uniform border width (all sides same)
+        top?: number;
+        right?: number;
+        bottom?: number;
+        left?: number;
+        mode?: 'uniform' | 'individual'; // Border width mode
+      };
+      style?: 'solid' | 'dashed' | 'dotted' | 'double'; // Border style
+    };
     [key: string]: unknown;
+  };
+}
+
+// Theme-specific properties for rows (mirrors cell properties)
+export interface ThemeSpecificRowProps {
+  verticalAlign?: 'top' | 'middle' | 'bottom';
+  padding?: {
+    uniform?: number;
+    top?: number;
+    right?: number;
+    bottom?: number;
+    left?: number;
+    mode?: 'uniform' | 'individual';
+  };
+  backgroundColor?: string;
+  backgroundColorOpacity?: number;
+  backgroundImage?: string;
+  backgroundImageOpacity?: number;
+  border?: {
+    color?: string;
+    width?: {
+      uniform?: number;
+      top?: number;
+      right?: number;
+      bottom?: number;
+      left?: number;
+      mode?: 'uniform' | 'individual';
+    };
+    style?: 'solid' | 'dashed' | 'dotted' | 'double';
+  };
+  borderRadius?: {
+    uniform?: number;
+    topLeft?: number;
+    topRight?: number;
+    bottomRight?: number;
+    bottomLeft?: number;
+    mode?: 'uniform' | 'individual';
   };
 }
 
@@ -105,6 +197,12 @@ export interface Row {
   id: string;
   cells: Cell[]; // Horizontal flow of cells
   props?: {
+    // Theme-specific properties - each theme can have its own values
+    themes?: {
+      plain?: ThemeSpecificRowProps;
+      neon?: ThemeSpecificRowProps;
+    };
+    // Legacy properties (for backward compatibility, will be migrated to themes)
     verticalAlign?: 'top' | 'middle' | 'bottom'; // Vertical alignment of content
     padding?: {
       uniform?: number; // Uniform padding (all sides same)
@@ -118,6 +216,18 @@ export interface Row {
     backgroundColorOpacity?: number; // Opacity for background color (0-1)
     backgroundImage?: string; // Background image URL for the row
     backgroundImageOpacity?: number; // Opacity for background image (0-1)
+    border?: {
+      color?: string; // Border color (hex format)
+      width?: {
+        uniform?: number; // Uniform border width (all sides same)
+        top?: number;
+        right?: number;
+        bottom?: number;
+        left?: number;
+        mode?: 'uniform' | 'individual'; // Border width mode
+      };
+      style?: 'solid' | 'dashed' | 'dotted' | 'double'; // Border style
+    };
     [key: string]: unknown;
   };
   isEmptyState?: boolean; // True if this is an empty state row (for adding new sections)

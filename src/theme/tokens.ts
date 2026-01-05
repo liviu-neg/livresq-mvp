@@ -90,6 +90,30 @@ export interface RowBackgroundDefaults {
   backgroundImageOpacity?: number; // Default opacity for background image (0-1)
 }
 
+// Border property defaults - theme-level configuration for cell/row borders
+export interface BorderDefaults {
+  color?: string; // Default border color (hex format)
+  width?: {
+    uniform?: number; // Default uniform border width
+    top?: number;
+    right?: number;
+    bottom?: number;
+    left?: number;
+    mode?: 'uniform' | 'individual';
+  };
+  style?: 'solid' | 'dashed' | 'dotted' | 'double'; // Default border style
+}
+
+// Border radius property defaults - theme-level configuration for cell/row border radius
+export interface BorderRadiusDefaults {
+  uniform?: number; // Default uniform border radius (all corners)
+  topLeft?: number; // Top-left corner radius
+  topRight?: number; // Top-right corner radius
+  bottomRight?: number; // Bottom-right corner radius
+  bottomLeft?: number; // Bottom-left corner radius
+  mode?: 'uniform' | 'individual'; // Border radius mode
+}
+
 export interface Theme {
   name: string;
   colors: ColorTokens;
@@ -99,6 +123,12 @@ export interface Theme {
   shadow: ShadowTokens;
   cellPadding?: CellPaddingDefaults; // Default cell padding for this theme
   cellBackground?: CellBackgroundDefaults; // Default cell background for this theme
+  cellBorder?: BorderDefaults; // Default cell border for this theme
+  cellBorderRadius?: BorderRadiusDefaults; // Default cell border radius for this theme
+  rowPadding?: RowPaddingDefaults; // Default row padding for this theme
+  rowBackground?: RowBackgroundDefaults; // Default row background for this theme
+  rowBorder?: BorderDefaults; // Default row border for this theme
+  rowBorderRadius?: BorderRadiusDefaults; // Default row border radius for this theme
 }
 
 /**
@@ -168,6 +198,30 @@ export const plainTheme: Theme = {
     backgroundImage: undefined,
     backgroundImageOpacity: 1,
   },
+  cellBorder: {
+    color: undefined,
+    width: {
+      mode: 'uniform',
+      uniform: 0,
+    },
+    style: 'solid',
+  },
+  cellBorderRadius: {
+    mode: 'uniform',
+    uniform: 0,
+  },
+  rowBorder: {
+    color: undefined,
+    width: {
+      mode: 'uniform',
+      uniform: 0,
+    },
+    style: 'solid',
+  },
+  rowBorderRadius: {
+    mode: 'uniform',
+    uniform: 0,
+  },
 };
 
 /**
@@ -234,6 +288,30 @@ export const neonTheme: Theme = {
     backgroundColorOpacity: 1,
     backgroundImage: undefined,
     backgroundImageOpacity: 1,
+  },
+  cellBorder: {
+    color: undefined,
+    width: {
+      mode: 'uniform',
+      uniform: 0,
+    },
+    style: 'solid',
+  },
+  cellBorderRadius: {
+    mode: 'uniform',
+    uniform: 0,
+  },
+  rowBorder: {
+    color: undefined,
+    width: {
+      mode: 'uniform',
+      uniform: 0,
+    },
+    style: 'solid',
+  },
+  rowBorderRadius: {
+    mode: 'uniform',
+    uniform: 0,
   },
 };
 

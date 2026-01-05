@@ -1,9 +1,10 @@
 import React, { useRef } from 'react';
-import type { Row, Resource, Block } from '../types';
+import type { Row, Resource, Block, ThemeSpecificRowProps } from '../types';
 import { isBlock, isConstructor } from '../utils/sections';
 import { CellView } from './CellView';
 import { RowToolbar } from './RowToolbar';
 import { EmptyStateRow } from './EmptyStateRow';
+import { useThemeSwitcher } from '../theme/ThemeProvider';
 
 interface RowViewProps {
   row: Row;
@@ -30,6 +31,25 @@ interface RowViewProps {
   showStructureStrokes?: boolean;
 }
 
+// Helper function to get theme-specific row properties with fallback to legacy props
+function getRowThemeProps(row: Row, themeId: 'plain' | 'neon'): ThemeSpecificRowProps {
+  const themeProps = row.props?.themes?.[themeId];
+  // If theme-specific props exist, use them; otherwise fall back to legacy props
+  if (themeProps) {
+    return themeProps;
+  }
+  // Fallback to legacy props for backward compatibility
+  return {
+    verticalAlign: row.props?.verticalAlign,
+    padding: row.props?.padding,
+    backgroundColor: row.props?.backgroundColor,
+    backgroundColorOpacity: row.props?.backgroundColorOpacity,
+    backgroundImage: row.props?.backgroundImage,
+    backgroundImageOpacity: row.props?.backgroundImageOpacity,
+    border: row.props?.border,
+  };
+}
+
 export function RowView({
   row,
   selectedBlockId,
@@ -54,6 +74,9 @@ export function RowView({
   allBlocks,
   showStructureStrokes = false,
 }: RowViewProps) {
+  const { themeId } = useThemeSwitcher();
+  // Get theme-specific properties
+  const themeProps = getRowThemeProps(row, themeId);
   const rowRef = useRef<HTMLDivElement>(null);
   const rowCellsRef = useRef<HTMLDivElement>(null);
   // Row is only selected if selectedRowId matches AND no block/cell is selected
@@ -216,7 +239,7 @@ export function RowView({
       >
         {/* Row background layers - separate layers for color and image to allow independent opacity control */}
         {/* Background color layer (z-index: 0) */}
-        {row.props?.backgroundColor && (
+        {themeProps.backgroundColor && (
           <div 
             className="row-background-color-layer"
             style={{
@@ -225,15 +248,20 @@ export function RowView({
               left: 0,
               right: 0,
               bottom: 0,
-              backgroundColor: row.props.backgroundColor,
-              opacity: row.props.backgroundColorOpacity ?? 1,
+              backgroundColor: themeProps.backgroundColor,
+              opacity: themeProps.backgroundColorOpacity ?? 1,
               zIndex: 0,
               pointerEvents: 'none',
+              borderRadius: themeProps.borderRadius?.mode === 'uniform' && themeProps.borderRadius.uniform !== undefined
+                ? `${themeProps.borderRadius.uniform}px`
+                : themeProps.borderRadius?.mode === 'individual'
+                ? `${themeProps.borderRadius.topLeft || 0}px ${themeProps.borderRadius.topRight || 0}px ${themeProps.borderRadius.bottomRight || 0}px ${themeProps.borderRadius.bottomLeft || 0}px`
+                : undefined,
             }}
           />
         )}
         {/* Background image layer (z-index: 1, above color layer) */}
-        {row.props?.backgroundImage && (
+        {themeProps.backgroundImage && (
           <div 
             className="row-background-image-layer"
             style={{
@@ -242,13 +270,18 @@ export function RowView({
               left: 0,
               right: 0,
               bottom: 0,
-              backgroundImage: `url(${row.props.backgroundImage})`,
+              backgroundImage: `url(${themeProps.backgroundImage})`,
               backgroundSize: 'cover',
               backgroundPosition: 'center',
               backgroundRepeat: 'no-repeat',
-              opacity: row.props.backgroundImageOpacity ?? 1,
+              opacity: themeProps.backgroundImageOpacity ?? 1,
               zIndex: 1,
               pointerEvents: 'none',
+              borderRadius: themeProps.borderRadius?.mode === 'uniform' && themeProps.borderRadius.uniform !== undefined
+                ? `${themeProps.borderRadius.uniform}px`
+                : themeProps.borderRadius?.mode === 'individual'
+                ? `${themeProps.borderRadius.topLeft || 0}px ${themeProps.borderRadius.topRight || 0}px ${themeProps.borderRadius.bottomRight || 0}px ${themeProps.borderRadius.bottomLeft || 0}px`
+                : undefined,
             }}
           />
         )}
@@ -257,12 +290,34 @@ export function RowView({
         <div 
           ref={rowCellsRef} 
           className={`row-cells ${row.props?.isColumnsBlock ? 'columns-block-cells' : ''}`}
-          data-vertical-align={row.props?.verticalAlign || 'top'}
+          data-vertical-align={themeProps.verticalAlign || 'top'}
           style={{
-            padding: row.props?.padding?.mode === 'uniform' 
-              ? `${row.props.padding.uniform || 0}px`
-              : row.props?.padding?.mode === 'individual'
-              ? `${row.props.padding.top || 0}px ${row.props.padding.right || 0}px ${row.props.padding.bottom || 0}px ${row.props.padding.left || 0}px`
+            ...(themeProps.border?.color && themeProps.border.width ? (
+              themeProps.border.width.mode === 'uniform' && themeProps.border.width.uniform && themeProps.border.width.uniform > 0 ? {
+                border: `${themeProps.border.width.uniform}px ${themeProps.border.style || 'solid'} ${themeProps.border.color}`,
+                boxSizing: 'border-box',
+              } : themeProps.border.width.mode === 'individual' && (
+                (themeProps.border.width.top && themeProps.border.width.top > 0) ||
+                (themeProps.border.width.right && themeProps.border.width.right > 0) ||
+                (themeProps.border.width.bottom && themeProps.border.width.bottom > 0) ||
+                (themeProps.border.width.left && themeProps.border.width.left > 0)
+              ) ? {
+                borderTop: themeProps.border.width.top ? `${themeProps.border.width.top}px ${themeProps.border.style || 'solid'} ${themeProps.border.color}` : 'none',
+                borderRight: themeProps.border.width.right ? `${themeProps.border.width.right}px ${themeProps.border.style || 'solid'} ${themeProps.border.color}` : 'none',
+                borderBottom: themeProps.border.width.bottom ? `${themeProps.border.width.bottom}px ${themeProps.border.style || 'solid'} ${themeProps.border.color}` : 'none',
+                borderLeft: themeProps.border.width.left ? `${themeProps.border.width.left}px ${themeProps.border.style || 'solid'} ${themeProps.border.color}` : 'none',
+                boxSizing: 'border-box',
+              } : {}
+            ) : {}),
+            padding: themeProps.padding?.mode === 'uniform' 
+              ? `${themeProps.padding.uniform || 0}px`
+              : themeProps.padding?.mode === 'individual'
+              ? `${themeProps.padding.top || 0}px ${themeProps.padding.right || 0}px ${themeProps.padding.bottom || 0}px ${themeProps.padding.left || 0}px`
+              : undefined,
+            borderRadius: themeProps.borderRadius?.mode === 'uniform' && themeProps.borderRadius.uniform !== undefined
+              ? `${themeProps.borderRadius.uniform}px`
+              : themeProps.borderRadius?.mode === 'individual'
+              ? `${themeProps.borderRadius.topLeft || 0}px ${themeProps.borderRadius.topRight || 0}px ${themeProps.borderRadius.bottomRight || 0}px ${themeProps.borderRadius.bottomLeft || 0}px`
               : undefined,
             position: 'relative',
             zIndex: 2,

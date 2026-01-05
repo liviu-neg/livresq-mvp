@@ -2247,6 +2247,16 @@ body {
   height: 100%;
   background: white !important;
   padding: 20px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  box-sizing: border-box;
+  /* Hide scrollbar but keep scroll functionality */
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE and Edge */
+}
+
+.properties-panel::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Opera */
 }
 
 .properties-title {
@@ -2268,12 +2278,51 @@ body {
   display: flex;
   flex-direction: column;
   gap: 20px;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 .property-group {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.property-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.property-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.property-section-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+}
+
+.property-section-title label {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
 }
 
 /* All property labels - Framer Style */
@@ -2318,6 +2367,8 @@ body {
 
 .property-input,
 .property-textarea {
+  width: 100%;
+  min-width: 0;
   padding: 8px 12px;
   border: 1px solid #e0e0e0 !important;
   border-radius: 6px;
@@ -2326,6 +2377,7 @@ body {
   transition: all 0.15s;
   background: #f5f5f5 !important;
   color: #1a1a1a !important;
+  box-sizing: border-box;
 }
 
 .property-input:hover,
@@ -2429,11 +2481,15 @@ body {
 .vertical-align-selector {
   display: flex;
   gap: 8px;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 .vertical-align-button {
   flex: 1;
-  padding: 8px 16px;
+  min-width: 0;
+  padding: 8px 12px;
   border: 1px solid #e0e0e0 !important;
   border-radius: 6px;
   background: #f5f5f5 !important;
@@ -2443,6 +2499,10 @@ body {
   color: #1a1a1a !important;
   transition: all 0.15s;
   font-family: inherit;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  box-sizing: border-box;
 }
 
 .vertical-align-button:hover {
@@ -2509,6 +2569,9 @@ body {
   align-items: center;
   gap: 8px;
   justify-content: space-between;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 .property-reset-button {
@@ -2560,13 +2623,27 @@ body {
 
 .padding-top-row {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   align-items: center;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.padding-top-row > input {
+  flex: 1;
+  min-width: 80px;
+}
+
+.padding-top-row > .padding-mode-toggle {
+  flex-shrink: 0;
 }
 
 .padding-input {
   flex: 1;
-  min-width: 0;
+  min-width: 80px;
+  max-width: 100%;
   padding: 8px 12px;
   border: 1px solid #e0e0e0;
   border-radius: 6px;
@@ -2574,6 +2651,7 @@ body {
   font-size: 13px;
   font-family: inherit;
   color: #1a1a1a;
+  box-sizing: border-box;
 }
 
 .padding-input:focus {
@@ -2622,6 +2700,9 @@ body {
 .padding-individual-row {
   display: flex;
   gap: 8px;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 .padding-input-group {
@@ -2644,6 +2725,117 @@ body {
   letter-spacing: 0.5px;
 }
 
+/* Border radius controls */
+.border-radius-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.border-radius-top-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.border-radius-top-row > input {
+  flex: 1;
+  min-width: 80px;
+}
+
+.border-radius-top-row > .border-radius-mode-toggle {
+  flex-shrink: 0;
+}
+
+.border-radius-input {
+  flex: 1;
+  min-width: 80px;
+  max-width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  background: #f5f5f5;
+  font-size: 13px;
+  font-family: inherit;
+  color: #1a1a1a;
+  box-sizing: border-box;
+}
+
+.border-radius-input:focus {
+  outline: none;
+  border-color: #8b5cf6;
+  background: white;
+}
+
+.border-radius-mode-toggle {
+  display: flex;
+  gap: 0;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  overflow: hidden;
+  background: #f5f5f5;
+}
+
+.border-radius-mode-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: #666;
+  transition: all 0.15s;
+}
+
+.border-radius-mode-button:hover {
+  background: #e8e8e8;
+}
+
+.border-radius-mode-button.active {
+  background: #8b5cf6;
+  color: white;
+}
+
+.border-radius-mode-button svg {
+  width: 16px;
+  height: 16px;
+}
+
+.border-radius-individual-row {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.border-radius-input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+}
+
+.border-radius-input-group .border-radius-input {
+  width: 100%;
+}
+
+.border-radius-label {
+  font-size: 11px;
+  font-weight: 500;
+  color: #666;
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
 /* Background controls for cells */
 .background-controls {
   display: flex;
@@ -2655,6 +2847,9 @@ body {
   display: flex;
   gap: 8px;
   align-items: center;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 .property-color-input {
@@ -2679,6 +2874,7 @@ body {
 
 .color-text-input {
   flex: 1;
+  min-width: 0;
 }
 
 .background-image-preview {
@@ -2738,6 +2934,144 @@ body {
   cursor: pointer;
   border: 2px solid white;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.opacity-range::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #8b5cf6;
+  cursor: pointer;
+  border: 2px solid white;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+/* Border controls - similar structure to padding controls */
+.border-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.border-width-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.border-width-top-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.border-width-top-row > input {
+  flex: 1;
+  min-width: 80px;
+}
+
+.border-width-top-row > .border-width-mode-toggle {
+  flex-shrink: 0;
+}
+
+.border-width-input {
+  flex: 1;
+  min-width: 80px;
+  max-width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  background: #f5f5f5;
+  font-size: 13px;
+  font-family: inherit;
+  color: #1a1a1a;
+  box-sizing: border-box;
+}
+
+.border-width-input:focus {
+  outline: none;
+  border-color: #8b5cf6;
+  background: white;
+}
+
+.border-width-mode-toggle {
+  display: flex;
+  gap: 0;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  overflow: hidden;
+  background: #f5f5f5;
+}
+
+.border-width-mode-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: #666;
+  transition: all 0.15s;
+}
+
+.border-width-mode-button:hover {
+  background: #e8e8e8;
+}
+
+.border-width-mode-button.active {
+  background: #8b5cf6;
+  color: white;
+}
+
+.border-width-mode-button svg {
+  width: 16px;
+  height: 16px;
+}
+
+.border-width-individual-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.border-width-input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+}
+
+.border-width-input-group .border-width-input {
+  width: 100%;
+}
+
+.border-width-labels {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+  margin-top: 4px;
+}
+
+.border-width-label {
+  flex: 1;
+  font-size: 11px;
+  font-weight: 500;
+  color: #666;
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .opacity-range::-moz-range-thumb {
@@ -3642,36 +3976,43 @@ body {
   display: flex;
   flex-direction: column;
   width: 100%;
-  border: 1px solid transparent;
+  border: 1px solid transparent; /* Default transparent border - custom border overrides via inline styles */
   border-radius: 4px;
   transition: border-color 0.2s;
   margin-bottom: var(--spacing-lg);
   position: relative;
 }
 
-.row-view:hover {
-  border: 1px solid #94A3AC !important;
+/* Ensure custom border from inline styles takes precedence over default transparent border */
+.row-view[style*="border"]:not([style*="border: 1px solid transparent"]) {
+  /* Inline border styles will override the default */
 }
 
-.row-view.show-strokes {
+/* Hover uses outline to appear on top of custom border */
+.row-view:hover {
+  outline: 1px solid #94A3AC;
+  outline-offset: -1px;
+}
+
+/* Structure strokes - only apply if no custom border is set */
+.row-view.show-strokes:not([style*="border"]):not([style*="borderTop"]):not([style*="borderRight"]):not([style*="borderBottom"]):not([style*="borderLeft"]) {
   border-style: dashed !important;
   border-width: 1px !important;
   border-color: #94A3AC !important;
 }
 
-.row-view.show-strokes:hover {
-  border-style: solid !important;
-  border-width: 1px !important;
-  border-color: #94A3AC !important;
+.row-view.show-strokes:hover:not([style*="border"]):not([style*="borderTop"]):not([style*="borderRight"]):not([style*="borderBottom"]):not([style*="borderLeft"]) {
+  outline: 1px solid #94A3AC;
+  outline-offset: -1px;
 }
 
+/* Selected state - outline on inner element appears on top of custom border */
 .row-view.selected {
-  border: none !important;
   box-shadow: none;
 }
 
 .row-view.selected:hover {
-  border: none !important; /* Prevent hover border when selected */
+  /* Hover outline removed when selected - selection outline takes precedence */
 }
 
 .row-view.selected .row-cells {
@@ -3679,9 +4020,13 @@ body {
   outline-offset: -3px; /* Make outline appear inside, matching border appearance */
   box-shadow: none;
   border-radius: 0;
-  /* Keep transparent border for consistent box-sizing */
-  border: 3px solid transparent;
+  /* Keep transparent border for consistent box-sizing - only if no custom border is set */
   box-sizing: border-box;
+}
+
+/* When row-cells has a custom border, don't add the transparent border */
+.row-view.selected .row-cells:not([style*="border"]):not([style*="borderTop"]):not([style*="borderRight"]):not([style*="borderBottom"]):not([style*="borderLeft"]) {
+  border: 3px solid transparent;
 }
 
 /* Add section button - appears at bottom of selected row */
@@ -3880,11 +4225,17 @@ body {
   display: flex;
   flex-direction: column;
   align-items: stretch; /* Ensure cell content stretches to full height */
-  border: 1px solid transparent;
+  align-self: stretch; /* Ensure cell stretches to full height of row */
+  border: 1px solid transparent; /* Default transparent border - custom border overrides via inline styles */
   border-radius: 4px;
   transition: border-color 0.2s;
   min-width: 0; /* Allow flex shrinking */
-  /* Remove height: 100% - let flexbox align-items: stretch handle it */
+  min-height: 100%; /* Ensure cell fills row height */
+}
+
+/* Ensure custom border from inline styles takes precedence over default transparent border */
+.cell-view[style*="border"]:not([style*="border: 1px solid transparent"]) {
+  /* Inline border styles will override the default */
 }
 
 .cell-view.drag-over {
@@ -3892,29 +4243,31 @@ body {
   background-color: rgba(0, 123, 255, 0.05);
 }
 
+/* Hover uses outline to appear on top of custom border */
 .cell-view:hover {
-  border: 1px solid #F19E39 !important;
+  outline: 1px solid #F19E39;
+  outline-offset: -1px;
 }
 
-.cell-view.show-strokes {
+/* Structure strokes - only apply if no custom border is set */
+.cell-view.show-strokes:not([style*="border"]):not([style*="borderTop"]):not([style*="borderRight"]):not([style*="borderBottom"]):not([style*="borderLeft"]) {
   border-style: dashed !important;
   border-width: 1px !important;
   border-color: #F19E39 !important;
 }
 
-.cell-view.show-strokes:hover {
-  border-style: solid !important;
-  border-width: 1px !important;
-  border-color: #F19E39 !important;
+.cell-view.show-strokes:hover:not([style*="border"]):not([style*="borderTop"]):not([style*="borderRight"]):not([style*="borderBottom"]):not([style*="borderLeft"]) {
+  outline: 1px solid #F19E39;
+  outline-offset: -1px;
 }
 
+/* Selected state - outline on inner element appears on top of custom border */
 .cell-view.selected {
-  border: none !important;
   box-shadow: none;
 }
 
 .cell-view.selected:hover {
-  border: none !important; /* Prevent hover border when selected */
+  /* Hover outline removed when selected - selection outline takes precedence */
 }
 
 /* Empty state cell - no stroke, not selectable */
@@ -3944,10 +4297,16 @@ body {
   outline-offset: -3px; /* Make outline appear inside, matching border appearance */
   box-shadow: none;
   border-radius: 0;
-  /* Keep transparent border for consistent box-sizing */
-  border: 3px solid transparent;
+  /* Keep transparent border for consistent box-sizing - only if no custom border is set */
   box-sizing: border-box;
 }
+
+/* When cell-resources has a custom border, don't add the transparent border */
+.cell-view.selected .cell-resources:not([style*="border"]):not([style*="borderTop"]):not([style*="borderRight"]):not([style*="borderBottom"]):not([style*="borderLeft"]) {
+  border: 3px solid transparent;
+}
+
+/* Custom border for cells - applied to cell-resources, doesn't interfere with selection outline */
 
 .cell-resources {
   display: flex;
@@ -3960,9 +4319,9 @@ body {
   border: 3px solid transparent;
   /* No transition - matches block approach to prevent layout shifts */
   flex: 1; /* Stretch to fill available cell height */
-  /* Remove min-height: 100% - let flexbox handle stretching */
-  outline: none; /* Ensure no outline by default */
+  height: 100%; /* Ensure cell-resources fills full height of cell-view */
   min-height: 80px; /* Minimum height for empty cells */
+  outline: none; /* Ensure no outline by default */
 }
 
 /* Explicitly prevent background color on cells containing columns blocks - must come first */

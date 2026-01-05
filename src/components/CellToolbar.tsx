@@ -125,7 +125,8 @@ export function CellToolbar({
       left = Math.max(minLeft, Math.min(maxLeft, left));
       top = Math.max(minTop, Math.min(maxTop, top));
 
-      setPosition({ top, left });
+      // Add 1px offset for top (1px lower), no horizontal offset
+      setPosition({ top: top + 1, left: left });
     };
 
     // Initial position after toolbar is rendered and measured
