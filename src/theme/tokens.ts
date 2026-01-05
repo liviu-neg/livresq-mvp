@@ -114,6 +114,14 @@ export interface BorderRadiusDefaults {
   mode?: 'uniform' | 'individual'; // Border radius mode
 }
 
+// Page property defaults - theme-level configuration for page background
+export interface PageBackgroundDefaults {
+  backgroundColor?: string; // Default background color for the page
+  backgroundColorOpacity?: number; // Default opacity for background color (0-1)
+  backgroundImage?: string; // Default background image URL for the page
+  backgroundImageOpacity?: number; // Default opacity for background image (0-1)
+}
+
 export interface Theme {
   name: string;
   colors: ColorTokens;
@@ -129,6 +137,7 @@ export interface Theme {
   rowBackground?: RowBackgroundDefaults; // Default row background for this theme
   rowBorder?: BorderDefaults; // Default row border for this theme
   rowBorderRadius?: BorderRadiusDefaults; // Default row border radius for this theme
+  pageBackground?: PageBackgroundDefaults; // Default page background for this theme
 }
 
 /**
@@ -222,6 +231,12 @@ export const plainTheme: Theme = {
     mode: 'uniform',
     uniform: 0,
   },
+  pageBackground: {
+    backgroundColor: '#ffffff',
+    backgroundColorOpacity: 1,
+    backgroundImage: undefined,
+    backgroundImageOpacity: 1,
+  },
 };
 
 /**
@@ -312,6 +327,12 @@ export const neonTheme: Theme = {
   rowBorderRadius: {
     mode: 'uniform',
     uniform: 0,
+  },
+  pageBackground: {
+    backgroundColor: '#000000',
+    backgroundColorOpacity: 1,
+    backgroundImage: undefined,
+    backgroundImageOpacity: 1,
   },
 };
 

@@ -50,6 +50,23 @@ export interface Lesson {
   blocks: Block[];
   sections?: Section[]; // New: sections-based structure
   rows?: Row[]; // New: Row/Cell/Resource model
+  // Page-level properties - theme-specific background settings
+  pageProps?: {
+    themes?: {
+      plain?: {
+        backgroundColor?: string;
+        backgroundColorOpacity?: number;
+        backgroundImage?: string;
+        backgroundImageOpacity?: number;
+      };
+      neon?: {
+        backgroundColor?: string;
+        backgroundColorOpacity?: number;
+        backgroundImage?: string;
+        backgroundImageOpacity?: number;
+      };
+    };
+  };
 }
 
 /**

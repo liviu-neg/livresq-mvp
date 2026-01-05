@@ -22,6 +22,7 @@ import { TwoColumnSection } from './sections/TwoColumnSection';
 import { findBlockInSections } from '../utils/sections';
 import { RowView } from './RowView';
 import { isBlock } from '../utils/sections';
+import { useThemeSwitcher, useTheme } from '../theme/ThemeProvider';
 
 interface LessonCanvasProps {
   sections: Section[]; // For backward compatibility
@@ -30,9 +31,26 @@ interface LessonCanvasProps {
   selectedCellId?: string | null;
   selectedRowId?: string | null;
   editingBlockId: string | null;
+  pageProps?: {
+    themes?: {
+      plain?: {
+        backgroundColor?: string;
+        backgroundColorOpacity?: number;
+        backgroundImage?: string;
+        backgroundImageOpacity?: number;
+      };
+      neon?: {
+        backgroundColor?: string;
+        backgroundColorOpacity?: number;
+        backgroundImage?: string;
+        backgroundImageOpacity?: number;
+      };
+    };
+  };
   onSelectBlock: (blockId: string | null) => void;
   onSelectCell?: (cellId: string | null) => void;
   onSelectRow?: (rowId: string | null) => void;
+  onSelectPage?: (isSelected: boolean) => void;
   onEditBlock: (blockId: string) => void;
   onStopEditing: () => void;
   onUpdateBlock: (block: Block) => void;
@@ -360,6 +378,75 @@ function SortableBlockItem({
   );
 }
 
+// Page background component - applies theme-specific background to the lesson canvas
+function PageBackground({ pageProps }: { 
+  pageProps?: {
+    themes?: {
+      plain?: {
+        backgroundColor?: string;
+        backgroundColorOpacity?: number;
+        backgroundImage?: string;
+        backgroundImageOpacity?: number;
+      };
+      neon?: {
+        backgroundColor?: string;
+        backgroundColorOpacity?: number;
+        backgroundImage?: string;
+        backgroundImageOpacity?: number;
+      };
+    };
+  };
+}) {
+  const { themeId } = useThemeSwitcher();
+  const theme = useTheme();
+  const defaultPageBackground = theme.pageBackground || { backgroundColor: '#ffffff', backgroundColorOpacity: 1, backgroundImage: undefined, backgroundImageOpacity: 1 };
+  const themePageProps = pageProps?.themes?.[themeId] || {};
+  const backgroundColor = themePageProps.backgroundColor ?? defaultPageBackground.backgroundColor;
+  const backgroundColorOpacity = themePageProps.backgroundColorOpacity ?? defaultPageBackground.backgroundColorOpacity ?? 1;
+  const backgroundImage = themePageProps.backgroundImage ?? defaultPageBackground.backgroundImage;
+  const backgroundImageOpacity = themePageProps.backgroundImageOpacity ?? defaultPageBackground.backgroundImageOpacity ?? 1;
+
+  return (
+    <>
+      <div 
+        className="page-background-color-layer"
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: backgroundColor || 'transparent',
+          opacity: backgroundColorOpacity,
+          zIndex: 0,
+          pointerEvents: 'none',
+          borderRadius: '8px',
+        }}
+      />
+      {backgroundImage && (
+        <div 
+          className="page-background-image-layer"
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundImage: `url(${backgroundImage})`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+            backgroundRepeat: 'no-repeat',
+            opacity: backgroundImageOpacity,
+            zIndex: 1,
+            pointerEvents: 'none',
+            borderRadius: '8px',
+          }}
+        />
+      )}
+    </>
+  );
+}
+
 function EmptyStateDroppable() {
   const { setNodeRef } = useDroppable({
     id: 'empty-canvas',
@@ -379,9 +466,11 @@ export function LessonCanvas({
   selectedCellId,
   selectedRowId,
   editingBlockId,
+  pageProps = {},
   onSelectBlock,
   onSelectCell,
   onSelectRow,
+  onSelectPage,
   onEditBlock,
   onStopEditing,
   onUpdateBlock,
@@ -400,12 +489,13 @@ export function LessonCanvas({
   showStructureStrokes = false,
 }: LessonCanvasProps) {
   const handleCanvasClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    // Only clear selection if clicking directly on the canvas background
+    // Only select page if clicking directly on the canvas background
     const target = e.target as HTMLElement;
     if (target.classList.contains('lesson-canvas') || target.classList.contains('empty-state')) {
       onSelectBlock(null);
       if (onSelectCell) onSelectCell(null);
       if (onSelectRow) onSelectRow(null);
+      if (onSelectPage) onSelectPage(true); // Select page when clicking outside rows
       onStopEditing();
     }
   };
@@ -464,47 +554,46 @@ export function LessonCanvas({
     );
 
     return (
-      <>
-        <div 
-          className="lesson-canvas" 
-          onClick={handleCanvasClick}
-          style={{
-            backgroundColor: 'var(--lesson-canvas-bg)',
-          }}
+      <div 
+        className="lesson-canvas" 
+        onClick={handleCanvasClick}
+        style={{
+          position: 'relative',
+        }}
+      >
+        <PageBackground pageProps={pageProps} />
+        <SortableContext
+          items={allBlockIds}
+          strategy={verticalListSortingStrategy}
         >
-          <SortableContext
-            items={allBlockIds}
-            strategy={verticalListSortingStrategy}
-          >
-                    {rows.map((row) => (
-                      <RowView
-                        key={row.id}
-                        row={row}
-                        selectedBlockId={selectedBlockId}
-                        selectedCellId={selectedCellId}
-                        selectedRowId={selectedRowId}
-                        editingBlockId={editingBlockId}
-                        isPreview={isPreview}
-                        onSelectBlock={onSelectBlock}
-                        onSelectCell={onSelectCell}
-                        onSelectRow={onSelectRow}
-                        onEditBlock={onEditBlock}
-                        onUpdateBlock={onUpdateBlock}
-                        onDeleteCell={onDeleteCell}
-                        onDuplicateCell={onDuplicateCell}
-                        onEditCell={onEditCell}
-                        onEditRow={onEditRow}
-                        onDeleteRow={onDeleteRow}
-                        onDuplicateRow={onDuplicateRow}
-                        onAddEmptyStateRow={onAddEmptyStateRow}
-                        renderResource={renderResource}
-                        activeId={activeId}
-                        allBlocks={allBlocksList}
-                        showStructureStrokes={showStructureStrokes}
-                      />
-                    ))}
-          </SortableContext>
-        </div>
+          {rows.map((row) => (
+            <RowView
+              key={row.id}
+              row={row}
+              selectedBlockId={selectedBlockId}
+              selectedCellId={selectedCellId}
+              selectedRowId={selectedRowId}
+              editingBlockId={editingBlockId}
+              isPreview={isPreview}
+              onSelectBlock={onSelectBlock}
+              onSelectCell={onSelectCell}
+              onSelectRow={onSelectRow}
+              onEditBlock={onEditBlock}
+              onUpdateBlock={onUpdateBlock}
+              onDeleteCell={onDeleteCell}
+              onDuplicateCell={onDuplicateCell}
+              onEditCell={onEditCell}
+              onEditRow={onEditRow}
+              onDeleteRow={onDeleteRow}
+              onDuplicateRow={onDuplicateRow}
+              onAddEmptyStateRow={onAddEmptyStateRow}
+              renderResource={renderResource}
+              activeId={activeId}
+              allBlocks={allBlocksList}
+              showStructureStrokes={showStructureStrokes}
+            />
+          ))}
+        </SortableContext>
         {activeId && (
           <DragOverlay>
           <div className="drag-overlay">
@@ -545,7 +634,7 @@ export function LessonCanvas({
           </div>
           </DragOverlay>
         )}
-      </>
+      </div>
     );
   }
 
@@ -573,67 +662,66 @@ export function LessonCanvas({
   );
 
   return (
-    <>
-      <div 
-        className="lesson-canvas" 
-        onClick={handleCanvasClick}
-        style={{
-          backgroundColor: 'var(--lesson-canvas-bg)',
-        }}
-      >
-        {sections.length === 0 ? (
-          <EmptyStateDroppable />
-        ) : (
-          sections.map((section) => {
-            // Get all block IDs in this section for SortableContext
-            const blockIds: string[] = [];
-            if (section.type === 'simple') {
-              blockIds.push(...section.slots.main.map(b => b.id));
-            } else {
-              blockIds.push(...section.slots.left.map(b => b.id), ...section.slots.right.map(b => b.id));
-            }
+    <div 
+      className="lesson-canvas" 
+      onClick={handleCanvasClick}
+      style={{
+        position: 'relative',
+      }}
+    >
+      <PageBackground pageProps={pageProps} />
+      {sections.length === 0 ? (
+        <EmptyStateDroppable />
+      ) : (
+        sections.map((section) => {
+          // Get all block IDs in this section for SortableContext
+          const blockIds: string[] = [];
+          if (section.type === 'simple') {
+            blockIds.push(...section.slots.main.map(b => b.id));
+          } else {
+            blockIds.push(...section.slots.left.map(b => b.id), ...section.slots.right.map(b => b.id));
+          }
 
-            return (
-              <SortableContext
-                key={section.id}
-                items={blockIds}
-                strategy={verticalListSortingStrategy}
-              >
-                {section.type === 'simple' ? (
-                  <SimpleSection
-                    section={section}
-                    blocks={section.slots.main}
-                    selectedBlockId={selectedBlockId}
-                    editingBlockId={editingBlockId}
-                    isPreview={isPreview}
-                    onSelectBlock={onSelectBlock}
-                    onEditBlock={onEditBlock}
-                    onUpdateBlock={onUpdateBlock}
-                    renderBlock={renderBlock}
-                    activeId={activeId}
-                    allBlocks={allBlocksList}
-                  />
-                ) : (
-                  <TwoColumnSection
-                    section={section}
-                    leftBlocks={section.slots.left}
-                    rightBlocks={section.slots.right}
-                    selectedBlockId={selectedBlockId}
-                    editingBlockId={editingBlockId}
-                    isPreview={isPreview}
-                    onSelectBlock={onSelectBlock}
-                    onEditBlock={onEditBlock}
-                    onUpdateBlock={onUpdateBlock}
-                    renderBlock={renderBlock}
-                    activeId={activeId}
-                    allBlocks={allBlocksList}
-                  />
-                )}
-              </SortableContext>
-            );
-          })
-        )}
-      </div>
+          return (
+            <SortableContext
+              key={section.id}
+              items={blockIds}
+              strategy={verticalListSortingStrategy}
+            >
+              {section.type === 'simple' ? (
+                <SimpleSection
+                  section={section}
+                  blocks={section.slots.main}
+                  selectedBlockId={selectedBlockId}
+                  editingBlockId={editingBlockId}
+                  isPreview={isPreview}
+                  onSelectBlock={onSelectBlock}
+                  onEditBlock={onEditBlock}
+                  onUpdateBlock={onUpdateBlock}
+                  renderBlock={renderBlock}
+                  activeId={activeId}
+                  allBlocks={allBlocksList}
+                />
+              ) : (
+                <TwoColumnSection
+                  section={section}
+                  leftBlocks={section.slots.left}
+                  rightBlocks={section.slots.right}
+                  selectedBlockId={selectedBlockId}
+                  editingBlockId={editingBlockId}
+                  isPreview={isPreview}
+                  onSelectBlock={onSelectBlock}
+                  onEditBlock={onEditBlock}
+                  onUpdateBlock={onUpdateBlock}
+                  renderBlock={renderBlock}
+                  activeId={activeId}
+                  allBlocks={allBlocksList}
+                />
+              )}
+            </SortableContext>
+          );
+        })
+      )}
       {activeId && (
         <DragOverlay>
           <div className="drag-overlay">
@@ -674,6 +762,6 @@ export function LessonCanvas({
           </div>
         </DragOverlay>
       )}
-    </>
+    </div>
   );
 }

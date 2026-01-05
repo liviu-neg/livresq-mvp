@@ -48,6 +48,24 @@ function App() {
   const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null);
   const [selectedCellId, setSelectedCellId] = useState<string | null>(null);
   const [selectedRowId, setSelectedRowId] = useState<string | null>(null); // Track selected row for insertion
+  const [isPageSelected, setIsPageSelected] = useState(false); // Track if page is selected
+  // Page properties - theme-specific background settings
+  const [pageProps, setPageProps] = useState<{
+    themes?: {
+      plain?: {
+        backgroundColor?: string;
+        backgroundColorOpacity?: number;
+        backgroundImage?: string;
+        backgroundImageOpacity?: number;
+      };
+      neon?: {
+        backgroundColor?: string;
+        backgroundColorOpacity?: number;
+        backgroundImage?: string;
+        backgroundImageOpacity?: number;
+      };
+    };
+  }>({});
   const [editingBlockId, setEditingBlockId] = useState<string | null>(null);
   const [isPreview, setIsPreview] = useState(false);
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -1566,9 +1584,20 @@ function App() {
                   selectedCellId={selectedCellId}
                   selectedRowId={selectedRowId}
                   editingBlockId={editingBlockId}
-                  onSelectBlock={setSelectedBlockId}
-                  onSelectCell={setSelectedCellId}
-                  onSelectRow={setSelectedRowId}
+                  pageProps={pageProps}
+                  onSelectBlock={(blockId) => {
+                    setSelectedBlockId(blockId);
+                    setIsPageSelected(false); // Clear page selection when selecting block
+                  }}
+                  onSelectCell={(cellId) => {
+                    setSelectedCellId(cellId);
+                    setIsPageSelected(false); // Clear page selection when selecting cell
+                  }}
+                  onSelectRow={(rowId) => {
+                    setSelectedRowId(rowId);
+                    setIsPageSelected(false); // Clear page selection when selecting row
+                  }}
+                  onSelectPage={setIsPageSelected}
                   onEditBlock={(blockId) => {
                     const block = findBlockInSections(sections, blockId);
                     if (block?.type === 'image') {
@@ -1600,6 +1629,13 @@ function App() {
                   selectedBlock={selectedBlock}
                   selectedRow={selectedRowId ? rows.find(r => r.id === selectedRowId) || null : null}
                   selectedCell={selectedCellId ? findCellInRows(rows, selectedCellId) : null}
+                  isPageSelected={isPageSelected}
+                  pageProps={pageProps}
+                  onUpdatePageProps={(props) => {
+                    if (props) {
+                      setPageProps(props);
+                    }
+                  }}
                   onUpdateBlock={handleUpdateBlock}
                   onUpdateRow={(updatedRow) => {
                     setRows((prev) =>

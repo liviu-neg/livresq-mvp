@@ -3994,6 +3994,14 @@ body {
   outline-offset: -1px;
 }
 
+/* Prevent parent row hover when child cell is hovered - show dashed border instead */
+.row-view:has(.cell-view:hover):not([style*="border"]):not([style*="borderTop"]):not([style*="borderRight"]):not([style*="borderBottom"]):not([style*="borderLeft"]) {
+  outline: none !important;
+  border-style: dashed !important;
+  border-width: 1px !important;
+  border-color: #94A3AC !important;
+}
+
 /* Structure strokes - only apply if no custom border is set */
 .row-view.show-strokes:not([style*="border"]):not([style*="borderTop"]):not([style*="borderRight"]):not([style*="borderBottom"]):not([style*="borderLeft"]) {
   border-style: dashed !important;
@@ -4247,6 +4255,23 @@ body {
 .cell-view:hover {
   outline: 1px solid #F19E39;
   outline-offset: -1px;
+}
+
+/* When a resource (block) is hovered, show dotted line hover on parent cell and row */
+/* Override the normal hover outline with dashed border (matching structure strokes) */
+.cell-view:has(.canvas-block:hover):not([style*="border"]):not([style*="borderTop"]):not([style*="borderRight"]):not([style*="borderBottom"]):not([style*="borderLeft"]) {
+  outline: none !important;
+  border-style: dashed !important;
+  border-width: 1px !important;
+  border-color: #F19E39 !important;
+}
+
+/* When a resource (block) is hovered, show dotted line hover on parent row */
+.row-view:has(.cell-view:has(.canvas-block:hover)):not([style*="border"]):not([style*="borderTop"]):not([style*="borderRight"]):not([style*="borderBottom"]):not([style*="borderLeft"]) {
+  outline: none !important;
+  border-style: dashed !important;
+  border-width: 1px !important;
+  border-color: #94A3AC !important;
 }
 
 /* Structure strokes - only apply if no custom border is set */

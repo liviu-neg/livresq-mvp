@@ -8,6 +8,24 @@ interface PropertiesPanelProps {
   selectedBlock: Block | null;
   selectedRow?: Row | null;
   selectedCell?: Cell | null;
+  isPageSelected?: boolean;
+  pageProps?: {
+    themes?: {
+      plain?: {
+        backgroundColor?: string;
+        backgroundColorOpacity?: number;
+        backgroundImage?: string;
+        backgroundImageOpacity?: number;
+      };
+      neon?: {
+        backgroundColor?: string;
+        backgroundColorOpacity?: number;
+        backgroundImage?: string;
+        backgroundImageOpacity?: number;
+      };
+    };
+  };
+  onUpdatePageProps?: (props: PropertiesPanelProps['pageProps']) => void;
   onUpdateBlock: (block: Block) => void;
   onUpdateRow?: (row: Row) => void;
   onUpdateCell?: (cell: Cell) => void;
@@ -58,6 +76,9 @@ export function PropertiesPanel({
   selectedBlock,
   selectedRow,
   selectedCell,
+  isPageSelected = false,
+  pageProps = {},
+  onUpdatePageProps,
   onUpdateBlock,
   onUpdateRow,
   onUpdateCell,
@@ -66,6 +87,144 @@ export function PropertiesPanel({
   const { themeId } = useThemeSwitcher();
   // Check if selected row is a columns block
   const isColumnsBlockRow = selectedRow?.props?.isColumnsBlock === true;
+
+  // Page properties panel - shown when page is selected (and not a row, cell, or block)
+  if (isPageSelected && !selectedRow && !selectedCell && !selectedBlock && onUpdatePageProps) {
+    const theme = useTheme();
+    const defaultPageBackground = theme.pageBackground || { backgroundColor: '#ffffff', backgroundColorOpacity: 1, backgroundImage: undefined, backgroundImageOpacity: 1 };
+    
+    // Get theme-specific page properties
+    const themePageProps = pageProps?.themes?.[themeId] || {};
+    const backgroundColor = themePageProps.backgroundColor ?? defaultPageBackground.backgroundColor;
+    const backgroundColorOpacity = themePageProps.backgroundColorOpacity ?? defaultPageBackground.backgroundColorOpacity ?? 1;
+    const backgroundImage = themePageProps.backgroundImage ?? defaultPageBackground.backgroundImage;
+    const backgroundImageOpacity = themePageProps.backgroundImageOpacity ?? defaultPageBackground.backgroundImageOpacity ?? 1;
+
+    const handleUpdatePageThemeProps = (updates: Partial<typeof themePageProps>) => {
+      if (!onUpdatePageProps) return;
+      onUpdatePageProps({
+        themes: {
+          ...(pageProps?.themes || {}),
+          [themeId]: {
+            ...themePageProps,
+            ...updates,
+          },
+        },
+      });
+    };
+
+    const handleBackgroundColorChange = (color: string) => {
+      handleUpdatePageThemeProps({ backgroundColor: color });
+    };
+
+    const handleBackgroundColorOpacityChange = (opacity: number) => {
+      handleUpdatePageThemeProps({ backgroundColorOpacity: opacity });
+    };
+
+    const handleBackgroundImageChange = (url: string) => {
+      handleUpdatePageThemeProps({ backgroundImage: url || undefined });
+    };
+
+    const handleBackgroundImageOpacityChange = (opacity: number) => {
+      handleUpdatePageThemeProps({ backgroundImageOpacity: opacity });
+    };
+
+    const handleResetBackground = () => {
+      handleUpdatePageThemeProps({
+        backgroundColor: defaultPageBackground.backgroundColor,
+        backgroundColorOpacity: defaultPageBackground.backgroundColorOpacity,
+        backgroundImage: defaultPageBackground.backgroundImage,
+        backgroundImageOpacity: defaultPageBackground.backgroundImageOpacity,
+      });
+    };
+
+    return (
+      <div className="properties-panel">
+        <h2 className="properties-title">Properties</h2>
+        <div className="properties-content">
+          <div className="property-section">
+            <div className="property-section-header">
+              <div className="property-section-title">
+                <span className="property-icon">+</span>
+                <label htmlFor="page-background">Background</label>
+              </div>
+              <button
+                type="button"
+                className="property-reset-button"
+                onClick={handleResetBackground}
+                aria-label="Reset to default"
+                title="Reset to theme default"
+              >
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                  <path d="M2 8a6 6 0 0 1 6-6v2M14 8a6 6 0 0 1-6 6v-2M8 2L6 4M8 14l2-2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </button>
+            </div>
+            <div className="background-controls">
+              <div className="property-group">
+                <label htmlFor="page-background-color">Background Color</label>
+                <div className="color-input-wrapper">
+                  <input
+                    id="page-background-color"
+                    type="color"
+                    value={backgroundColor || '#ffffff'}
+                    onChange={(e) => handleBackgroundColorChange(e.target.value)}
+                    className="property-color-input"
+                  />
+                  <input
+                    type="text"
+                    value={backgroundColor || '#ffffff'}
+                    onChange={(e) => handleBackgroundColorChange(e.target.value)}
+                    className="property-input color-text-input"
+                    placeholder="#ffffff"
+                  />
+                </div>
+                <div className="opacity-control">
+                  <label htmlFor="page-background-color-opacity">Opacity: {Math.round(backgroundColorOpacity * 100)}%</label>
+                  <input
+                    id="page-background-color-opacity"
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.01"
+                    value={backgroundColorOpacity}
+                    onChange={(e) => handleBackgroundColorOpacityChange(parseFloat(e.target.value))}
+                    className="opacity-range"
+                  />
+                </div>
+              </div>
+              <div className="property-group">
+                <label htmlFor="page-background-image">Background Image URL</label>
+                <input
+                  id="page-background-image"
+                  type="text"
+                  value={backgroundImage || ''}
+                  onChange={(e) => handleBackgroundImageChange(e.target.value)}
+                  className="property-input"
+                  placeholder="https://example.com/image.jpg"
+                />
+                {backgroundImage && (
+                  <div className="opacity-control">
+                    <label htmlFor="page-background-image-opacity">Opacity: {Math.round(backgroundImageOpacity * 100)}%</label>
+                    <input
+                      id="page-background-image-opacity"
+                      type="range"
+                      min="0"
+                      max="1"
+                      step="0.01"
+                      value={backgroundImageOpacity}
+                      onChange={(e) => handleBackgroundImageOpacityChange(parseFloat(e.target.value))}
+                      className="opacity-range"
+                    />
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // Row properties panel - shown when a row is selected (and not a cell or block)
   // Row properties mirror cell properties: vertical alignment, padding, and background
@@ -1792,6 +1951,18 @@ export function PropertiesPanel({
     );
   }
 
+  if (!selectedBlock) {
+    return (
+      <div className="properties-panel">
+        <h2 className="properties-title">Properties</h2>
+        <div className="properties-content">
+          <p className="properties-empty">Select a block to edit</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Safety check - should not reach here if selectedBlock is null
   if (!selectedBlock) {
     return (
       <div className="properties-panel">
