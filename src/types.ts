@@ -100,6 +100,12 @@ export interface ThemeSpecificCellProps {
     };
     style?: 'solid' | 'dashed' | 'dotted' | 'double';
   };
+  /**
+   * Border radius property - applies to border, background color, and background image layers
+   * Creates a rounded rectangle effect where all layers follow the same radius
+   * Supports uniform mode (single value for all corners) or individual mode (TL, TR, BR, BL)
+   * Theme-specific: each theme can have its own default border radius values
+   */
   borderRadius?: {
     uniform?: number;
     topLeft?: number;
@@ -176,6 +182,12 @@ export interface ThemeSpecificRowProps {
     };
     style?: 'solid' | 'dashed' | 'dotted' | 'double';
   };
+  /**
+   * Border radius property - applies to border, background color, and background image layers
+   * Creates a rounded rectangle effect where all layers follow the same radius
+   * Supports uniform mode (single value for all corners) or individual mode (TL, TR, BR, BL)
+   * Theme-specific: each theme can have its own default border radius values
+   */
   borderRadius?: {
     uniform?: number;
     topLeft?: number;
