@@ -22,6 +22,8 @@ import { PropertiesPanel } from './components/PropertiesPanel';
 import { PreviewToolbar, deviceConfigs } from './components/PreviewToolbar';
 import { PreviewStage } from './components/PreviewStage';
 import { ImageFillModal } from './components/ImageFillModal';
+import { ThemeEditor } from './components/ThemeEditor';
+import { useThemeSwitcher } from './theme/ThemeProvider';
 import type { DeviceType } from './components/PreviewToolbar';
 import type { Block, BlockType, ColumnsBlock, Row, Cell, Resource, SectionTemplate } from './types';
 import { createBlock, getPredefinedSections } from './types';
@@ -43,12 +45,14 @@ import './App.css';
 
 
 function App() {
+  const { customThemes, updateCustomThemes } = useThemeSwitcher();
   // Use rows as primary state (Row/Cell/Resource model)
   const [rows, setRows] = useState<Row[]>([]);
   const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null);
   const [selectedCellId, setSelectedCellId] = useState<string | null>(null);
   const [selectedRowId, setSelectedRowId] = useState<string | null>(null); // Track selected row for insertion
   const [isPageSelected, setIsPageSelected] = useState(false); // Track if page is selected
+  const [isThemeEditorOpen, setIsThemeEditorOpen] = useState(false);
   // Page properties - theme-specific background settings
   const [pageProps, setPageProps] = useState<{
     themes?: {
@@ -1571,6 +1575,13 @@ function App() {
                       onToggleRightSidebar={() => setIsRightSidebarOpen(!isRightSidebarOpen)}
                       showStructureStrokes={showStructureStrokes}
                       onToggleStructureStrokes={() => setShowStructureStrokes(!showStructureStrokes)}
+                      onOpenThemeEditor={() => setIsThemeEditorOpen(true)}
+            />
+            <ThemeEditor
+              isOpen={isThemeEditorOpen}
+              onClose={() => setIsThemeEditorOpen(false)}
+              onThemeUpdate={updateCustomThemes}
+              customThemes={customThemes}
             />
             <div className="app-content">
               <aside className="sidebar sidebar-left">

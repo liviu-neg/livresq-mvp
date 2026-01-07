@@ -6,12 +6,14 @@ import { ImageBlockView } from './ImageBlockView';
 import { QuizBlockView } from './QuizBlockView';
 import { ColumnsBlockView } from './ColumnsBlockView';
 import { isBlock } from '../utils/sections';
+import { useTheme } from '../theme/ThemeProvider';
 
 interface SectionPreviewProps {
   section: SectionTemplate;
 }
 
 export function SectionPreview({ section }: SectionPreviewProps) {
+  const theme = useTheme();
   // Create preview blocks for the section
   const previewBlocks = section.blocks.map((blockType) => createBlock(blockType));
 
