@@ -11,6 +11,7 @@ const blockLabels: Record<BlockType, string> = {
   image: 'Image',
   quiz: 'Quiz',
   columns: 'Columns',
+  button: 'Button',
 };
 
 export function BlockCardHeader({ 

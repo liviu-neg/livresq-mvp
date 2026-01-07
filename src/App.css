@@ -1641,6 +1641,14 @@ body {
   padding: 24px !important;
 }
 
+.canvas-block:has(.button-block-view:not(.button-block-edit)) .block-card-content {
+  padding: 24px !important;
+}
+
+.canvas-block.selected:has(.button-block-view:not(.button-block-edit)) .block-card-content {
+  padding: 24px !important;
+}
+
 /* Also ensure image-block-view has no padding/margin */
 .image-block-view {
   padding: 0 !important;
@@ -4188,16 +4196,16 @@ body {
   justify-content: center;
 }
 
-/* Background color for empty cells in columns block (initial state) */
+/* Background color for empty cells in columns block (initial state) - UI-based, not theme-dependent */
 .row-view.columns-block-row .cell-view .cell-resources:empty {
-  background-color: #FCEBD0;
+  background-color: #FCEBD0 !important;
   justify-content: center;
   align-items: center;
 }
 
-/* Background color when cell-resources has no resource-wrapper children (empty state) */
+/* Background color when cell-resources has no resource-wrapper children (empty state) - UI-based, not theme-dependent */
 .row-view.columns-block-row .cell-view .cell-resources:not(:has(.resource-wrapper)) {
-  background-color: #FCEBD0;
+  background-color: #FCEBD0 !important;
   justify-content: center;
   align-items: center;
 }
@@ -4356,18 +4364,18 @@ body {
 }
 
 /* Background color for empty regular cells (when block is removed) - exclude empty state rows and columns blocks */
-/* Only apply if cell-resources doesn't contain any resource-wrapper */
+/* Only apply if cell-resources doesn't contain any resource-wrapper - UI-based, not theme-dependent */
 .row-view:not(.columns-block-row) .cell-view:not(.empty-state-cell) .cell-resources:empty:not(:has(.resource-wrapper)) {
-  background-color: #FCEBD0;
+  background-color: #FCEBD0 !important;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
 /* Background color when cell-resources has no resource-wrapper children (empty state for regular cells) */
-/* Only apply if cell-resources doesn't contain any resource-wrapper */
+/* Only apply if cell-resources doesn't contain any resource-wrapper - UI-based, not theme-dependent */
 .row-view:not(.columns-block-row) .cell-view:not(.empty-state-cell) .cell-resources:not(:has(.resource-wrapper)):not(:has(.cell-empty-placeholder)) {
-  background-color: #FCEBD0;
+  background-color: #FCEBD0 !important;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -4390,13 +4398,20 @@ body {
 
 /* Ensure image blocks in resource-wrapper have no padding */
 .resource-wrapper .image-block-view,
-.resource-wrapper .quiz-block-view:not(.quiz-block-edit) {
+.resource-wrapper .quiz-block-view:not(.quiz-block-edit),
+.resource-wrapper .button-block-view:not(.button-block-edit) {
   padding: 0 !important;
   margin: 0 !important;
 }
 
 /* Quiz block view on canvas should have padding from block-card-content, not from itself */
 .quiz-block-view:not(.quiz-block-edit) {
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
+/* Button block view on canvas should have padding from block-card-content, not from itself */
+.button-block-view:not(.button-block-edit) {
   padding: 0 !important;
   margin: 0 !important;
 }

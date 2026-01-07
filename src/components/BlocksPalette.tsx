@@ -187,6 +187,7 @@ export function BlocksPalette({ onInsertBlock, onInsertSection }: BlocksPaletteP
             <DraggableBlockType type="image" label="Image" icon="🖼️" onInsert={onInsertBlock} />
             <DraggableBlockType type="quiz" label="Quiz" icon="❓" onInsert={onInsertBlock} />
             <DraggableBlockType type="columns" label="Columns" icon="📊" onInsert={onInsertBlock} />
+            <DraggableBlockType type="button" label="Button" icon="🔘" onInsert={onInsertBlock} />
           </div>
         </>
       ) : (

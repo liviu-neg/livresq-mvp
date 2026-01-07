@@ -1,4 +1,4 @@
-import type { Block, TextBlock, HeaderBlock, ImageBlock, QuizBlock, ColumnsBlock, Row, Cell, ThemeSpecificCellProps, ThemeSpecificRowProps } from '../types';
+import type { Block, TextBlock, HeaderBlock, ImageBlock, QuizBlock, ColumnsBlock, ButtonBlock, Row, Cell, ThemeSpecificCellProps, ThemeSpecificRowProps } from '../types';
 import { ImageFillPanel } from './ImageFillPanel';
 import { nanoid } from 'nanoid';
 import { useTheme, useThemeSwitcher } from '../theme/ThemeProvider';
@@ -2013,6 +2013,24 @@ export function PropertiesPanel({
             block={selectedBlock as ImageBlock}
             onUpdate={handleUpdate}
           />
+        )}
+
+        {selectedBlock.type === 'button' && (
+          <div className="property-group">
+            <label htmlFor="button-label">Label</label>
+            <input
+              id="button-label"
+              type="text"
+              value={(selectedBlock as ButtonBlock).label || ''}
+              onChange={(e) =>
+                handleUpdate({
+                  label: e.target.value,
+                } as Partial<ButtonBlock>)
+              }
+              className="property-input"
+              placeholder="Write a continuation"
+            />
+          </div>
         )}
 
         {selectedBlock.type === 'quiz' && (

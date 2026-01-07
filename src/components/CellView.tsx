@@ -164,7 +164,8 @@ export function CellView({
         }}
       >
         {/* Background color layer - applies border radius to match cell-resources border radius */}
-        {themeProps.backgroundColor && (
+        {/* Don't show theme background for empty cells (columns blocks or regular cells) - they use UI-based #FCEBD0 background */}
+        {themeProps.backgroundColor && !((isColumnsBlock && cell.resources.length === 0) || (!isColumnsBlock && !isEmptyStateRow && cell.resources.length === 0)) && (
           <div 
             className="cell-background-color-layer"
             style={{
@@ -187,7 +188,8 @@ export function CellView({
           />
         )}
         {/* Background image layer - applies border radius to match cell-resources border radius */}
-        {themeProps.backgroundImage && (
+        {/* Don't show theme background for empty cells (columns blocks or regular cells) - they use UI-based #FCEBD0 background */}
+        {themeProps.backgroundImage && !((isColumnsBlock && cell.resources.length === 0) || (!isColumnsBlock && !isEmptyStateRow && cell.resources.length === 0)) && (
           <div 
             className="cell-background-image-layer"
             style={{
@@ -246,7 +248,9 @@ export function CellView({
               : undefined,
             position: 'relative',
             zIndex: 2,
-            backgroundColor: 'transparent', // Ensure content area is transparent so backgrounds show through
+            // For empty cells (columns blocks or regular cells), don't set transparent background - let CSS #FCEBD0 show through
+            // For other cells, set transparent so theme backgrounds show through
+            backgroundColor: ((isColumnsBlock && cell.resources.length === 0) || (!isColumnsBlock && !isEmptyStateRow && cell.resources.length === 0)) ? undefined : 'transparent',
           }}
         >
           {cell.resources.length === 0 && isEmptyStateRow && rowId ? (

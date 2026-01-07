@@ -43,7 +43,7 @@ const SpeechIcon = () => (
 
 interface BlockToolbarProps {
   blockContainerRef: React.RefObject<HTMLElement>;
-  blockType: 'text' | 'header' | 'image' | 'quiz';
+  blockType: 'text' | 'header' | 'image' | 'quiz' | 'button';
   onDelete: () => void;
   onDuplicate: () => void;
   onDragStart: (e: React.MouseEvent) => void;
@@ -202,6 +202,8 @@ export function BlockToolbar({
         return 'Image';
       case 'quiz':
         return 'Quiz';
+      case 'button':
+        return 'Button';
       default:
         return '';
     }

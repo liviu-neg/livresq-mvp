@@ -15,6 +15,7 @@ import { TextBlockView } from './TextBlockView';
 import { ImageBlockView } from './ImageBlockView';
 import { QuizBlockView } from './QuizBlockView';
 import { ColumnsBlockView } from './ColumnsBlockView';
+import { ButtonBlockView } from './ButtonBlockView';
 import { BlockCardHeader } from './BlockCardHeader';
 import { BlockToolbar } from './BlockToolbar';
 import { SimpleSection } from './sections/SimpleSection';
@@ -188,6 +189,18 @@ function SortableBlockItem({
             activeId={activeId}
           />
         );
+      case 'button':
+        return (
+          <ButtonBlockView
+            block={block}
+            isSelected={isSelected}
+            isEditing={isEditing}
+            isPreview={isPreview}
+            onUpdate={handleUpdate}
+          />
+        );
+      default:
+        return null;
     }
   };
 
@@ -348,7 +361,7 @@ function SortableBlockItem({
       onDoubleClick={handleBlockDoubleClick}
       {...cardDragListeners}
     >
-      {(block.type === 'text' || block.type === 'header' || block.type === 'image' || block.type === 'quiz') && isSelected && !isEditing && !isPreview && !isDragging && (
+      {(block.type === 'text' || block.type === 'header' || block.type === 'image' || block.type === 'quiz' || block.type === 'button') && isSelected && !isEditing && !isPreview && !isDragging && (
         <BlockToolbar
           blockContainerRef={blockContentRef}
           blockType={block.type}
@@ -624,6 +637,8 @@ export function LessonCanvas({
                             return <QuizBlockView block={block} isSelected={false} isPreview={false} onUpdate={() => {}} />;
                           case 'columns':
                             return <div className="canvas-block dragging columns-drag-preview"></div>;
+                          case 'button':
+                            return <ButtonBlockView block={block} isSelected={false} isEditing={false} isPreview={false} onUpdate={() => {}} />;
                         }
                       })()}
                     </div>
@@ -752,6 +767,8 @@ export function LessonCanvas({
                             return <QuizBlockView block={block} isSelected={false} isPreview={false} onUpdate={() => {}} />;
                           case 'columns':
                             return <div className="canvas-block dragging columns-drag-preview"></div>;
+                          case 'button':
+                            return <ButtonBlockView block={block} isSelected={false} isEditing={false} isPreview={false} onUpdate={() => {}} />;
                         }
                       })()}
                     </div>

@@ -1,6 +1,6 @@
 import { nanoid } from 'nanoid';
 
-export type BlockType = 'text' | 'header' | 'image' | 'quiz' | 'columns';
+export type BlockType = 'text' | 'header' | 'image' | 'quiz' | 'columns' | 'button';
 
 export interface BaseBlock {
   id: string;
@@ -44,7 +44,12 @@ export interface ColumnsBlock extends BaseBlock {
   row: Row; // The row containing the cells (one cell per column)
 }
 
-export type Block = TextBlock | HeaderBlock | ImageBlock | QuizBlock | ColumnsBlock;
+export interface ButtonBlock extends BaseBlock {
+  type: 'button';
+  label: string;
+}
+
+export type Block = TextBlock | HeaderBlock | ImageBlock | QuizBlock | ColumnsBlock | ButtonBlock;
 
 export interface Lesson {
   blocks: Block[];
@@ -395,6 +400,11 @@ export function createBlock(type: BlockType): Block {
             { id: nanoid(), resources: [] },
           ],
         },
+      };
+    case 'button':
+      return {
+        ...base,
+        label: 'Write a continuation',
       };
   }
 }
