@@ -588,8 +588,9 @@ body {
 }
 
 /* Canvas Block - Uses theme variables (responds to theme switching) */
+/* Default background is transparent, will be overridden by theme resourceBackground if set */
 .canvas-block {
-  background: var(--color-bg);
+  background: transparent;
   border: none;
   border-radius: 4px;
   cursor: pointer;
@@ -781,7 +782,7 @@ body {
   line-height: 1.6 !important;
   font-weight: 400 !important;
   letter-spacing: normal !important;
-  color: var(--color-text) !important;
+  color: inherit !important;
   padding: 0 !important;
   margin: 0 !important;
   min-height: 0 !important;
@@ -940,7 +941,7 @@ body {
   line-height: 1.6;
   font-weight: 400;
   letter-spacing: normal;
-  color: var(--color-text);
+  color: inherit;
   padding: 0 !important;
   margin: 0 !important;
   min-height: 0 !important;
@@ -973,6 +974,7 @@ body {
   font-family: inherit;
   font-weight: inherit;
   letter-spacing: inherit;
+  color: inherit !important;
   box-sizing: border-box;
   min-height: 0 !important;
   height: auto;
@@ -1028,9 +1030,30 @@ body {
   font-family: inherit;
   font-weight: inherit;
   letter-spacing: inherit;
+  color: inherit !important;
   margin: 0;
   padding: 0;
   box-sizing: border-box;
+}
+
+/* Override any inline color styles in the HTML content for text blocks */
+.text-block-view .rich-text-readonly * {
+  color: inherit !important;
+}
+
+/* Ensure text blocks use paragraph color */
+.text-block-type {
+  --text-block-color: var(--color-muted-text);
+}
+
+/* Ensure header blocks use heading color */
+.header-block-type {
+  --text-block-color: var(--color-text);
+}
+
+.text-block-view .block-body,
+.text-block-view .rich-text-readonly {
+  color: var(--text-block-color, inherit) !important;
 }
 
 /* Reset specific elements that should use base typography */
@@ -1717,7 +1740,7 @@ body {
   font-family: var(--font-sans) !important;
   font-weight: 400 !important;
   letter-spacing: normal !important;
-  color: var(--color-text) !important;
+  color: inherit !important;
   white-space: pre-wrap;
   word-wrap: break-word;
   overflow-wrap: break-word;
@@ -2858,6 +2881,7 @@ body {
   width: 100%;
   min-width: 0;
   box-sizing: border-box;
+  flex-wrap: wrap;
 }
 
 .property-color-input {
@@ -3146,7 +3170,7 @@ body {
   flex-direction: column !important;
   gap: 0 !important;
   font-family: var(--font-sans) !important;
-  color: var(--color-text) !important;
+  /* Color is handled by individual block types - don't set a default color here */
   padding: 0 !important;
   margin: 0 !important;
   min-height: 0 !important;
@@ -3160,6 +3184,16 @@ body {
   min-height: 0 !important;
   max-height: none !important;
   height: auto !important;
+}
+
+/* Text blocks use paragraph color */
+.text-block-view.block-view.text-block-type {
+  color: var(--color-muted-text) !important;
+}
+
+/* Header blocks use heading color */
+.text-block-view.block-view.header-block-type {
+  color: var(--color-text) !important;
 }
 
 /* Columns Block */
@@ -3989,6 +4023,7 @@ body {
   transition: border-color 0.2s;
   margin-bottom: var(--spacing-lg);
   position: relative;
+  z-index: 2; /* Ensure rows are above page background (z-index 0-1) for proper hover detection */
 }
 
 /* Ensure custom border from inline styles takes precedence over default transparent border */
@@ -4003,18 +4038,37 @@ body {
 }
 
 /* Prevent parent row hover when child cell is hovered - show dashed border instead */
+/* Use pseudo-element to ensure border appears above background layers */
 .row-view:has(.cell-view:hover):not([style*="border"]):not([style*="borderTop"]):not([style*="borderRight"]):not([style*="borderBottom"]):not([style*="borderLeft"]) {
   outline: none !important;
-  border-style: dashed !important;
-  border-width: 1px !important;
-  border-color: #94A3AC !important;
+}
+
+.row-view:has(.cell-view:hover):not([style*="border"]):not([style*="borderTop"]):not([style*="borderRight"]):not([style*="borderBottom"]):not([style*="borderLeft"])::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border: 1px dashed #94A3AC;
+  pointer-events: none;
+  z-index: 2; /* Above background layers (0, 1), same level as content but border is visible */
+  box-sizing: border-box;
 }
 
 /* Structure strokes - only apply if no custom border is set */
-.row-view.show-strokes:not([style*="border"]):not([style*="borderTop"]):not([style*="borderRight"]):not([style*="borderBottom"]):not([style*="borderLeft"]) {
-  border-style: dashed !important;
-  border-width: 1px !important;
-  border-color: #94A3AC !important;
+/* Use pseudo-element to ensure border appears above background layers while maintaining original behavior */
+.row-view.show-strokes:not([style*="border"]):not([style*="borderTop"]):not([style*="borderRight"]):not([style*="borderBottom"]):not([style*="borderLeft"])::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border: 1px dashed #94A3AC;
+  pointer-events: none;
+  z-index: 2; /* Above background layers (0, 1), same level as content but border is visible */
+  box-sizing: border-box;
 }
 
 .row-view.show-strokes:hover:not([style*="border"]):not([style*="borderTop"]):not([style*="borderRight"]):not([style*="borderBottom"]):not([style*="borderLeft"]) {
@@ -4266,27 +4320,55 @@ body {
 }
 
 /* When a resource (block) is hovered, show dotted line hover on parent cell and row */
-/* Override the normal hover outline with dashed border (matching structure strokes) */
+/* Use pseudo-element to ensure border appears above background layers */
 .cell-view:has(.canvas-block:hover):not([style*="border"]):not([style*="borderTop"]):not([style*="borderRight"]):not([style*="borderBottom"]):not([style*="borderLeft"]) {
   outline: none !important;
-  border-style: dashed !important;
-  border-width: 1px !important;
-  border-color: #F19E39 !important;
+}
+
+.cell-view:has(.canvas-block:hover):not([style*="border"]):not([style*="borderTop"]):not([style*="borderRight"]):not([style*="borderBottom"]):not([style*="borderLeft"])::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border: 1px dashed #F19E39;
+  pointer-events: none;
+  z-index: 2; /* Above background layers (0, 1), same level as content but border is visible */
+  box-sizing: border-box;
 }
 
 /* When a resource (block) is hovered, show dotted line hover on parent row */
 .row-view:has(.cell-view:has(.canvas-block:hover)):not([style*="border"]):not([style*="borderTop"]):not([style*="borderRight"]):not([style*="borderBottom"]):not([style*="borderLeft"]) {
   outline: none !important;
-  border-style: dashed !important;
-  border-width: 1px !important;
-  border-color: #94A3AC !important;
+}
+
+.row-view:has(.cell-view:has(.canvas-block:hover)):not([style*="border"]):not([style*="borderTop"]):not([style*="borderRight"]):not([style*="borderBottom"]):not([style*="borderLeft"])::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border: 1px dashed #94A3AC;
+  pointer-events: none;
+  z-index: 2; /* Above background layers (0, 1), same level as content but border is visible */
+  box-sizing: border-box;
 }
 
 /* Structure strokes - only apply if no custom border is set */
-.cell-view.show-strokes:not([style*="border"]):not([style*="borderTop"]):not([style*="borderRight"]):not([style*="borderBottom"]):not([style*="borderLeft"]) {
-  border-style: dashed !important;
-  border-width: 1px !important;
-  border-color: #F19E39 !important;
+/* Use pseudo-element to ensure border appears above background layers while maintaining original behavior */
+.cell-view.show-strokes:not([style*="border"]):not([style*="borderTop"]):not([style*="borderRight"]):not([style*="borderBottom"]):not([style*="borderLeft"])::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border: 1px dashed #F19E39;
+  pointer-events: none;
+  z-index: 2; /* Above background layers (0, 1), same level as content but border is visible */
+  box-sizing: border-box;
 }
 
 .cell-view.show-strokes:hover:not([style*="border"]):not([style*="borderTop"]):not([style*="borderRight"]):not([style*="borderBottom"]):not([style*="borderLeft"]) {
@@ -5002,4 +5084,60 @@ body {
 
 .theme-save-dialog-button-primary:hover {
   background: #7c3aed;
+}
+
+/* Opacity Controls for Theme Editor */
+.opacity-input-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.theme-opacity-slider {
+  flex: 1;
+  height: 4px;
+  border-radius: 2px;
+  background: #e0e0e0;
+  outline: none;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.theme-opacity-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #8b5cf6;
+  cursor: pointer;
+  border: 2px solid #ffffff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.theme-opacity-slider::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #8b5cf6;
+  cursor: pointer;
+  border: 2px solid #ffffff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.theme-opacity-input {
+  width: 60px;
+  padding: 4px 8px;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  font-size: 12px;
+  font-family: 'Monaco', 'Menlo', monospace;
+  color: #1a1a1a;
+  text-align: center;
+}
+
+.theme-opacity-input:focus {
+  outline: none;
+  border-color: #8b5cf6;
+  box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.1);
 }

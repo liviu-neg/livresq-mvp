@@ -32,15 +32,25 @@ interface PropertiesPanelProps {
   onDeleteBlock: () => void;
 }
 
-// Helper function to get theme-specific cell properties with fallback to legacy props
-function getCellThemeProps(cell: Cell, themeId: ThemeId): ThemeSpecificCellProps {
+// Helper function to get theme-specific cell properties with fallback to legacy props and theme defaults
+function getCellThemeProps(cell: Cell, themeId: ThemeId, theme: any): ThemeSpecificCellProps {
   const themeProps = cell.props?.themes?.[themeId];
-  // If theme-specific props exist, use them; otherwise fall back to legacy props
+  const defaultBackground = theme?.cellBackground || { backgroundColor: undefined, backgroundColorOpacity: 1, backgroundImage: undefined, backgroundImageOpacity: 1 };
+  
+  // If theme-specific props exist, merge with theme defaults for missing background properties
   if (themeProps) {
-    return themeProps;
+    return {
+      ...themeProps,
+      // Use theme defaults if background properties are not set in theme-specific props
+      backgroundColor: themeProps.backgroundColor ?? defaultBackground.backgroundColor,
+      backgroundColorOpacity: themeProps.backgroundColorOpacity ?? defaultBackground.backgroundColorOpacity ?? 1,
+      backgroundImage: themeProps.backgroundImage ?? defaultBackground.backgroundImage,
+      backgroundImageOpacity: themeProps.backgroundImageOpacity ?? defaultBackground.backgroundImageOpacity ?? 1,
+    };
   }
+  
   // Fallback to legacy props for backward compatibility
-  return {
+  const legacyProps = {
     verticalAlign: cell.props?.verticalAlign,
     padding: cell.props?.padding,
     backgroundColor: cell.props?.backgroundColor,
@@ -50,6 +60,19 @@ function getCellThemeProps(cell: Cell, themeId: ThemeId): ThemeSpecificCellProps
     border: cell.props?.border,
     borderRadius: cell.props?.borderRadius,
   };
+  
+  // If no custom background is set, use theme defaults
+  if (!legacyProps.backgroundColor && !legacyProps.backgroundImage) {
+    return {
+      ...legacyProps,
+      backgroundColor: defaultBackground.backgroundColor,
+      backgroundColorOpacity: defaultBackground.backgroundColorOpacity,
+      backgroundImage: defaultBackground.backgroundImage,
+      backgroundImageOpacity: defaultBackground.backgroundImageOpacity,
+    };
+  }
+  
+  return legacyProps;
 }
 
 // Helper function to get theme-specific row properties with fallback to legacy props
@@ -113,7 +136,7 @@ export function PropertiesPanel({
       });
     };
 
-    const handleBackgroundColorChange = (color: string) => {
+    const handleBackgroundColorChange = (color: string | undefined) => {
       handleUpdatePageThemeProps({ backgroundColor: color });
     };
 
@@ -170,14 +193,33 @@ export function PropertiesPanel({
                     value={backgroundColor || '#ffffff'}
                     onChange={(e) => handleBackgroundColorChange(e.target.value)}
                     className="property-color-input"
+                    disabled={!backgroundColor}
                   />
                   <input
                     type="text"
-                    value={backgroundColor || '#ffffff'}
-                    onChange={(e) => handleBackgroundColorChange(e.target.value)}
+                    value={backgroundColor || ''}
+                    onChange={(e) => handleBackgroundColorChange(e.target.value || undefined)}
                     className="property-input color-text-input"
-                    placeholder="#ffffff"
+                    placeholder={backgroundColor ? "#ffffff" : "Transparent"}
                   />
+                  <button
+                    type="button"
+                    onClick={() => handleBackgroundColorChange(undefined as any)}
+                    className="transparent-button"
+                    title="Set to transparent"
+                    style={{
+                      padding: '6px 12px',
+                      fontSize: '12px',
+                      border: '1px solid #e0e0e0',
+                      borderRadius: '6px',
+                      background: !backgroundColor ? '#f0f0f0' : 'transparent',
+                      color: !backgroundColor ? '#666' : '#333',
+                      cursor: 'pointer',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {backgroundColor ? 'Set transparent' : 'Transparent'}
+                  </button>
                 </div>
                 <div className="opacity-control">
                   <label htmlFor="page-background-color-opacity">Opacity: {Math.round(backgroundColorOpacity * 100)}%</label>
@@ -336,7 +378,7 @@ export function PropertiesPanel({
       });
     };
 
-    const handleBackgroundColorChange = (value: string) => {
+    const handleBackgroundColorChange = (value: string | undefined) => {
       handleUpdateRowThemeProps({
         backgroundColor: value || undefined,
       });
@@ -649,14 +691,33 @@ export function PropertiesPanel({
                     value={backgroundColor || '#ffffff'}
                     onChange={(e) => handleBackgroundColorChange(e.target.value)}
                     className="property-color-input"
+                    disabled={!backgroundColor}
                   />
                   <input
                     type="text"
                     value={backgroundColor || ''}
-                    onChange={(e) => handleBackgroundColorChange(e.target.value)}
+                    onChange={(e) => handleBackgroundColorChange(e.target.value || undefined)}
                     className="property-input color-text-input"
-                    placeholder="#ffffff"
+                    placeholder={backgroundColor ? "#ffffff" : "Transparent"}
                   />
+                  <button
+                    type="button"
+                    onClick={() => handleBackgroundColorChange(undefined as any)}
+                    className="transparent-button"
+                    title="Set to transparent"
+                    style={{
+                      padding: '6px 12px',
+                      fontSize: '12px',
+                      border: '1px solid #e0e0e0',
+                      borderRadius: '6px',
+                      background: !backgroundColor ? '#f0f0f0' : 'transparent',
+                      color: !backgroundColor ? '#666' : '#333',
+                      cursor: 'pointer',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {backgroundColor ? 'Set transparent' : 'Transparent'}
+                  </button>
                 </div>
                 <div className="opacity-control">
                   <label htmlFor="row-background-color-opacity">Opacity: {Math.round(backgroundColorOpacity * 100)}%</label>
@@ -1030,12 +1091,12 @@ export function PropertiesPanel({
   if (selectedCell && !selectedBlock && !isColumnsBlockRow) {
     const theme = useTheme();
     const defaultPadding = theme.cellPadding || { mode: 'uniform', uniform: 0 };
-    const defaultBackground = theme.cellBackground || { backgroundColor: '#ffffff', backgroundColorOpacity: 1, backgroundImage: undefined, backgroundImageOpacity: 1 };
+    const defaultBackground = theme.cellBackground || { backgroundColor: undefined, backgroundColorOpacity: 1, backgroundImage: undefined, backgroundImageOpacity: 1 };
     const defaultBorder = theme.cellBorder || { color: undefined, width: { mode: 'uniform', uniform: 0 }, style: 'solid' };
     const defaultBorderRadius = theme.cellBorderRadius || { mode: 'uniform', uniform: 0 };
     
-    // Get theme-specific properties
-    const themeProps = getCellThemeProps(selectedCell, themeId);
+    // Get theme-specific properties with fallback to theme defaults
+    const themeProps = getCellThemeProps(selectedCell, themeId, theme);
     
     const verticalAlign = themeProps.verticalAlign || 'top';
     const padding = themeProps.padding || defaultPadding;
@@ -1135,7 +1196,7 @@ export function PropertiesPanel({
       });
     };
 
-    const handleBackgroundColorChange = (value: string) => {
+    const handleBackgroundColorChange = (value: string | undefined) => {
       handleUpdateCellThemeProps({
         backgroundColor: value || undefined,
       });
@@ -1468,14 +1529,33 @@ export function PropertiesPanel({
                     value={backgroundColor || '#ffffff'}
                     onChange={(e) => handleBackgroundColorChange(e.target.value)}
                     className="property-color-input"
+                    disabled={!backgroundColor}
                   />
                   <input
                     type="text"
                     value={backgroundColor || ''}
-                    onChange={(e) => handleBackgroundColorChange(e.target.value)}
+                    onChange={(e) => handleBackgroundColorChange(e.target.value || undefined)}
                     className="property-input color-text-input"
-                    placeholder="#ffffff"
+                    placeholder={backgroundColor ? "#ffffff" : "Transparent"}
                   />
+                  <button
+                    type="button"
+                    onClick={() => handleBackgroundColorChange(undefined as any)}
+                    className="transparent-button"
+                    title="Set to transparent"
+                    style={{
+                      padding: '6px 12px',
+                      fontSize: '12px',
+                      border: '1px solid #e0e0e0',
+                      borderRadius: '6px',
+                      background: !backgroundColor ? '#f0f0f0' : 'transparent',
+                      color: !backgroundColor ? '#666' : '#333',
+                      cursor: 'pointer',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {backgroundColor ? 'Set transparent' : 'Transparent'}
+                  </button>
                 </div>
                 <div className="opacity-control">
                   <label htmlFor="cell-background-color-opacity">Opacity: {Math.round(backgroundColorOpacity * 100)}%</label>

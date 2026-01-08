@@ -4,7 +4,20 @@ import { isBlock, isConstructor } from '../utils/sections';
 import { CellView } from './CellView';
 import { RowToolbar } from './RowToolbar';
 import { EmptyStateRow } from './EmptyStateRow';
-import { useThemeSwitcher } from '../theme/ThemeProvider';
+import { useThemeSwitcher, useTheme } from '../theme/ThemeProvider';
+
+// Helper function to convert hex color to rgba with opacity
+function hexToRgba(hex: string, opacity: number = 1): string {
+  // Remove # if present
+  const cleanHex = hex.replace('#', '');
+  
+  // Parse hex to RGB
+  const r = parseInt(cleanHex.substring(0, 2), 16);
+  const g = parseInt(cleanHex.substring(2, 4), 16);
+  const b = parseInt(cleanHex.substring(4, 6), 16);
+  
+  return `rgba(${r}, ${g}, ${b}, ${opacity})`;
+}
 
 interface RowViewProps {
   row: Row;
@@ -31,15 +44,32 @@ interface RowViewProps {
   showStructureStrokes?: boolean;
 }
 
-// Helper function to get theme-specific row properties with fallback to legacy props
-function getRowThemeProps(row: Row, themeId: 'plain' | 'neon'): ThemeSpecificRowProps {
+// Helper function to get theme-specific row properties with fallback to legacy props and theme defaults
+function getRowThemeProps(row: Row, themeId: string, theme: any): ThemeSpecificRowProps {
+  // Try to get theme-specific props (works for 'plain', 'neon', and any custom theme ID)
   const themeProps = row.props?.themes?.[themeId];
-  // If theme-specific props exist, use them; otherwise fall back to legacy props
+  // Get theme defaults - use fallback only if rowBackground doesn't exist at all
+  const defaultBackground = theme?.rowBackground ? {
+    backgroundColor: theme.rowBackground.backgroundColor,
+    backgroundColorOpacity: theme.rowBackground.backgroundColorOpacity ?? 1,
+    backgroundImage: theme.rowBackground.backgroundImage,
+    backgroundImageOpacity: theme.rowBackground.backgroundImageOpacity ?? 1,
+  } : { backgroundColor: '#ffffff', backgroundColorOpacity: 1, backgroundImage: undefined, backgroundImageOpacity: 1 };
+  
+  // If theme-specific props exist, merge with theme defaults for missing background properties
   if (themeProps) {
-    return themeProps;
+    return {
+      ...themeProps,
+      // Use theme defaults if background properties are not set in theme-specific props
+      backgroundColor: themeProps.backgroundColor ?? defaultBackground.backgroundColor,
+      backgroundColorOpacity: themeProps.backgroundColorOpacity ?? defaultBackground.backgroundColorOpacity ?? 1,
+      backgroundImage: themeProps.backgroundImage ?? defaultBackground.backgroundImage,
+      backgroundImageOpacity: themeProps.backgroundImageOpacity ?? defaultBackground.backgroundImageOpacity ?? 1,
+    };
   }
+  
   // Fallback to legacy props for backward compatibility
-  return {
+  const legacyProps = {
     verticalAlign: row.props?.verticalAlign,
     padding: row.props?.padding,
     backgroundColor: row.props?.backgroundColor,
@@ -47,6 +77,17 @@ function getRowThemeProps(row: Row, themeId: 'plain' | 'neon'): ThemeSpecificRow
     backgroundImage: row.props?.backgroundImage,
     backgroundImageOpacity: row.props?.backgroundImageOpacity,
     border: row.props?.border,
+    borderRadius: row.props?.borderRadius,
+  };
+  
+  // Always use theme defaults for background if not explicitly set in legacy props
+  // This ensures new rows get the correct background from theme defaults
+  return {
+    ...legacyProps,
+    backgroundColor: legacyProps.backgroundColor ?? defaultBackground.backgroundColor,
+    backgroundColorOpacity: legacyProps.backgroundColorOpacity ?? defaultBackground.backgroundColorOpacity ?? 1,
+    backgroundImage: legacyProps.backgroundImage ?? defaultBackground.backgroundImage,
+    backgroundImageOpacity: legacyProps.backgroundImageOpacity ?? defaultBackground.backgroundImageOpacity ?? 1,
   };
 }
 
@@ -75,8 +116,9 @@ export function RowView({
   showStructureStrokes = false,
 }: RowViewProps) {
   const { themeId } = useThemeSwitcher();
-  // Get theme-specific properties
-  const themeProps = getRowThemeProps(row, themeId);
+  const theme = useTheme();
+  // Get theme-specific properties with fallback to theme defaults
+  const themeProps = getRowThemeProps(row, themeId, theme);
   const rowRef = useRef<HTMLDivElement>(null);
   const rowCellsRef = useRef<HTMLDivElement>(null);
   // Row is only selected if selectedRowId matches AND no block/cell is selected
@@ -239,6 +281,8 @@ export function RowView({
       >
         {/* Row background layers - separate layers for color and image to allow independent opacity control */}
         {/* Background color layer (z-index: 0) */}
+        {/* Always render background color layer if backgroundColor is defined (even if transparent) */}
+        {/* If backgroundColor is undefined, don't render (transparent) */}
         {themeProps.backgroundColor && (
           <div 
             className="row-background-color-layer"
@@ -248,9 +292,8 @@ export function RowView({
               left: 0,
               right: 0,
               bottom: 0,
-              backgroundColor: themeProps.backgroundColor,
-              opacity: themeProps.backgroundColorOpacity ?? 1,
-              zIndex: 0,
+              backgroundColor: hexToRgba(themeProps.backgroundColor, themeProps.backgroundColorOpacity ?? 1),
+              zIndex: 0, // Within row-view stacking context, above page background
               pointerEvents: 'none',
               borderRadius: themeProps.borderRadius?.mode === 'uniform' && themeProps.borderRadius.uniform !== undefined
                 ? `${themeProps.borderRadius.uniform}px`
@@ -275,7 +318,7 @@ export function RowView({
               backgroundPosition: 'center',
               backgroundRepeat: 'no-repeat',
               opacity: themeProps.backgroundImageOpacity ?? 1,
-              zIndex: 1,
+              zIndex: 1, // Within row-view stacking context, above color layer
               pointerEvents: 'none',
               borderRadius: themeProps.borderRadius?.mode === 'uniform' && themeProps.borderRadius.uniform !== undefined
                 ? `${themeProps.borderRadius.uniform}px`

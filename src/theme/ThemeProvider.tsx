@@ -49,7 +49,12 @@ const builtInThemes: Record<string, Theme> = {
 
 export function ThemeProvider({ children }: ThemeProviderProps) {
   const [themeId, setThemeId] = useState<ThemeId>('plain');
-  const [customThemes, setCustomThemes] = useState<Record<string, Theme>>(loadCustomThemes);
+  const [customThemes, setCustomThemes] = useState<Record<string, Theme>>(() => {
+    // Load themes from localStorage
+    const loaded = loadCustomThemes();
+    // Return all loaded themes without filtering - allow all themes to be saved and loaded
+    return loaded;
+  });
 
   // Save custom themes to localStorage whenever they change
   useEffect(() => {

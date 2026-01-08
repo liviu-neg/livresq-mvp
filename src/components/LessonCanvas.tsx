@@ -347,20 +347,21 @@ function SortableBlockItem({
   }, [isEditing]);
 
   return (
-    <div
-      ref={(node) => {
-        setNodeRef(node);
-        blockContainerRef.current = node;
-      }}
-      data-block-id={block.id}
-      style={style}
-      className={`canvas-block ${isSelected ? 'selected' : ''} ${
-        isEditing ? 'editing' : ''
-      } ${isDragging ? 'dragging' : ''} ${(block.type === 'text' || block.type === 'header') ? 'text-block-no-header' : ''} ${isImageOrQuizBlock ? 'no-header' : ''} ${showStructureStrokes ? 'show-strokes' : ''}`}
-      onClick={handleBlockClick}
-      onDoubleClick={handleBlockDoubleClick}
-      {...cardDragListeners}
-    >
+    <ResourceBackgroundWrapper blockId={block.id}>
+      <div
+        ref={(node) => {
+          setNodeRef(node);
+          blockContainerRef.current = node;
+        }}
+        data-block-id={block.id}
+        style={style}
+        className={`canvas-block ${isSelected ? 'selected' : ''} ${
+          isEditing ? 'editing' : ''
+        } ${isDragging ? 'dragging' : ''} ${(block.type === 'text' || block.type === 'header') ? 'text-block-no-header' : ''} ${isImageOrQuizBlock ? 'no-header' : ''} ${showStructureStrokes ? 'show-strokes' : ''}`}
+        onClick={handleBlockClick}
+        onDoubleClick={handleBlockDoubleClick}
+        {...cardDragListeners}
+      >
       {(block.type === 'text' || block.type === 'header' || block.type === 'image' || block.type === 'quiz' || block.type === 'button') && isSelected && !isEditing && !isPreview && !isDragging && (
         <BlockToolbar
           blockContainerRef={blockContentRef}
@@ -386,6 +387,64 @@ function SortableBlockItem({
         }}
       >
         {renderBlock()}
+      </div>
+      </div>
+    </ResourceBackgroundWrapper>
+  );
+}
+
+// Resource background component - applies theme-specific background to canvas-block elements
+function ResourceBackgroundWrapper({ children, blockId }: { children: React.ReactNode; blockId: string }) {
+  const theme = useTheme();
+  const resourceBackground = theme.resourceBackground;
+  
+  if (!resourceBackground?.backgroundColor && !resourceBackground?.backgroundImage) {
+    // No resource background set, return children as-is
+    return <>{children}</>;
+  }
+  
+  return (
+    <div style={{ position: 'relative' }}>
+      {/* Resource background color layer */}
+      {resourceBackground.backgroundColor && (
+        <div
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: resourceBackground.backgroundColor,
+            opacity: resourceBackground.backgroundColorOpacity ?? 1,
+            zIndex: 0,
+            pointerEvents: 'none',
+            borderRadius: '4px',
+          }}
+        />
+      )}
+      {/* Resource background image layer */}
+      {resourceBackground.backgroundImage && (
+        <div
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundImage: `url(${resourceBackground.backgroundImage})`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+            backgroundRepeat: 'no-repeat',
+            opacity: resourceBackground.backgroundImageOpacity ?? 1,
+            zIndex: 1,
+            pointerEvents: 'none',
+            borderRadius: '4px',
+          }}
+        />
+      )}
+      {/* Content with z-index to appear above background */}
+      <div style={{ position: 'relative', zIndex: 2 }}>
+        {children}
       </div>
     </div>
   );

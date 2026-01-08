@@ -70,6 +70,14 @@ export interface CellBackgroundDefaults {
   backgroundImageOpacity?: number; // Default opacity for background image (0-1)
 }
 
+// Resource (block) property defaults - theme-level configuration for resource backgrounds
+export interface ResourceBackgroundDefaults {
+  backgroundColor?: string; // Default background color for resources (blocks)
+  backgroundColorOpacity?: number; // Default opacity for background color (0-1)
+  backgroundImage?: string; // Default background image URL for resources
+  backgroundImageOpacity?: number; // Default opacity for background image (0-1)
+}
+
 // Row property defaults - theme-level configuration for row padding
 // Mirrors CellPaddingDefaults structure for consistency
 export interface RowPaddingDefaults {
@@ -138,6 +146,7 @@ export interface Theme {
   rowBorder?: BorderDefaults; // Default row border for this theme
   rowBorderRadius?: BorderRadiusDefaults; // Default row border radius for this theme
   pageBackground?: PageBackgroundDefaults; // Default page background for this theme
+  resourceBackground?: ResourceBackgroundDefaults; // Default resource (block) background for this theme
 }
 
 /**
@@ -393,6 +402,12 @@ export function themeToCSSVariables(theme: Theme): Record<string, string> {
     '--spacing-2xl': `${theme.spacing['2xl']}px`,
     
     '--radius-sm': `${theme.radius.sm}px`,
+    
+    // Resource (block) background variables
+    '--resource-bg-color': theme.resourceBackground?.backgroundColor || 'transparent',
+    '--resource-bg-opacity': theme.resourceBackground?.backgroundColorOpacity?.toString() || '1',
+    '--resource-bg-image': theme.resourceBackground?.backgroundImage ? `url(${theme.resourceBackground.backgroundImage})` : 'none',
+    '--resource-bg-image-opacity': theme.resourceBackground?.backgroundImageOpacity?.toString() || '1',
     '--radius-md': `${theme.radius.md}px`,
     '--radius-lg': `${theme.radius.lg}px`,
     

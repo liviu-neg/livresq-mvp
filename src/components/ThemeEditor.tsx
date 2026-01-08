@@ -24,13 +24,34 @@ interface ThemeColorConfig {
   headingColor: string; // For header block
   paragraphColor: string; // For text block
   pageBackgroundColor: string;
+  pageBackgroundColorOpacity?: number; // 0-1
   pageBackgroundImage?: string;
-  rowBackgroundColor: string;
+  pageBackgroundImageOpacity?: number; // 0-1
+  rowBackgroundColor?: string;
+  rowBackgroundColorOpacity?: number; // 0-1
   rowBackgroundImage?: string;
+  rowBackgroundImageOpacity?: number; // 0-1
   cellBackgroundColor?: string; // Optional, default transparent
+  cellBackgroundColorOpacity?: number; // 0-1
   cellBackgroundImage?: string; // Optional, default transparent
+  cellBackgroundImageOpacity?: number; // 0-1
   resourceBackgroundColor?: string; // Optional, default transparent
+  resourceBackgroundColorOpacity?: number; // 0-1
   resourceBackgroundImage?: string; // Optional, default transparent
+  resourceBackgroundImageOpacity?: number; // 0-1
+}
+
+// Helper function to convert hex color to rgba with opacity
+function hexToRgba(hex: string, opacity: number = 1): string {
+  // Remove # if present
+  hex = hex.replace('#', '');
+  
+  // Parse hex to RGB
+  const r = parseInt(hex.substring(0, 2), 16);
+  const g = parseInt(hex.substring(2, 4), 16);
+  const b = parseInt(hex.substring(4, 6), 16);
+  
+  return `rgba(${r}, ${g}, ${b}, ${opacity})`;
 }
 
 export function ThemeEditor({ isOpen, onClose, onThemeUpdate, customThemes }: ThemeEditorProps) {
@@ -46,32 +67,57 @@ export function ThemeEditor({ isOpen, onClose, onThemeUpdate, customThemes }: Th
     headingColor: '#000000',
     paragraphColor: '#272525',
     pageBackgroundColor: '#ffffff',
+    pageBackgroundColorOpacity: 1,
     pageBackgroundImage: undefined,
+    pageBackgroundImageOpacity: 1,
     rowBackgroundColor: '#ffffff',
+    rowBackgroundColorOpacity: 1,
     rowBackgroundImage: undefined,
+    rowBackgroundImageOpacity: 1,
     cellBackgroundColor: undefined,
+    cellBackgroundColorOpacity: 1,
     cellBackgroundImage: undefined,
+    cellBackgroundImageOpacity: 1,
     resourceBackgroundColor: undefined,
+    resourceBackgroundColorOpacity: 1,
     resourceBackgroundImage: undefined,
+    resourceBackgroundImageOpacity: 1,
   });
 
   // Load theme data when editing
   useEffect(() => {
     if (editingThemeId && step === 'step1') {
-      const theme = editingThemeId === 'plain' ? plainTheme : editingThemeId === 'neon' ? neonTheme : customThemes[editingThemeId];
+      // Check if custom theme exists first (for 'plain' and 'neon', custom versions override built-in)
+      let theme: Theme | undefined;
+      if (editingThemeId === 'plain' || editingThemeId === 'neon') {
+        // Use custom version if it exists, otherwise fall back to built-in
+        theme = customThemes[editingThemeId] || (editingThemeId === 'plain' ? plainTheme : neonTheme);
+      } else {
+        // For other themes, use custom theme
+        theme = customThemes[editingThemeId];
+      }
+      
       if (theme) {
         setColorConfig({
           primaryColor: theme.colors.accent || '#326CF6',
           headingColor: theme.colors.text || '#000000',
           paragraphColor: theme.colors.mutedText || '#272525',
           pageBackgroundColor: theme.pageBackground?.backgroundColor || '#ffffff',
+          pageBackgroundColorOpacity: theme.pageBackground?.backgroundColorOpacity ?? 1,
           pageBackgroundImage: theme.pageBackground?.backgroundImage,
-          rowBackgroundColor: theme.rowBackground?.backgroundColor || '#ffffff',
+          pageBackgroundImageOpacity: theme.pageBackground?.backgroundImageOpacity ?? 1,
+          rowBackgroundColor: theme.rowBackground?.backgroundColor,
+          rowBackgroundColorOpacity: theme.rowBackground?.backgroundColorOpacity ?? 1,
           rowBackgroundImage: theme.rowBackground?.backgroundImage,
+          rowBackgroundImageOpacity: theme.rowBackground?.backgroundImageOpacity ?? 1,
           cellBackgroundColor: theme.cellBackground?.backgroundColor,
+          cellBackgroundColorOpacity: theme.cellBackground?.backgroundColorOpacity ?? 1,
           cellBackgroundImage: theme.cellBackground?.backgroundImage,
-          resourceBackgroundColor: undefined, // Not in current theme structure
-          resourceBackgroundImage: undefined,
+          cellBackgroundImageOpacity: theme.cellBackground?.backgroundImageOpacity ?? 1,
+          resourceBackgroundColor: theme.resourceBackground?.backgroundColor,
+          resourceBackgroundColorOpacity: theme.resourceBackground?.backgroundColorOpacity ?? 1,
+          resourceBackgroundImage: theme.resourceBackground?.backgroundImage,
+          resourceBackgroundImageOpacity: theme.resourceBackground?.backgroundImageOpacity ?? 1,
         });
         if (!isNewTheme) {
           setThemeName(theme.name || editingThemeId);
@@ -118,6 +164,11 @@ export function ThemeEditor({ isOpen, onClose, onThemeUpdate, customThemes }: Th
 
     if (isNewTheme && !themeName.trim()) {
       alert('Please enter a theme name');
+      return;
+    }
+    // Validate theme name for existing themes (should not be empty when renaming)
+    if (!isNewTheme && editingThemeId && !themeName.trim()) {
+      alert('Theme name cannot be empty');
       return;
     }
 
@@ -182,8 +233,8 @@ export function ThemeEditor({ isOpen, onClose, onThemeUpdate, customThemes }: Th
       }
       finalThemeId = uniqueId;
     } else {
-      // Editing existing custom theme
-      finalThemeName = customThemes[editingThemeId!]?.name || 'Custom Theme';
+      // Editing existing custom theme - use the themeName from state (allows renaming)
+      finalThemeName = themeName.trim() || customThemes[editingThemeId!]?.name || 'Custom Theme';
       finalThemeId = editingThemeId!;
     }
 
@@ -191,8 +242,10 @@ export function ThemeEditor({ isOpen, onClose, onThemeUpdate, customThemes }: Th
     const newTheme: Theme = {
       name: finalThemeName,
       colors: {
-        bg: colorConfig.rowBackgroundColor,
-        surface: colorConfig.rowBackgroundColor,
+        // bg and surface should NOT be set from rowBackgroundColor - they affect resources/blocks
+        // Use page background color instead, or keep default white/transparent
+        bg: colorConfig.pageBackgroundColor,
+        surface: colorConfig.pageBackgroundColor,
         text: colorConfig.headingColor,
         mutedText: colorConfig.paragraphColor,
         border: '#e0e0e0', // Default border color
@@ -206,16 +259,16 @@ export function ThemeEditor({ isOpen, onClose, onThemeUpdate, customThemes }: Th
       cellPadding: plainTheme.cellPadding, // Use default cell padding for now
       cellBackground: {
         backgroundColor: colorConfig.cellBackgroundColor,
-        backgroundColorOpacity: colorConfig.cellBackgroundColor ? 1 : undefined,
+        backgroundColorOpacity: colorConfig.cellBackgroundColor ? (colorConfig.cellBackgroundColorOpacity ?? 1) : undefined,
         backgroundImage: colorConfig.cellBackgroundImage,
-        backgroundImageOpacity: colorConfig.cellBackgroundImage ? 1 : undefined,
+        backgroundImageOpacity: colorConfig.cellBackgroundImage ? (colorConfig.cellBackgroundImageOpacity ?? 1) : undefined,
       },
       rowPadding: plainTheme.rowPadding, // Use default row padding for now
       rowBackground: {
         backgroundColor: colorConfig.rowBackgroundColor,
-        backgroundColorOpacity: 1,
+        backgroundColorOpacity: colorConfig.rowBackgroundColorOpacity ?? 1,
         backgroundImage: colorConfig.rowBackgroundImage,
-        backgroundImageOpacity: colorConfig.rowBackgroundImage ? 1 : undefined,
+        backgroundImageOpacity: colorConfig.rowBackgroundImage ? (colorConfig.rowBackgroundImageOpacity ?? 1) : undefined,
       },
       cellBorder: plainTheme.cellBorder, // Use default cell border for now
       cellBorderRadius: plainTheme.cellBorderRadius, // Use default cell border radius for now
@@ -223,9 +276,15 @@ export function ThemeEditor({ isOpen, onClose, onThemeUpdate, customThemes }: Th
       rowBorderRadius: plainTheme.rowBorderRadius, // Use default row border radius for now
       pageBackground: {
         backgroundColor: colorConfig.pageBackgroundColor,
-        backgroundColorOpacity: 1,
+        backgroundColorOpacity: colorConfig.pageBackgroundColorOpacity ?? 1,
         backgroundImage: colorConfig.pageBackgroundImage,
-        backgroundImageOpacity: colorConfig.pageBackgroundImage ? 1 : undefined,
+        backgroundImageOpacity: colorConfig.pageBackgroundImage ? (colorConfig.pageBackgroundImageOpacity ?? 1) : undefined,
+      },
+      resourceBackground: {
+        backgroundColor: colorConfig.resourceBackgroundColor,
+        backgroundColorOpacity: colorConfig.resourceBackgroundColor ? (colorConfig.resourceBackgroundColorOpacity ?? 1) : undefined,
+        backgroundImage: colorConfig.resourceBackgroundImage,
+        backgroundImageOpacity: colorConfig.resourceBackgroundImage ? (colorConfig.resourceBackgroundImageOpacity ?? 1) : undefined,
       },
     };
 
@@ -532,6 +591,27 @@ export function ThemeEditor({ isOpen, onClose, onThemeUpdate, customThemes }: Th
                       className="theme-color-text-input"
                     />
                   </div>
+                  <div className="opacity-input-wrapper" style={{ marginTop: '8px' }}>
+                    <label style={{ fontSize: '12px', color: '#666', marginRight: '8px' }}>Opacity:</label>
+                    <input
+                      type="range"
+                      min="0"
+                      max="1"
+                      step="0.01"
+                      value={colorConfig.pageBackgroundColorOpacity ?? 1}
+                      onChange={(e) => setColorConfig({ ...colorConfig, pageBackgroundColorOpacity: parseFloat(e.target.value) })}
+                      className="theme-opacity-slider"
+                    />
+                    <input
+                      type="number"
+                      min="0"
+                      max="1"
+                      step="0.01"
+                      value={colorConfig.pageBackgroundColorOpacity ?? 1}
+                      onChange={(e) => setColorConfig({ ...colorConfig, pageBackgroundColorOpacity: parseFloat(e.target.value) || 1 })}
+                      className="theme-opacity-input"
+                    />
+                  </div>
                 </div>
                 <div className="theme-config-group">
                   <label>Background image</label>
@@ -542,6 +622,29 @@ export function ThemeEditor({ isOpen, onClose, onThemeUpdate, customThemes }: Th
                     className="theme-text-input"
                     placeholder="https://example.com/image.jpg"
                   />
+                  {colorConfig.pageBackgroundImage && (
+                    <div className="opacity-input-wrapper" style={{ marginTop: '8px' }}>
+                      <label style={{ fontSize: '12px', color: '#666', marginRight: '8px' }}>Opacity:</label>
+                      <input
+                        type="range"
+                        min="0"
+                        max="1"
+                        step="0.01"
+                        value={colorConfig.pageBackgroundImageOpacity ?? 1}
+                        onChange={(e) => setColorConfig({ ...colorConfig, pageBackgroundImageOpacity: parseFloat(e.target.value) })}
+                        className="theme-opacity-slider"
+                      />
+                      <input
+                        type="number"
+                        min="0"
+                        max="1"
+                        step="0.01"
+                        value={colorConfig.pageBackgroundImageOpacity ?? 1}
+                        onChange={(e) => setColorConfig({ ...colorConfig, pageBackgroundImageOpacity: parseFloat(e.target.value) || 1 })}
+                        className="theme-opacity-input"
+                      />
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -555,15 +658,56 @@ export function ThemeEditor({ isOpen, onClose, onThemeUpdate, customThemes }: Th
                   <div className="color-input-wrapper">
                     <input
                       type="color"
-                      value={colorConfig.rowBackgroundColor}
+                      value={colorConfig.rowBackgroundColor || '#ffffff'}
                       onChange={(e) => setColorConfig({ ...colorConfig, rowBackgroundColor: e.target.value })}
                       className="theme-color-input"
+                      disabled={!colorConfig.rowBackgroundColor}
                     />
                     <input
                       type="text"
-                      value={colorConfig.rowBackgroundColor}
-                      onChange={(e) => setColorConfig({ ...colorConfig, rowBackgroundColor: e.target.value })}
+                      value={colorConfig.rowBackgroundColor || ''}
+                      onChange={(e) => setColorConfig({ ...colorConfig, rowBackgroundColor: e.target.value || undefined })}
                       className="theme-color-text-input"
+                      placeholder="Transparent"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setColorConfig({ ...colorConfig, rowBackgroundColor: undefined })}
+                      className="transparent-button"
+                      title="Set to transparent"
+                      style={{
+                        padding: '6px 12px',
+                        fontSize: '12px',
+                        border: '1px solid #e0e0e0',
+                        borderRadius: '6px',
+                        background: !colorConfig.rowBackgroundColor ? '#f0f0f0' : 'transparent',
+                        color: !colorConfig.rowBackgroundColor ? '#666' : '#333',
+                        cursor: 'pointer',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {colorConfig.rowBackgroundColor ? 'Set transparent' : 'Transparent'}
+                    </button>
+                  </div>
+                  <div className="opacity-input-wrapper" style={{ marginTop: '8px' }}>
+                    <label style={{ fontSize: '12px', color: '#666', marginRight: '8px' }}>Opacity:</label>
+                    <input
+                      type="range"
+                      min="0"
+                      max="1"
+                      step="0.01"
+                      value={colorConfig.rowBackgroundColorOpacity ?? 1}
+                      onChange={(e) => setColorConfig({ ...colorConfig, rowBackgroundColorOpacity: parseFloat(e.target.value) })}
+                      className="theme-opacity-slider"
+                    />
+                    <input
+                      type="number"
+                      min="0"
+                      max="1"
+                      step="0.01"
+                      value={colorConfig.rowBackgroundColorOpacity ?? 1}
+                      onChange={(e) => setColorConfig({ ...colorConfig, rowBackgroundColorOpacity: parseFloat(e.target.value) || 1 })}
+                      className="theme-opacity-input"
                     />
                   </div>
                 </div>
@@ -576,6 +720,29 @@ export function ThemeEditor({ isOpen, onClose, onThemeUpdate, customThemes }: Th
                     className="theme-text-input"
                     placeholder="https://example.com/image.jpg"
                   />
+                  {colorConfig.rowBackgroundImage && (
+                    <div className="opacity-input-wrapper" style={{ marginTop: '8px' }}>
+                      <label style={{ fontSize: '12px', color: '#666', marginRight: '8px' }}>Opacity:</label>
+                      <input
+                        type="range"
+                        min="0"
+                        max="1"
+                        step="0.01"
+                        value={colorConfig.rowBackgroundImageOpacity ?? 1}
+                        onChange={(e) => setColorConfig({ ...colorConfig, rowBackgroundImageOpacity: parseFloat(e.target.value) })}
+                        className="theme-opacity-slider"
+                      />
+                      <input
+                        type="number"
+                        min="0"
+                        max="1"
+                        step="0.01"
+                        value={colorConfig.rowBackgroundImageOpacity ?? 1}
+                        onChange={(e) => setColorConfig({ ...colorConfig, rowBackgroundImageOpacity: parseFloat(e.target.value) || 1 })}
+                        className="theme-opacity-input"
+                      />
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -593,6 +760,7 @@ export function ThemeEditor({ isOpen, onClose, onThemeUpdate, customThemes }: Th
                       value={colorConfig.cellBackgroundColor || '#ffffff'}
                       onChange={(e) => setColorConfig({ ...colorConfig, cellBackgroundColor: e.target.value || undefined })}
                       className="theme-color-input"
+                      disabled={!colorConfig.cellBackgroundColor}
                     />
                     <input
                       type="text"
@@ -601,7 +769,48 @@ export function ThemeEditor({ isOpen, onClose, onThemeUpdate, customThemes }: Th
                       className="theme-color-text-input"
                       placeholder="Transparent (default)"
                     />
+                    <button
+                      type="button"
+                      onClick={() => setColorConfig({ ...colorConfig, cellBackgroundColor: undefined })}
+                      className="transparent-button"
+                      title="Set to transparent"
+                      style={{
+                        padding: '6px 12px',
+                        fontSize: '12px',
+                        border: '1px solid #e0e0e0',
+                        borderRadius: '6px',
+                        background: !colorConfig.cellBackgroundColor ? '#f0f0f0' : 'transparent',
+                        color: !colorConfig.cellBackgroundColor ? '#666' : '#333',
+                        cursor: 'pointer',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {colorConfig.cellBackgroundColor ? 'Set transparent' : 'Transparent'}
+                    </button>
                   </div>
+                  {colorConfig.cellBackgroundColor && (
+                    <div className="opacity-input-wrapper" style={{ marginTop: '8px' }}>
+                      <label style={{ fontSize: '12px', color: '#666', marginRight: '8px' }}>Opacity:</label>
+                      <input
+                        type="range"
+                        min="0"
+                        max="1"
+                        step="0.01"
+                        value={colorConfig.cellBackgroundColorOpacity ?? 1}
+                        onChange={(e) => setColorConfig({ ...colorConfig, cellBackgroundColorOpacity: parseFloat(e.target.value) })}
+                        className="theme-opacity-slider"
+                      />
+                      <input
+                        type="number"
+                        min="0"
+                        max="1"
+                        step="0.01"
+                        value={colorConfig.cellBackgroundColorOpacity ?? 1}
+                        onChange={(e) => setColorConfig({ ...colorConfig, cellBackgroundColorOpacity: parseFloat(e.target.value) || 1 })}
+                        className="theme-opacity-input"
+                      />
+                    </div>
+                  )}
                 </div>
                 <div className="theme-config-group">
                   <label>Cell background image</label>
@@ -612,6 +821,29 @@ export function ThemeEditor({ isOpen, onClose, onThemeUpdate, customThemes }: Th
                     className="theme-text-input"
                     placeholder="https://example.com/image.jpg"
                   />
+                  {colorConfig.cellBackgroundImage && (
+                    <div className="opacity-input-wrapper" style={{ marginTop: '8px' }}>
+                      <label style={{ fontSize: '12px', color: '#666', marginRight: '8px' }}>Opacity:</label>
+                      <input
+                        type="range"
+                        min="0"
+                        max="1"
+                        step="0.01"
+                        value={colorConfig.cellBackgroundImageOpacity ?? 1}
+                        onChange={(e) => setColorConfig({ ...colorConfig, cellBackgroundImageOpacity: parseFloat(e.target.value) })}
+                        className="theme-opacity-slider"
+                      />
+                      <input
+                        type="number"
+                        min="0"
+                        max="1"
+                        step="0.01"
+                        value={colorConfig.cellBackgroundImageOpacity ?? 1}
+                        onChange={(e) => setColorConfig({ ...colorConfig, cellBackgroundImageOpacity: parseFloat(e.target.value) || 1 })}
+                        className="theme-opacity-input"
+                      />
+                    </div>
+                  )}
                 </div>
                 <div className="theme-config-group">
                   <label>Resource background color</label>
@@ -621,6 +853,7 @@ export function ThemeEditor({ isOpen, onClose, onThemeUpdate, customThemes }: Th
                       value={colorConfig.resourceBackgroundColor || '#ffffff'}
                       onChange={(e) => setColorConfig({ ...colorConfig, resourceBackgroundColor: e.target.value || undefined })}
                       className="theme-color-input"
+                      disabled={!colorConfig.resourceBackgroundColor}
                     />
                     <input
                       type="text"
@@ -629,7 +862,48 @@ export function ThemeEditor({ isOpen, onClose, onThemeUpdate, customThemes }: Th
                       className="theme-color-text-input"
                       placeholder="Transparent (default)"
                     />
+                    <button
+                      type="button"
+                      onClick={() => setColorConfig({ ...colorConfig, resourceBackgroundColor: undefined })}
+                      className="transparent-button"
+                      title="Set to transparent"
+                      style={{
+                        padding: '6px 12px',
+                        fontSize: '12px',
+                        border: '1px solid #e0e0e0',
+                        borderRadius: '6px',
+                        background: !colorConfig.resourceBackgroundColor ? '#f0f0f0' : 'transparent',
+                        color: !colorConfig.resourceBackgroundColor ? '#666' : '#333',
+                        cursor: 'pointer',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {colorConfig.resourceBackgroundColor ? 'Set transparent' : 'Transparent'}
+                    </button>
                   </div>
+                  {colorConfig.resourceBackgroundColor && (
+                    <div className="opacity-input-wrapper" style={{ marginTop: '8px' }}>
+                      <label style={{ fontSize: '12px', color: '#666', marginRight: '8px' }}>Opacity:</label>
+                      <input
+                        type="range"
+                        min="0"
+                        max="1"
+                        step="0.01"
+                        value={colorConfig.resourceBackgroundColorOpacity ?? 1}
+                        onChange={(e) => setColorConfig({ ...colorConfig, resourceBackgroundColorOpacity: parseFloat(e.target.value) })}
+                        className="theme-opacity-slider"
+                      />
+                      <input
+                        type="number"
+                        min="0"
+                        max="1"
+                        step="0.01"
+                        value={colorConfig.resourceBackgroundColorOpacity ?? 1}
+                        onChange={(e) => setColorConfig({ ...colorConfig, resourceBackgroundColorOpacity: parseFloat(e.target.value) || 1 })}
+                        className="theme-opacity-input"
+                      />
+                    </div>
+                  )}
                 </div>
                 <div className="theme-config-group">
                   <label>Resource background image</label>
@@ -640,25 +914,46 @@ export function ThemeEditor({ isOpen, onClose, onThemeUpdate, customThemes }: Th
                     className="theme-text-input"
                     placeholder="https://example.com/image.jpg"
                   />
+                  {colorConfig.resourceBackgroundImage && (
+                    <div className="opacity-input-wrapper" style={{ marginTop: '8px' }}>
+                      <label style={{ fontSize: '12px', color: '#666', marginRight: '8px' }}>Opacity:</label>
+                      <input
+                        type="range"
+                        min="0"
+                        max="1"
+                        step="0.01"
+                        value={colorConfig.resourceBackgroundImageOpacity ?? 1}
+                        onChange={(e) => setColorConfig({ ...colorConfig, resourceBackgroundImageOpacity: parseFloat(e.target.value) })}
+                        className="theme-opacity-slider"
+                      />
+                      <input
+                        type="number"
+                        min="0"
+                        max="1"
+                        step="0.01"
+                        value={colorConfig.resourceBackgroundImageOpacity ?? 1}
+                        onChange={(e) => setColorConfig({ ...colorConfig, resourceBackgroundImageOpacity: parseFloat(e.target.value) || 1 })}
+                        className="theme-opacity-input"
+                      />
+                    </div>
+                  )}
                 </div>
               </div>
 
-              {/* Theme Name (for new themes) */}
-              {isNewTheme && (
-                <div className="theme-config-section">
-                  <div className="theme-config-group">
-                    <label>Theme name</label>
-                    <input
-                      type="text"
-                      value={themeName}
-                      onChange={(e) => setThemeName(e.target.value)}
-                      className="theme-text-input"
-                      placeholder="Enter theme name"
-                      required
-                    />
-                  </div>
+              {/* Theme Name (for new themes and editing existing themes) */}
+              <div className="theme-config-section">
+                <div className="theme-config-group">
+                  <label>Theme name</label>
+                  <input
+                    type="text"
+                    value={themeName}
+                    onChange={(e) => setThemeName(e.target.value)}
+                    className="theme-text-input"
+                    placeholder={isNewTheme ? "Enter theme name" : "Theme name"}
+                    required={isNewTheme}
+                  />
                 </div>
-              )}
+              </div>
 
               {/* Theme Name (when saving Plain/Neon as new) */}
               {showSaveDialog && saveAsNew && (
@@ -694,25 +989,240 @@ export function ThemeEditor({ isOpen, onClose, onThemeUpdate, customThemes }: Th
                 </div>
                 <button className="theme-preview-close" onClick={onClose}>×</button>
               </div>
-              <div className="theme-preview-content" style={{ backgroundColor: colorConfig.pageBackgroundColor }}>
-                <div className="theme-preview-card-preview" style={{ backgroundColor: colorConfig.rowBackgroundColor }}>
-                  <h3 style={{ color: colorConfig.headingColor }}>This is a theme preview.</h3>
-                  <p style={{ color: colorConfig.paragraphColor }}>
-                    Here's an example of body text. You can change its font and the color. Your accent color will be used for links. It will also be used for layouts and buttons.
-                  </p>
-                  <div style={{ display: 'flex', gap: '8px', marginTop: '16px' }}>
-                    <button
+              <div 
+                className="theme-preview-content" 
+                style={{ 
+                  backgroundColor: hexToRgba(colorConfig.pageBackgroundColor, colorConfig.pageBackgroundColorOpacity ?? 1),
+                  position: 'relative',
+                }}
+              >
+                {colorConfig.pageBackgroundImage && (
+                  <div 
+                    style={{
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      backgroundImage: `url(${colorConfig.pageBackgroundImage})`,
+                      backgroundSize: 'cover',
+                      backgroundPosition: 'center',
+                      opacity: colorConfig.pageBackgroundImageOpacity ?? 1,
+                      zIndex: 0,
+                    }}
+                  />
+                )}
+                <div 
+                  className="theme-preview-card-preview" 
+                  style={{ 
+                    position: 'relative',
+                    zIndex: 1,
+                  }}
+                >
+                  {/* Row background color layer (base layer) - always render if color is set */}
+                  {colorConfig.rowBackgroundColor && (
+                    <div
                       style={{
-                        backgroundColor: colorConfig.primaryColor,
-                        color: '#ffffff',
-                        border: 'none',
-                        borderRadius: '4px',
-                        padding: '8px 16px',
-                        cursor: 'pointer',
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        backgroundColor: hexToRgba(colorConfig.rowBackgroundColor, colorConfig.rowBackgroundColorOpacity ?? 1),
+                        zIndex: 0,
+                        borderRadius: '8px',
+                        pointerEvents: 'none',
                       }}
-                    >
-                      Primary button
-                    </button>
+                    />
+                  )}
+                  {/* Row background image layer (above color) */}
+                  {colorConfig.rowBackgroundImage && (
+                    <div
+                      style={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        backgroundImage: `url(${colorConfig.rowBackgroundImage})`,
+                        backgroundSize: 'cover',
+                        backgroundPosition: 'center',
+                        opacity: colorConfig.rowBackgroundImageOpacity ?? 1,
+                        zIndex: 1,
+                        borderRadius: '8px',
+                        pointerEvents: 'none',
+                      }}
+                    />
+                  )}
+                  {/* Row cells container - simulates .row-cells with padding */}
+                  <div 
+                    style={{ 
+                      position: 'relative', 
+                      zIndex: 2,
+                      padding: '12px', // Reduced padding between row and cell
+                    }}
+                  >
+                    {/* Cell view container - simulates .cell-view */}
+                    <div style={{ position: 'relative' }}>
+                      {/* Cell background color layer (if cell background is set) */}
+                      {colorConfig.cellBackgroundColor && (
+                        <div
+                          style={{
+                            position: 'absolute',
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+                            backgroundColor: hexToRgba(colorConfig.cellBackgroundColor, colorConfig.cellBackgroundColorOpacity ?? 1),
+                            zIndex: 0,
+                            borderRadius: '4px',
+                            pointerEvents: 'none',
+                          }}
+                        />
+                      )}
+                      {/* Cell background image layer */}
+                      {colorConfig.cellBackgroundImage && (
+                        <div
+                          style={{
+                            position: 'absolute',
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+                            backgroundImage: `url(${colorConfig.cellBackgroundImage})`,
+                            backgroundSize: 'cover',
+                            backgroundPosition: 'center',
+                            opacity: colorConfig.cellBackgroundImageOpacity ?? 1,
+                            zIndex: 1,
+                            borderRadius: '4px',
+                            pointerEvents: 'none',
+                          }}
+                        />
+                      )}
+                      {/* Cell resources container - simulates .cell-resources with padding */}
+                      <div style={{ position: 'relative', zIndex: 2, padding: '16px' }}>
+                    {/* Resource background for heading */}
+                    <div style={{ position: 'relative', marginBottom: '8px' }}>
+                      {colorConfig.resourceBackgroundColor && (
+                        <div
+                          style={{
+                            position: 'absolute',
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+                            backgroundColor: hexToRgba(colorConfig.resourceBackgroundColor, colorConfig.resourceBackgroundColorOpacity ?? 1),
+                            zIndex: 0,
+                            borderRadius: '4px',
+                          }}
+                        />
+                      )}
+                      {colorConfig.resourceBackgroundImage && (
+                        <div
+                          style={{
+                            position: 'absolute',
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+                            backgroundImage: `url(${colorConfig.resourceBackgroundImage})`,
+                            backgroundSize: 'cover',
+                            backgroundPosition: 'center',
+                            opacity: colorConfig.resourceBackgroundImageOpacity ?? 1,
+                            zIndex: 1,
+                            borderRadius: '4px',
+                          }}
+                        />
+                      )}
+                      <h3 style={{ color: colorConfig.headingColor, position: 'relative', zIndex: 2, padding: colorConfig.resourceBackgroundColor || colorConfig.resourceBackgroundImage ? '8px' : '0' }}>This is a theme preview.</h3>
+                    </div>
+                    {/* Resource background for paragraph */}
+                    <div style={{ position: 'relative', marginBottom: '16px' }}>
+                      {colorConfig.resourceBackgroundColor && (
+                        <div
+                          style={{
+                            position: 'absolute',
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+                            backgroundColor: hexToRgba(colorConfig.resourceBackgroundColor, colorConfig.resourceBackgroundColorOpacity ?? 1),
+                            zIndex: 0,
+                            borderRadius: '4px',
+                          }}
+                        />
+                      )}
+                      {colorConfig.resourceBackgroundImage && (
+                        <div
+                          style={{
+                            position: 'absolute',
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+                            backgroundImage: `url(${colorConfig.resourceBackgroundImage})`,
+                            backgroundSize: 'cover',
+                            backgroundPosition: 'center',
+                            opacity: colorConfig.resourceBackgroundImageOpacity ?? 1,
+                            zIndex: 1,
+                            borderRadius: '4px',
+                          }}
+                        />
+                      )}
+                      <p style={{ color: colorConfig.paragraphColor, position: 'relative', zIndex: 2, padding: colorConfig.resourceBackgroundColor || colorConfig.resourceBackgroundImage ? '8px' : '0' }}>
+                        Here's an example of body text. You can change its font and the color. Your accent color will be used for links. It will also be used for layouts and buttons.
+                      </p>
+                    </div>
+                    {/* Resource background for button */}
+                    <div style={{ display: 'flex', gap: '8px', marginTop: '16px', position: 'relative' }}>
+                      {colorConfig.resourceBackgroundColor && (
+                        <div
+                          style={{
+                            position: 'absolute',
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+                            backgroundColor: hexToRgba(colorConfig.resourceBackgroundColor, colorConfig.resourceBackgroundColorOpacity ?? 1),
+                            zIndex: 0,
+                            borderRadius: '4px',
+                          }}
+                        />
+                      )}
+                      {colorConfig.resourceBackgroundImage && (
+                        <div
+                          style={{
+                            position: 'absolute',
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+                            backgroundImage: `url(${colorConfig.resourceBackgroundImage})`,
+                            backgroundSize: 'cover',
+                            backgroundPosition: 'center',
+                            opacity: colorConfig.resourceBackgroundImageOpacity ?? 1,
+                            zIndex: 1,
+                            borderRadius: '4px',
+                          }}
+                        />
+                      )}
+                      <button
+                        style={{
+                          backgroundColor: colorConfig.primaryColor,
+                          color: '#ffffff',
+                          border: 'none',
+                          borderRadius: '4px',
+                          padding: '8px 16px',
+                          cursor: 'pointer',
+                          position: 'relative',
+                          zIndex: 2,
+                        }}
+                      >
+                        Primary button
+                      </button>
+                    </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>

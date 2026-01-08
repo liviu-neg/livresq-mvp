@@ -5,7 +5,7 @@ import { isBlock, isConstructor } from '../utils/sections';
 import { RowView } from './RowView';
 import { CellToolbar } from './CellToolbar';
 import { EmptyStateRow } from './EmptyStateRow';
-import { useThemeSwitcher } from '../theme/ThemeProvider';
+import { useThemeSwitcher, useTheme } from '../theme/ThemeProvider';
 
 interface CellViewProps {
   cell: Cell;
@@ -29,15 +29,26 @@ interface CellViewProps {
   isColumnsBlock?: boolean; // True if this cell is in a columns block row
 }
 
-// Helper function to get theme-specific cell properties with fallback to legacy props
-function getCellThemeProps(cell: Cell, themeId: 'plain' | 'neon'): ThemeSpecificCellProps {
+// Helper function to get theme-specific cell properties with fallback to legacy props and theme defaults
+function getCellThemeProps(cell: Cell, themeId: string, theme: any): ThemeSpecificCellProps {
+  // Try to get theme-specific props (works for 'plain', 'neon', and any custom theme ID)
   const themeProps = cell.props?.themes?.[themeId];
-  // If theme-specific props exist, use them; otherwise fall back to legacy props
+  const defaultBackground = theme?.cellBackground || { backgroundColor: undefined, backgroundColorOpacity: 1, backgroundImage: undefined, backgroundImageOpacity: 1 };
+  
+  // If theme-specific props exist, merge with theme defaults for missing background properties
   if (themeProps) {
-    return themeProps;
+    return {
+      ...themeProps,
+      // Use theme defaults if background properties are not set in theme-specific props
+      backgroundColor: themeProps.backgroundColor ?? defaultBackground.backgroundColor,
+      backgroundColorOpacity: themeProps.backgroundColorOpacity ?? defaultBackground.backgroundColorOpacity ?? 1,
+      backgroundImage: themeProps.backgroundImage ?? defaultBackground.backgroundImage,
+      backgroundImageOpacity: themeProps.backgroundImageOpacity ?? defaultBackground.backgroundImageOpacity ?? 1,
+    };
   }
+  
   // Fallback to legacy props for backward compatibility
-  return {
+  const legacyProps = {
     verticalAlign: cell.props?.verticalAlign,
     padding: cell.props?.padding,
     backgroundColor: cell.props?.backgroundColor,
@@ -45,7 +56,21 @@ function getCellThemeProps(cell: Cell, themeId: 'plain' | 'neon'): ThemeSpecific
     backgroundImage: cell.props?.backgroundImage,
     backgroundImageOpacity: cell.props?.backgroundImageOpacity,
     border: cell.props?.border,
+    borderRadius: cell.props?.borderRadius,
   };
+  
+  // If no custom background is set, use theme defaults
+  if (!legacyProps.backgroundColor && !legacyProps.backgroundImage) {
+    return {
+      ...legacyProps,
+      backgroundColor: defaultBackground.backgroundColor,
+      backgroundColorOpacity: defaultBackground.backgroundColorOpacity,
+      backgroundImage: defaultBackground.backgroundImage,
+      backgroundImageOpacity: defaultBackground.backgroundImageOpacity,
+    };
+  }
+  
+  return legacyProps;
 }
 
 export function CellView({
@@ -70,8 +95,9 @@ export function CellView({
   isColumnsBlock = false,
 }: CellViewProps) {
   const { themeId } = useThemeSwitcher();
-  // Get theme-specific properties
-  const themeProps = getCellThemeProps(cell, themeId);
+  const theme = useTheme();
+  // Get theme-specific properties with fallback to theme defaults
+  const themeProps = getCellThemeProps(cell, themeId, theme);
   const cellRef = useRef<HTMLDivElement>(null);
   const cellResourcesRef = useRef<HTMLDivElement>(null);
   const isSelected = selectedCellId === cell.id;

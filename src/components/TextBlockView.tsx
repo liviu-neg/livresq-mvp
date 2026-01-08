@@ -23,22 +23,26 @@ export function TextBlockView({ block, isSelected, isEditing, isPreview, onUpdat
     onUpdate({ body: html });
   };
 
+  // Determine color based on block type: header uses heading color, text uses paragraph color
+  const textColor = block.type === 'header' ? 'var(--color-text)' : 'var(--color-muted-text)';
+
   // Read-only view when not editing or in preview
   if (isPreview || !isEditing) {
     return (
       <div 
-        className="block-view text-block-view"
+        className={`block-view text-block-view ${block.type === 'text' ? 'text-block-type' : 'header-block-type'}`}
         style={{
           fontFamily: 'var(--font-sans)',
           fontSize: '20px',
           lineHeight: '1.6',
           fontWeight: '400',
           letterSpacing: 'normal',
-          color: 'var(--color-text)',
+          color: textColor,
         }}
       >
         <div 
           className="block-body rich-text-readonly"
+          style={{ color: textColor }}
           dangerouslySetInnerHTML={{ __html: block.body || '<em class="empty-field">No content</em>' }}
         />
       </div>
@@ -48,14 +52,14 @@ export function TextBlockView({ block, isSelected, isEditing, isPreview, onUpdat
   // Inline editing view with rich text editor when in edit mode
   return (
     <div 
-      className="block-view text-block-view"
+      className={`block-view text-block-view ${block.type === 'text' ? 'text-block-type' : 'header-block-type'}`}
       style={{
         fontFamily: 'var(--font-sans)',
         fontSize: '20px',
         lineHeight: '1.6',
         fontWeight: '400',
         letterSpacing: 'normal',
-        color: 'var(--color-text)',
+        color: textColor,
       }}
     >
       <div 
