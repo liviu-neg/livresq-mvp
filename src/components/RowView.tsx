@@ -127,6 +127,25 @@ export function RowView({
   const theme = useTheme();
   // Get theme-specific properties with fallback to theme defaults
   const themeProps = getRowThemeProps(row, themeId, theme);
+  
+  // Extract shadow and bgBlur
+  const shadow = themeProps.shadow;
+  const bgBlur = themeProps.bgBlur ?? 0;
+  
+  // Helper to convert shadow object to CSS box-shadow string
+  const getBoxShadow = (shadow: typeof themeProps.shadow): string => {
+    if (!shadow) return '';
+    const { x, y, blur, spread, color, opacity } = shadow;
+    const rgbaColor = (() => {
+      const hex = color.replace('#', '');
+      const r = parseInt(hex.substring(0, 2), 16);
+      const g = parseInt(hex.substring(2, 4), 16);
+      const b = parseInt(hex.substring(4, 6), 16);
+      return `rgba(${r}, ${g}, ${b}, ${opacity})`;
+    })();
+    const inset = shadow.position === 'inside' ? 'inset ' : '';
+    return `${inset}${x}px ${y}px ${blur}px ${spread}px ${rgbaColor}`;
+  };
   // Get max row width from page props (null = full width, 1024 = 1024px max width, undefined = default 1024)
   const maxRowWidth = pageProps?.themes?.[themeId]?.maxRowWidth;
   const isFullWidth = maxRowWidth === null;
@@ -225,6 +244,13 @@ export function RowView({
           className={`row-view empty-state-row-view ${showStructureStrokes ? 'show-strokes' : ''} ${isSelected ? 'selected' : ''}`}
           data-row-id={row.id}
           onClick={handleRowClick}
+          style={{
+            ...(shadow ? { boxShadow: getBoxShadow(shadow) } : {}),
+            ...(bgBlur > 0 ? {
+              backdropFilter: `blur(${bgBlur}px)`,
+              WebkitBackdropFilter: `blur(${bgBlur}px)`,
+            } : {}),
+          }}
         >
           <div ref={rowCellsRef} className="row-cells">
             {row.cells.map((cell) => (
@@ -296,6 +322,11 @@ export function RowView({
             marginLeft: 'auto',
             marginRight: 'auto',
           }),
+          ...(shadow ? { boxShadow: getBoxShadow(shadow) } : {}),
+          ...(bgBlur > 0 ? {
+            backdropFilter: `blur(${bgBlur}px)`,
+            WebkitBackdropFilter: `blur(${bgBlur}px)`,
+          } : {}),
         }}
       >
         {/* Row background layers - separate layers for color and image to allow independent opacity control */}

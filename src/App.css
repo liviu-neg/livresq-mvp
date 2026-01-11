@@ -5933,7 +5933,7 @@ body {
   /* CSS Variables - Sidebar-specific tokens */
   --ui-panel-bg: #FFFFFF;
   --ui-panel-padding: 24px;
-  --ui-section-spacing: 24px;
+  --ui-section-spacing: 16px;
   --ui-divider-color: #E6E6E6;
   --ui-divider-spacing: 22px;
   
@@ -5985,7 +5985,16 @@ body {
   display: flex;
   flex-direction: column;
   gap: var(--ui-row-spacing);
-  margin-bottom: 0;
+  padding-top: calc((var(--ui-section-spacing) - 1px) / 2);
+  padding-bottom: calc((var(--ui-section-spacing) - 1px) / 2);
+}
+
+.ui-properties-panel .ui-section:first-child {
+  padding-top: 0;
+}
+
+.ui-properties-panel .ui-section:last-child {
+  padding-bottom: 0;
 }
 
 .ui-properties-panel .ui-section:not(:last-child)::after {
@@ -5993,10 +6002,18 @@ body {
   display: block;
   height: 1px;
   background: var(--ui-divider-color);
-  margin-top: var(--ui-divider-spacing);
-  margin-bottom: var(--ui-divider-spacing);
+  margin-top: calc((var(--ui-section-spacing) - 1px) / 2);
+  margin-bottom: calc((var(--ui-section-spacing) - 1px) / 2);
   margin-left: calc(-1 * var(--ui-panel-padding));
   margin-right: calc(-1 * var(--ui-panel-padding));
+}
+
+/* Section Title Row */
+.ui-properties-panel .ui-section-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
 }
 
 /* Section Title */
@@ -6007,6 +6024,33 @@ body {
   color: var(--ui-section-title-color);
   margin: 0;
   padding: 0;
+  flex: 1;
+}
+
+/* Section Add Button */
+.ui-properties-panel .ui-section-add-button {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ui-row-label-color);
+  transition: color 0.2s;
+  flex-shrink: 0;
+}
+
+.ui-properties-panel .ui-section-add-button:hover {
+  color: var(--ui-section-title-color);
+}
+
+.ui-properties-panel .ui-section-add-button svg {
+  width: 16px;
+  height: 16px;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
 }
 
 /* Property Row - Two Column Layout */
@@ -6249,4 +6293,295 @@ body {
 
 .ui-properties-panel .ui-pill-select-close:hover {
   opacity: 0.7;
+}
+
+/* Segmented Text Control */
+.ui-properties-panel .ui-segmented-control-segment-text {
+  font-size: var(--ui-value-text-size);
+  font-weight: var(--ui-value-text-weight);
+  line-height: var(--ui-value-text-line-height);
+  color: var(--ui-value-text-color);
+}
+
+/* Shadow Popover */
+.shadow-popover-content {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.shadow-popover-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.shadow-popover-group label {
+  font-size: 13px;
+  font-weight: 500;
+  color: #1a1a1a;
+}
+
+.shadow-popover-segmented {
+  display: flex;
+  gap: 2px;
+  height: 32px;
+  background: #EEEEEE;
+  border-radius: 8px;
+  padding: 2px;
+}
+
+.shadow-popover-segment {
+  flex: 1;
+  height: 28px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  font-size: 13px;
+  font-weight: 500;
+  color: #6B6B6B;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.shadow-popover-segment.active {
+  background: #FFFFFF;
+  box-shadow: 0px 2px 6px rgba(0, 0, 0, 0.18);
+  color: #111111;
+}
+
+.shadow-popover-color-input {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 32px;
+  background: #EEEEEE;
+  border-radius: 8px;
+  padding: 2px 8px;
+  cursor: pointer;
+}
+
+.shadow-popover-color-swatch {
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  flex-shrink: 0;
+}
+
+.shadow-popover-color-text {
+  flex: 1;
+  border: none;
+  background: transparent;
+  font-size: 13px;
+  font-weight: 500;
+  color: #111111;
+  font-family: monospace;
+  outline: none;
+}
+
+.shadow-popover-color-clear {
+  width: 16px;
+  height: 16px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.shadow-popover-color-clear svg {
+  width: 10px;
+  height: 10px;
+  stroke: currentColor;
+  stroke-width: 1.5;
+}
+
+.shadow-popover-number-input-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 32px;
+  background: #EEEEEE;
+  border-radius: 8px;
+  padding: 0 4px;
+}
+
+.shadow-popover-number-input {
+  flex: 1;
+  height: 28px;
+  border: none;
+  background: transparent;
+  font-size: 13px;
+  font-weight: 600;
+  color: #111111;
+  text-align: center;
+  outline: none;
+  font-family: inherit;
+}
+
+.shadow-popover-number-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.shadow-popover-number-button {
+  width: 12px;
+  height: 12px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  color: #6B6B6B;
+  line-height: 1;
+}
+
+.shadow-popover-number-button:hover {
+  color: #111111;
+}
+
+/* Number Slider Input */
+.ui-number-slider-input {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  flex: 1;
+}
+
+.ui-number-slider-input-field {
+  width: 62px;
+  height: var(--ui-control-height);
+  background: var(--ui-control-bg);
+  border-radius: var(--ui-control-radius);
+  border: none;
+  padding: 0 10px;
+  font-size: var(--ui-value-text-size);
+  font-weight: var(--ui-value-text-weight);
+  line-height: var(--ui-value-text-line-height);
+  color: var(--ui-value-text-color);
+  font-family: inherit;
+  outline: none;
+  box-sizing: border-box;
+  text-align: left;
+}
+
+.ui-number-slider-input-field:focus {
+  outline: 2px solid rgba(47, 107, 255, 0.25);
+  outline-offset: 0;
+}
+
+.ui-number-slider-input-field::-webkit-inner-spin-button,
+.ui-number-slider-input-field::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.ui-slider {
+  flex: 1;
+  height: var(--ui-control-height);
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+}
+
+.ui-slider-track {
+  width: 100%;
+  height: 4px;
+  background: var(--ui-control-bg);
+  border-radius: 2px;
+  position: relative;
+}
+
+.ui-slider-fill {
+  height: 100%;
+  background: var(--ui-selected-icon-color);
+  border-radius: 2px;
+  transition: width 0.1s;
+}
+
+.ui-slider-thumb {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 12px;
+  height: 12px;
+  background: var(--ui-selected-icon-color);
+  border-radius: 50%;
+  border: 2px solid #FFFFFF;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  cursor: grab;
+  transition: left 0.1s;
+}
+
+.ui-slider-thumb:active {
+  cursor: grabbing;
+}
+
+/* Effect Remove Button */
+.ui-effect-remove-button {
+  width: 16px;
+  height: 16px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: var(--ui-row-label-color);
+  transition: color 0.2s;
+}
+
+.ui-effect-remove-button:hover {
+  color: var(--ui-section-title-color);
+}
+
+.ui-effect-remove-button svg {
+  width: 8px;
+  height: 8.5px;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+}
+
+/* Effects Menu */
+.effects-menu-popover .popover-content {
+  padding: 8px;
+}
+
+.effects-menu-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.effects-menu-item {
+  width: 100%;
+  padding: 8px 12px;
+  border: none;
+  background: transparent;
+  text-align: left;
+  font-size: 13px;
+  font-weight: 400;
+  color: #1a1a1a;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: background 0.15s;
+}
+
+.effects-menu-item:hover {
+  background: #f5f5f5;
+}
+
+.effects-menu-item:active {
+  background: #eeeeee;
 }
