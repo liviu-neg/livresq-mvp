@@ -61,13 +61,22 @@ function App() {
         backgroundColorOpacity?: number;
         backgroundImage?: string;
         backgroundImageOpacity?: number;
+        maxRowWidth?: number;
       };
       neon?: {
         backgroundColor?: string;
         backgroundColorOpacity?: number;
         backgroundImage?: string;
         backgroundImageOpacity?: number;
+        maxRowWidth?: number;
       };
+      [key: string]: {
+        backgroundColor?: string;
+        backgroundColorOpacity?: number;
+        backgroundImage?: string;
+        backgroundImageOpacity?: number;
+        maxRowWidth?: number;
+      } | undefined;
     };
   }>({});
   const [editingBlockId, setEditingBlockId] = useState<string | null>(null);

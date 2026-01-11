@@ -391,10 +391,6 @@ body {
   max-width: 100%;
 }
 
-.main-content-full .lesson-canvas {
-  max-width: 100%;
-}
-
 /* Blocks Palette */
 .blocks-palette {
   display: flex;
@@ -478,7 +474,7 @@ body {
   border: 1px solid var(--color-border, #e0e0e0);
   border-radius: 4px;
   overflow: hidden;
-  background: var(--color-bg, white);
+  /* Background is now applied via SectionPreview component from theme */
   min-height: 120px;
   transition: background-color 0.2s, border-color 0.2s;
 }
@@ -487,7 +483,7 @@ body {
 .section-preview {
   width: 100%;
   padding: 16px;
-  background: var(--color-bg, white);
+  /* Background is now applied via inline styles from theme */
   color: var(--color-text, #333);
   font-family: var(--font-sans, inherit);
   transition: background-color 0.2s, color 0.2s;
@@ -563,7 +559,7 @@ body {
 
 /* Lesson Canvas - Uses theme variables (responds to theme switching) */
 .lesson-canvas {
-  max-width: 800px;
+  max-width: 100%;
   width: 100%;
   margin: 0 auto;
   display: flex;

@@ -63,13 +63,22 @@ export interface Lesson {
         backgroundColorOpacity?: number;
         backgroundImage?: string;
         backgroundImageOpacity?: number;
+        maxRowWidth?: number | null; // null = full width, number = max width in pixels (default: 1024px)
       };
       neon?: {
         backgroundColor?: string;
         backgroundColorOpacity?: number;
         backgroundImage?: string;
         backgroundImageOpacity?: number;
+        maxRowWidth?: number | null; // null = full width, number = max width in pixels (default: 1024px)
       };
+      [key: string]: {
+        backgroundColor?: string;
+        backgroundColorOpacity?: number;
+        backgroundImage?: string;
+        backgroundImageOpacity?: number;
+        maxRowWidth?: number | null; // null = full width, number = max width in pixels (default: 1024px)
+      } | undefined;
     };
   };
 }

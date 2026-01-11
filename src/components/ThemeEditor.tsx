@@ -339,36 +339,110 @@ export function ThemeEditor({ isOpen, onClose, onThemeUpdate, customThemes }: Th
             <div className="theme-preview-grid">
               {/* Plain Theme Preview - Show built-in only if no custom version exists */}
               {!customThemes['plain'] && (
-                <div className="theme-preview-card" onClick={() => handleEditTheme('plain')}>
-                  <div className="theme-preview-visual" style={{ backgroundColor: '#f5f5f5' }}>
-                    <div style={{ backgroundColor: '#ffffff', padding: '8px', margin: '4px', borderRadius: '4px' }}>
-                      <div style={{ height: '2px', backgroundColor: '#1a1a1a', marginBottom: '4px' }}></div>
-                      <div style={{ height: '2px', backgroundColor: '#666666', marginBottom: '4px' }}></div>
-                      <div style={{ width: '60%', height: '8px', backgroundColor: '#3b82f6', borderRadius: '2px' }}></div>
-                    </div>
-                  </div>
-                  <div className="theme-preview-info">
-                    <span>Plain</span>
-                    <button className="theme-edit-button">Edit</button>
+              <div className="theme-preview-card" onClick={() => handleEditTheme('plain')}>
+                  <div 
+                    className="theme-preview-visual" 
+                    style={{ 
+                      position: 'relative',
+                      backgroundColor: hexToRgba(
+                        plainTheme.pageBackground.backgroundColor || '#ffffff',
+                        plainTheme.pageBackground.backgroundColorOpacity ?? 1
+                      ),
+                    }}
+                  >
+                    {/* Page background image layer */}
+                    {plainTheme.pageBackground.backgroundImage && (
+                      <div
+                        style={{
+                          position: 'absolute',
+                          top: 0,
+                          left: 0,
+                          right: 0,
+                          bottom: 0,
+                          backgroundImage: `url(${plainTheme.pageBackground.backgroundImage})`,
+                          backgroundSize: 'cover',
+                          backgroundPosition: 'center',
+                          backgroundRepeat: 'no-repeat',
+                          opacity: plainTheme.pageBackground.backgroundImageOpacity ?? 1,
+                          zIndex: 0,
+                        }}
+                      />
+                    )}
+                    <div style={{ 
+                      position: 'relative',
+                      zIndex: 1,
+                      backgroundColor: hexToRgba(
+                        plainTheme.rowBackground.backgroundColor || '#ffffff',
+                        plainTheme.rowBackground.backgroundColorOpacity ?? 1
+                      ),
+                      padding: '8px',
+                      margin: '4px',
+                      borderRadius: '4px'
+                    }}>
+                      <div style={{ height: '2px', backgroundColor: plainTheme.colors.text || '#1a1a1a', marginBottom: '4px' }}></div>
+                      <div style={{ height: '2px', backgroundColor: plainTheme.colors.mutedText || '#666666', marginBottom: '4px' }}></div>
+                      <div style={{ width: '60%', height: '8px', backgroundColor: plainTheme.colors.accent || '#3b82f6', borderRadius: '2px' }}></div>
                   </div>
                 </div>
+                <div className="theme-preview-info">
+                  <span>Plain</span>
+                  <button className="theme-edit-button">Edit</button>
+                </div>
+              </div>
               )}
 
               {/* Neon Theme Preview - Show built-in only if no custom version exists */}
               {!customThemes['neon'] && (
-                <div className="theme-preview-card" onClick={() => handleEditTheme('neon')}>
-                  <div className="theme-preview-visual" style={{ backgroundColor: '#0f0f1e' }}>
-                    <div style={{ backgroundColor: '#1a1a2e', padding: '8px', margin: '4px', borderRadius: '4px' }}>
-                      <div style={{ height: '2px', backgroundColor: '#ffffff', marginBottom: '4px' }}></div>
-                      <div style={{ height: '2px', backgroundColor: '#a0a0b8', marginBottom: '4px' }}></div>
-                      <div style={{ width: '60%', height: '8px', backgroundColor: '#8b5cf6', borderRadius: '2px' }}></div>
-                    </div>
-                  </div>
-                  <div className="theme-preview-info">
-                    <span>Neon</span>
-                    <button className="theme-edit-button">Edit</button>
+              <div className="theme-preview-card" onClick={() => handleEditTheme('neon')}>
+                  <div 
+                    className="theme-preview-visual" 
+                    style={{ 
+                      position: 'relative',
+                      backgroundColor: hexToRgba(
+                        neonTheme.pageBackground.backgroundColor || '#000000',
+                        neonTheme.pageBackground.backgroundColorOpacity ?? 1
+                      ),
+                    }}
+                  >
+                    {/* Page background image layer */}
+                    {neonTheme.pageBackground.backgroundImage && (
+                      <div
+                        style={{
+                          position: 'absolute',
+                          top: 0,
+                          left: 0,
+                          right: 0,
+                          bottom: 0,
+                          backgroundImage: `url(${neonTheme.pageBackground.backgroundImage})`,
+                          backgroundSize: 'cover',
+                          backgroundPosition: 'center',
+                          backgroundRepeat: 'no-repeat',
+                          opacity: neonTheme.pageBackground.backgroundImageOpacity ?? 1,
+                          zIndex: 0,
+                        }}
+                      />
+                    )}
+                    <div style={{ 
+                      position: 'relative',
+                      zIndex: 1,
+                      backgroundColor: hexToRgba(
+                        neonTheme.rowBackground.backgroundColor || '#1a1a2e',
+                        neonTheme.rowBackground.backgroundColorOpacity ?? 1
+                      ),
+                      padding: '8px',
+                      margin: '4px',
+                      borderRadius: '4px'
+                    }}>
+                      <div style={{ height: '2px', backgroundColor: neonTheme.colors.text || '#ffffff', marginBottom: '4px' }}></div>
+                      <div style={{ height: '2px', backgroundColor: neonTheme.colors.mutedText || '#a0a0b8', marginBottom: '4px' }}></div>
+                      <div style={{ width: '60%', height: '8px', backgroundColor: neonTheme.colors.accent || '#8b5cf6', borderRadius: '2px' }}></div>
                   </div>
                 </div>
+                <div className="theme-preview-info">
+                  <span>Neon</span>
+                  <button className="theme-edit-button">Edit</button>
+                </div>
+              </div>
               )}
 
               {/* Custom Themes - Show ALL custom themes, including those that override 'plain' and 'neon' */}
@@ -379,8 +453,45 @@ export function ThemeEditor({ isOpen, onClose, onThemeUpdate, customThemes }: Th
                 })
                 .map(([id, theme]) => (
                   <div key={id} className="theme-preview-card" onClick={() => handleEditTheme(id)}>
-                    <div className="theme-preview-visual" style={{ backgroundColor: theme.pageBackground?.backgroundColor || '#ffffff' }}>
-                      <div style={{ backgroundColor: theme.rowBackground?.backgroundColor || '#ffffff', padding: '8px', margin: '4px', borderRadius: '4px' }}>
+                    <div 
+                      className="theme-preview-visual" 
+                      style={{ 
+                        position: 'relative',
+                        backgroundColor: hexToRgba(
+                          theme.pageBackground?.backgroundColor || '#ffffff',
+                          theme.pageBackground?.backgroundColorOpacity ?? 1
+                        ),
+                      }}
+                    >
+                      {/* Page background image layer */}
+                      {theme.pageBackground?.backgroundImage && (
+                        <div
+                          style={{
+                            position: 'absolute',
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+                            backgroundImage: `url(${theme.pageBackground.backgroundImage})`,
+                            backgroundSize: 'cover',
+                            backgroundPosition: 'center',
+                            backgroundRepeat: 'no-repeat',
+                            opacity: theme.pageBackground.backgroundImageOpacity ?? 1,
+                            zIndex: 0,
+                          }}
+                        />
+                      )}
+                      <div style={{ 
+                        position: 'relative',
+                        zIndex: 1,
+                        backgroundColor: hexToRgba(
+                          theme.rowBackground?.backgroundColor || '#ffffff',
+                          theme.rowBackground?.backgroundColorOpacity ?? 1
+                        ),
+                        padding: '8px',
+                        margin: '4px',
+                        borderRadius: '4px'
+                      }}>
                         <div style={{ height: '2px', backgroundColor: theme.colors.text || '#000000', marginBottom: '4px' }}></div>
                         <div style={{ height: '2px', backgroundColor: theme.colors.mutedText || '#666666', marginBottom: '4px' }}></div>
                         <div style={{ width: '60%', height: '8px', backgroundColor: theme.colors.accent || '#326CF6', borderRadius: '2px' }}></div>
@@ -484,7 +595,7 @@ export function ThemeEditor({ isOpen, onClose, onThemeUpdate, customThemes }: Th
             </div>
           </div>
         )}
-          <div className="theme-editor-container theme-editor-step1" onClick={(e) => e.stopPropagation()}>
+        <div className="theme-editor-container theme-editor-step1" onClick={(e) => e.stopPropagation()}>
             <div className="theme-editor-header" style={{ gridColumn: '1 / -1' }}>
               <button className="theme-editor-exit" onClick={() => {
                 setStep('selection');
@@ -492,14 +603,14 @@ export function ThemeEditor({ isOpen, onClose, onThemeUpdate, customThemes }: Th
                 setSaveAsNew(false);
                 setNewThemeName('');
               }}>
-                ← Back
-              </button>
-              <div className="theme-editor-title">
-                <PaletteIcon />
-                <h2>Colors</h2>
-              </div>
-              <div></div>
+              ← Back
+            </button>
+            <div className="theme-editor-title">
+              <PaletteIcon />
+              <h2>Colors</h2>
             </div>
+            <div></div>
+          </div>
           <div className="theme-editor-step-content" style={{ gridColumn: '1' }}>
             <div className="theme-editor-config-panel">
               <h3>Theme Color</h3>
@@ -941,13 +1052,13 @@ export function ThemeEditor({ isOpen, onClose, onThemeUpdate, customThemes }: Th
               </div>
 
               {/* Theme Name (for new themes and editing existing themes) */}
-              <div className="theme-config-section">
-                <div className="theme-config-group">
-                  <label>Theme name</label>
-                  <input
-                    type="text"
-                    value={themeName}
-                    onChange={(e) => setThemeName(e.target.value)}
+                <div className="theme-config-section">
+                  <div className="theme-config-group">
+                    <label>Theme name</label>
+                    <input
+                      type="text"
+                      value={themeName}
+                      onChange={(e) => setThemeName(e.target.value)}
                     className="theme-text-input"
                     placeholder={isNewTheme ? "Enter theme name" : "Theme name"}
                     required={isNewTheme}
@@ -1170,8 +1281,8 @@ export function ThemeEditor({ isOpen, onClose, onThemeUpdate, customThemes }: Th
                         />
                       )}
                       <p style={{ color: colorConfig.paragraphColor, position: 'relative', zIndex: 2, padding: colorConfig.resourceBackgroundColor || colorConfig.resourceBackgroundImage ? '8px' : '0' }}>
-                        Here's an example of body text. You can change its font and the color. Your accent color will be used for links. It will also be used for layouts and buttons.
-                      </p>
+                    Here's an example of body text. You can change its font and the color. Your accent color will be used for links. It will also be used for layouts and buttons.
+                  </p>
                     </div>
                     {/* Resource background for button */}
                     <div style={{ display: 'flex', gap: '8px', marginTop: '16px', position: 'relative' }}>
@@ -1206,20 +1317,20 @@ export function ThemeEditor({ isOpen, onClose, onThemeUpdate, customThemes }: Th
                           }}
                         />
                       )}
-                      <button
-                        style={{
-                          backgroundColor: colorConfig.primaryColor,
-                          color: '#ffffff',
-                          border: 'none',
-                          borderRadius: '4px',
-                          padding: '8px 16px',
-                          cursor: 'pointer',
+                    <button
+                      style={{
+                        backgroundColor: colorConfig.primaryColor,
+                        color: '#ffffff',
+                        border: 'none',
+                        borderRadius: '4px',
+                        padding: '8px 16px',
+                        cursor: 'pointer',
                           position: 'relative',
                           zIndex: 2,
-                        }}
-                      >
-                        Primary button
-                      </button>
+                      }}
+                    >
+                      Primary button
+                    </button>
                     </div>
                       </div>
                     </div>

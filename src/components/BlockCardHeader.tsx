@@ -6,7 +6,7 @@ interface BlockCardHeaderProps {
 }
 
 const blockLabels: Record<BlockType, string> = {
-  text: 'Texta',
+  text: 'Text',
   header: 'Header',
   image: 'Image',
   quiz: 'Quiz',

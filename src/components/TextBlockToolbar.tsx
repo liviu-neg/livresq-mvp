@@ -181,7 +181,7 @@ export function BlockToolbar({
   const getBlockLabel = () => {
     switch (blockType) {
       case 'text':
-        return 'Texta';
+        return 'Text';
       case 'header':
         return 'Header';
       case 'image':

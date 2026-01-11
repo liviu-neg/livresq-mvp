@@ -16,13 +16,22 @@ interface PropertiesPanelProps {
         backgroundColorOpacity?: number;
         backgroundImage?: string;
         backgroundImageOpacity?: number;
+        maxRowWidth?: number;
       };
       neon?: {
         backgroundColor?: string;
         backgroundColorOpacity?: number;
         backgroundImage?: string;
         backgroundImageOpacity?: number;
+        maxRowWidth?: number;
       };
+      [key: string]: {
+        backgroundColor?: string;
+        backgroundColorOpacity?: number;
+        backgroundImage?: string;
+        backgroundImageOpacity?: number;
+        maxRowWidth?: number;
+      } | undefined;
     };
   };
   onUpdatePageProps?: (props: PropertiesPanelProps['pageProps']) => void;
@@ -122,6 +131,9 @@ export function PropertiesPanel({
     const backgroundColorOpacity = themePageProps.backgroundColorOpacity ?? defaultPageBackground.backgroundColorOpacity ?? 1;
     const backgroundImage = themePageProps.backgroundImage ?? defaultPageBackground.backgroundImage;
     const backgroundImageOpacity = themePageProps.backgroundImageOpacity ?? defaultPageBackground.backgroundImageOpacity ?? 1;
+    // maxRowWidth: null = full width, 1024 = 1024px max width, undefined = default (1024)
+    const maxRowWidth = themePageProps.maxRowWidth;
+    const isFullWidth = maxRowWidth === null;
 
     const handleUpdatePageThemeProps = (updates: Partial<typeof themePageProps>) => {
       if (!onUpdatePageProps) return;
@@ -152,12 +164,17 @@ export function PropertiesPanel({
       handleUpdatePageThemeProps({ backgroundImageOpacity: opacity });
     };
 
+    const handleMaxRowWidthChange = (isFull: boolean) => {
+      handleUpdatePageThemeProps({ maxRowWidth: isFull ? null : 1024 });
+    };
+
     const handleResetBackground = () => {
       handleUpdatePageThemeProps({
         backgroundColor: defaultPageBackground.backgroundColor,
         backgroundColorOpacity: defaultPageBackground.backgroundColorOpacity,
         backgroundImage: defaultPageBackground.backgroundImage,
         backgroundImageOpacity: defaultPageBackground.backgroundImageOpacity,
+        maxRowWidth: 1024, // Reset to default
       });
     };
 
@@ -260,6 +277,57 @@ export function PropertiesPanel({
                     />
                   </div>
                 )}
+              </div>
+            </div>
+            <div className="property-section">
+              <div className="property-section-header">
+                <div className="property-section-title">
+                  <span className="property-icon">📐</span>
+                  <label>Layout</label>
+                </div>
+              </div>
+              <div className="property-group">
+                <label>Row Width</label>
+                <div className="row-width-selector" style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
+                  <button
+                    type="button"
+                    className={`row-width-button ${isFullWidth ? 'active' : ''}`}
+                    onClick={() => handleMaxRowWidthChange(true)}
+                    style={{
+                      flex: 1,
+                      padding: '8px 16px',
+                      border: `1px solid ${isFullWidth ? '#8b5cf6' : '#e0e0e0'}`,
+                      borderRadius: '6px',
+                      background: isFullWidth ? '#8b5cf6' : 'transparent',
+                      color: isFullWidth ? '#ffffff' : '#333',
+                      cursor: 'pointer',
+                      fontSize: '14px',
+                      fontWeight: isFullWidth ? '500' : '400',
+                      transition: 'all 0.15s',
+                    }}
+                  >
+                    Full width
+                  </button>
+                  <button
+                    type="button"
+                    className={`row-width-button ${!isFullWidth ? 'active' : ''}`}
+                    onClick={() => handleMaxRowWidthChange(false)}
+                    style={{
+                      flex: 1,
+                      padding: '8px 16px',
+                      border: `1px solid ${!isFullWidth ? '#8b5cf6' : '#e0e0e0'}`,
+                      borderRadius: '6px',
+                      background: !isFullWidth ? '#8b5cf6' : 'transparent',
+                      color: !isFullWidth ? '#ffffff' : '#333',
+                      cursor: 'pointer',
+                      fontSize: '14px',
+                      fontWeight: !isFullWidth ? '500' : '400',
+                      transition: 'all 0.15s',
+                    }}
+                  >
+                    1024
+                  </button>
+                </div>
               </div>
             </div>
           </div>

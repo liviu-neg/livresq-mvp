@@ -42,6 +42,13 @@ interface RowViewProps {
   activeId?: string | null;
   allBlocks?: Block[];
   showStructureStrokes?: boolean;
+  pageProps?: {
+    themes?: {
+      [key: string]: {
+        maxRowWidth?: number;
+      } | undefined;
+    };
+  };
 }
 
 // Helper function to get theme-specific row properties with fallback to legacy props and theme defaults
@@ -114,11 +121,16 @@ export function RowView({
   activeId,
   allBlocks,
   showStructureStrokes = false,
+  pageProps = {},
 }: RowViewProps) {
   const { themeId } = useThemeSwitcher();
   const theme = useTheme();
   // Get theme-specific properties with fallback to theme defaults
   const themeProps = getRowThemeProps(row, themeId, theme);
+  // Get max row width from page props (null = full width, 1024 = 1024px max width, undefined = default 1024)
+  const maxRowWidth = pageProps?.themes?.[themeId]?.maxRowWidth;
+  const isFullWidth = maxRowWidth === null;
+  const effectiveMaxRowWidth = maxRowWidth ?? 1024; // Default 1024px if undefined
   const rowRef = useRef<HTMLDivElement>(null);
   const rowCellsRef = useRef<HTMLDivElement>(null);
   // Row is only selected if selectedRowId matches AND no block/cell is selected
@@ -277,6 +289,13 @@ export function RowView({
             '--column-count': row.props.columns || 2,
           } as React.CSSProperties : {}),
           position: 'relative',
+          ...(isFullWidth ? {
+            width: '100%',
+          } : {
+            maxWidth: `${effectiveMaxRowWidth}px`,
+            marginLeft: 'auto',
+            marginRight: 'auto',
+          }),
         }}
       >
         {/* Row background layers - separate layers for color and image to allow independent opacity control */}

@@ -182,7 +182,7 @@ export function BlocksPalette({ onInsertBlock, onInsertSection }: BlocksPaletteP
         <>
           <h2 className="palette-title">Blocks</h2>
           <div className="palette-list">
-            <DraggableBlockType type="text" label="Texta" icon="📝" onInsert={onInsertBlock} />
+            <DraggableBlockType type="text" label="Text" icon="📝" onInsert={onInsertBlock} />
             <DraggableBlockType type="header" label="Header" icon="📝" onInsert={onInsertBlock} />
             <DraggableBlockType type="image" label="Image" icon="🖼️" onInsert={onInsertBlock} />
             <DraggableBlockType type="quiz" label="Quiz" icon="❓" onInsert={onInsertBlock} />

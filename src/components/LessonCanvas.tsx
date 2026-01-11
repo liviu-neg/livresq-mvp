@@ -663,6 +663,7 @@ export function LessonCanvas({
               activeId={activeId}
               allBlocks={allBlocksList}
               showStructureStrokes={showStructureStrokes}
+              pageProps={pageProps}
             />
           ))}
         </SortableContext>
