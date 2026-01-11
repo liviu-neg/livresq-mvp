@@ -372,7 +372,8 @@ body {
 
 .sidebar-right {
   border-right: none;
-  border-left: 1px solid #e5e5e5 !important;
+  border-left: none;
+  padding: 24px 16px 16px 16px;
 }
 
 /* Main Content - Framer Style */
@@ -2273,7 +2274,7 @@ body {
   flex-direction: column;
   height: 100%;
   background: white !important;
-  padding: 20px;
+  padding: 0;
   overflow-x: hidden;
   overflow-y: auto;
   box-sizing: border-box;
@@ -2284,6 +2285,11 @@ body {
 
 .properties-panel::-webkit-scrollbar {
   display: none; /* Chrome, Safari, Opera */
+}
+
+/* When using new UI design system, remove old padding */
+.properties-panel.ui-properties-panel {
+  padding: 0;
 }
 
 .properties-title {
@@ -2308,6 +2314,12 @@ body {
   width: 100%;
   min-width: 0;
   box-sizing: border-box;
+}
+
+/* When using new UI design system */
+.ui-properties-panel .properties-content {
+  gap: 0;
+  width: 100%;
 }
 
 .property-group {
@@ -5492,22 +5504,27 @@ body {
 
 .color-picker-hex-input,
 .color-picker-opacity-input {
-  flex: 1;
-  padding: 8px 12px;
-  border: 1px solid #e6e6e6;
-  border-radius: 6px;
-  font-size: 13px;
-  font-family: monospace;
-  background: white;
-  color: #1a1a1a;
-  min-width: 0;
+  height: 32px;
+  background: #EEEEEE;
+  border-radius: 8px;
+  border: none;
+  padding: 0 10px;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+  color: #111111;
+  font-family: inherit;
+  outline: none;
   box-sizing: border-box;
+  flex: 1;
+  min-width: 0;
+  text-align: left;
 }
 
 .color-picker-hex-input:focus,
 .color-picker-opacity-input:focus {
-  outline: none;
-  border-color: #326CF6;
+  outline: 2px solid rgba(47, 107, 255, 0.25);
+  outline-offset: 0;
 }
 
 .color-picker-theme-colors {
@@ -5905,4 +5922,331 @@ body {
 .border-width-mode-button svg {
   width: 10px;
   height: 10px;
+}
+
+/* ============================================
+   SIDEBAR UI - Properties Panel Design System
+   Scoped under .ui-properties-panel
+   ============================================ */
+
+.ui-properties-panel {
+  /* CSS Variables - Sidebar-specific tokens */
+  --ui-panel-bg: #FFFFFF;
+  --ui-panel-padding: 24px;
+  --ui-section-spacing: 24px;
+  --ui-divider-color: #E6E6E6;
+  --ui-divider-spacing: 22px;
+  
+  /* Typography */
+  --ui-section-title-size: 14px;
+  --ui-section-title-weight: 600;
+  --ui-section-title-line-height: 20px;
+  --ui-section-title-color: #111111;
+  --ui-row-label-size: 14px;
+  --ui-row-label-weight: 500;
+  --ui-row-label-line-height: 20px;
+  --ui-row-label-color: #6B6B6B;
+  --ui-value-text-size: 14px;
+  --ui-value-text-weight: 600;
+  --ui-value-text-line-height: 20px;
+  --ui-value-text-color: #111111;
+  
+  /* Controls */
+  --ui-control-bg: #EEEEEE;
+  --ui-control-height: 32px;
+  --ui-control-radius: 8px;
+  --ui-control-padding: 2px;
+  --ui-segment-radius: 6px;
+  --ui-segment-size: 28px;
+  --ui-selected-bg: #FFFFFF;
+  --ui-selected-shadow: 0px 2px 6px rgba(0, 0, 0, 0.18);
+  --ui-selected-icon-color: #326CF6;
+  --ui-unselected-icon-color: #6B6B6B;
+  
+  /* Layout */
+  --ui-row-spacing: 16px;
+  --ui-label-width: 68px;
+  
+  background: var(--ui-panel-bg);
+  padding-top: var(--ui-panel-padding);
+  padding-left: var(--ui-panel-padding);
+  padding-right: var(--ui-panel-padding);
+  padding-bottom: var(--ui-panel-padding);
+  font-family: 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  width: 100%;
+  box-sizing: border-box;
+  overflow-y: auto;
+  overflow-x: hidden;
+  max-height: 100%;
+}
+
+/* Section Container */
+.ui-properties-panel .ui-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ui-row-spacing);
+  margin-bottom: 0;
+}
+
+.ui-properties-panel .ui-section:not(:last-child)::after {
+  content: '';
+  display: block;
+  height: 1px;
+  background: var(--ui-divider-color);
+  margin-top: var(--ui-divider-spacing);
+  margin-bottom: var(--ui-divider-spacing);
+  margin-left: calc(-1 * var(--ui-panel-padding));
+  margin-right: calc(-1 * var(--ui-panel-padding));
+}
+
+/* Section Title */
+.ui-properties-panel .ui-section-title {
+  font-size: var(--ui-section-title-size);
+  font-weight: var(--ui-section-title-weight);
+  line-height: var(--ui-section-title-line-height);
+  color: var(--ui-section-title-color);
+  margin: 0;
+  padding: 0;
+}
+
+/* Property Row - Two Column Layout */
+.ui-properties-panel .ui-property-row {
+  display: grid;
+  grid-template-columns: var(--ui-label-width) 1fr;
+  gap: 12px;
+  align-items: center;
+  min-height: var(--ui-control-height);
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.ui-properties-panel .ui-property-row-label {
+  font-size: var(--ui-row-label-size);
+  font-weight: var(--ui-row-label-weight);
+  line-height: var(--ui-row-label-line-height);
+  color: var(--ui-row-label-color);
+  margin: 0;
+  padding: 0;
+  width: 68px;
+  flex-shrink: 0;
+}
+
+.ui-properties-panel .ui-property-row-value {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex: 1;
+  width: 100%;
+  max-width: 100%;
+}
+
+/* Container for number input + icon button group should take full width */
+.ui-properties-panel .ui-property-row-value > div {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+  width: 100%;
+}
+
+/* Wrapper divs for pill selects should also take full width */
+.ui-properties-panel .ui-property-row-value > div:has(.ui-pill-select) {
+  width: 100%;
+  flex: 1;
+}
+
+.ui-properties-panel .ui-property-row-value > div > .ui-pill-select {
+  width: 100%;
+  flex: 1;
+}
+
+/* Segmented Icon Control (Align) */
+.ui-properties-panel .ui-segmented-control {
+  display: flex;
+  height: var(--ui-control-height);
+  background: var(--ui-control-bg);
+  border-radius: var(--ui-control-radius);
+  padding: var(--ui-control-padding);
+  gap: var(--ui-control-padding);
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.ui-properties-panel .ui-segmented-control-segment {
+  flex: 1;
+  height: var(--ui-segment-size);
+  border-radius: var(--ui-segment-radius);
+  border: none;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  transition: all 0.2s ease;
+}
+
+.ui-properties-panel .ui-segmented-control-segment svg {
+  width: 16px;
+  height: 16px;
+  stroke: none;
+  fill: var(--ui-unselected-icon-color);
+  transition: fill 0.2s ease;
+}
+
+.ui-properties-panel .ui-segmented-control-segment.active {
+  background: var(--ui-selected-bg);
+  box-shadow: var(--ui-selected-shadow);
+}
+
+.ui-properties-panel .ui-segmented-control-segment.active svg {
+  stroke: none;
+  fill: var(--ui-selected-icon-color);
+}
+
+/* Number Pill Input */
+.ui-properties-panel .ui-number-pill {
+  height: var(--ui-control-height);
+  background: var(--ui-control-bg);
+  border-radius: var(--ui-control-radius);
+  border: none;
+  padding: 0 10px;
+  font-size: var(--ui-value-text-size);
+  font-weight: var(--ui-value-text-weight);
+  line-height: var(--ui-value-text-line-height);
+  color: var(--ui-value-text-color);
+  font-family: inherit;
+  outline: none;
+  box-sizing: border-box;
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+}
+
+.ui-properties-panel .ui-number-pill:focus {
+  outline: 2px solid rgba(47, 107, 255, 0.25);
+  outline-offset: 0;
+}
+
+.ui-properties-panel .ui-number-pill::-webkit-inner-spin-button,
+.ui-properties-panel .ui-number-pill::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* Icon Button Group */
+.ui-properties-panel .ui-icon-button-group {
+  display: flex;
+  height: var(--ui-control-height);
+  background: var(--ui-control-bg);
+  border-radius: var(--ui-control-radius);
+  padding: var(--ui-control-padding);
+  gap: var(--ui-control-padding);
+  flex-shrink: 0;
+  min-width: fit-content;
+}
+
+.ui-properties-panel .ui-icon-button {
+  width: var(--ui-segment-size);
+  height: var(--ui-segment-size);
+  border-radius: var(--ui-segment-radius);
+  border: none;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  transition: all 0.2s ease;
+}
+
+.ui-properties-panel .ui-icon-button svg {
+  width: 14px;
+  height: 14px;
+  stroke: var(--ui-unselected-icon-color);
+  fill: none;
+  transition: stroke 0.2s ease;
+}
+
+.ui-properties-panel .ui-icon-button.active {
+  background: var(--ui-selected-bg);
+  box-shadow: var(--ui-selected-shadow);
+}
+
+.ui-properties-panel .ui-icon-button.active svg {
+  stroke: var(--ui-selected-icon-color);
+}
+
+/* Pill Select (Fill & Border) */
+.ui-properties-panel .ui-pill-select {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: var(--ui-control-height);
+  background: var(--ui-control-bg);
+  border-radius: var(--ui-control-radius);
+  padding: 2px 4px;
+  cursor: pointer;
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  flex: 1;
+  border: none;
+  font-family: inherit;
+  text-align: left;
+}
+
+.ui-properties-panel .ui-pill-select-thumb {
+  width: 24px;
+  height: 24px;
+  border-radius: var(--ui-segment-radius);
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.ui-properties-panel .ui-pill-select-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.ui-properties-panel .ui-pill-select-thumb.swatch {
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.ui-properties-panel .ui-pill-select-text {
+  font-size: var(--ui-value-text-size);
+  font-weight: 500;
+  line-height: var(--ui-value-text-line-height);
+  color: var(--ui-value-text-color);
+  flex: 1;
+  min-width: 0;
+}
+
+.ui-properties-panel .ui-pill-select-close {
+  width: 16px;
+  height: 16px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+.ui-properties-panel .ui-pill-select-close svg {
+  width: 10px;
+  height: 10.625px;
+  stroke: var(--ui-value-text-color);
+  stroke-width: 1.5;
+}
+
+.ui-properties-panel .ui-pill-select-close:hover {
+  opacity: 0.7;
 }

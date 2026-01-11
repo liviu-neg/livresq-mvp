@@ -13,6 +13,7 @@ interface ColorPickerPopoverProps {
   showBackButton?: boolean;
   onBack?: () => void;
   title?: string;
+  hideImageTab?: boolean;
 }
 
 // Helper to convert hex to RGB
@@ -122,6 +123,7 @@ export function ColorPickerPopover({
   showBackButton = false,
   onBack,
   title,
+  hideImageTab = false,
 }: ColorPickerPopoverProps) {
   const theme = useTheme();
   const [color, setColor] = useState(initialColor || '#000000');
@@ -203,7 +205,7 @@ export function ColorPickerPopover({
       className="color-picker-popover"
     >
       <div className="color-picker-tabs">
-        <button type="button" className="color-picker-tab">Image</button>
+        {!hideImageTab && <button type="button" className="color-picker-tab">Image</button>}
         <button type="button" className="color-picker-tab active">Color</button>
         <button type="button" className="color-picker-tab">Gradient</button>
       </div>

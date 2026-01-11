@@ -7,6 +7,12 @@ import { useState, useRef, useEffect, useMemo } from 'react';
 import { FillPopover } from './FillPopover';
 import { ColorPickerPopover } from './ColorPickerPopover';
 import { BorderPopover } from './BorderPopover';
+import { PanelSection } from './ui/PanelSection';
+import { PropertyRow } from './ui/PropertyRow';
+import { SegmentedIconControl } from './ui/SegmentedIconControl';
+import { NumberPillInput } from './ui/NumberPillInput';
+import { IconButtonGroup } from './ui/IconButtonGroup';
+import { PillSelect } from './ui/PillSelect';
 
 interface PropertiesPanelProps {
   selectedBlock: Block | null;
@@ -738,261 +744,116 @@ export function PropertiesPanel({
       });
     };
 
-    return (
-      <div className="properties-panel">
-        <h2 className="properties-title">Properties</h2>
-        <div className="properties-content">
-          <div className="property-group">
-            <label htmlFor="row-vertical-align">Vertical Align</label>
-            <div className="vertical-align-selector">
-              {(['top', 'middle', 'bottom'] as const).map((align) => (
-                <button
-                  key={align}
-                  type="button"
-                  className={`vertical-align-button ${verticalAlign === align ? 'active' : ''}`}
-                  onClick={() => handleUpdateRowThemeProps({
-                    verticalAlign: align,
-                  })}
-                >
-                  {align === 'top' && 'Top'}
-                  {align === 'middle' && 'Middle'}
-                  {align === 'bottom' && 'Bottom'}
-                </button>
-              ))}
-            </div>
-          </div>
-          <div className="property-group">
-            <div className="property-label-with-icon">
-              <span className="property-icon">+</span>
-              <label htmlFor="row-padding">Padding</label>
-              <button
-                type="button"
-                className="property-reset-button"
-                onClick={handleResetPadding}
-                aria-label="Reset to default"
-                title="Reset to theme default"
-              >
-                <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-                  <path d="M2 8a6 6 0 0 1 6-6v2M14 8a6 6 0 0 1-6 6v-2M8 2L6 4M8 14l2-2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+    // Align icons - larger size for better visibility
+    const alignTopIcon = (
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 14 10" style={{ width: '16px', height: '16px' }}>
+        <path d="M 0 0.75 C 0 0.336 0.336 0 0.75 0 L 13.25 0 C 13.664 0 14 0.336 14 0.75 L 14 0.75 C 14 1.164 13.664 1.5 13.25 1.5 L 0.75 1.5 C 0.336 1.5 0 1.164 0 0.75 Z" fill="currentColor"></path>
+        <path d="M 4 5 C 4 3.895 4.895 3 6 3 L 8 3 C 9.105 3 10 3.895 10 5 L 10 8 C 10 9.105 9.105 10 8 10 L 6 10 C 4.895 10 4 9.105 4 8 Z" fill="currentColor"></path>
                 </svg>
-              </button>
-            </div>
-            <div className="padding-controls">
-              <div className="padding-top-row">
-                {paddingMode === 'uniform' ? (
-                  <>
-                    <input
-                      id="row-padding-uniform"
-                      type="number"
-                      min="0"
-                      value={uniformPadding}
-                      onChange={(e) => handleUniformPaddingChange(parseInt(e.target.value, 10) || 0)}
-                      className="property-input padding-input"
-                    />
-                    <div className="padding-mode-toggle">
-                      <button
-                        type="button"
-                        className={`padding-mode-button ${paddingMode === 'uniform' ? 'active' : ''}`}
-                        onClick={() => handlePaddingModeChange('uniform')}
-                        aria-label="Uniform padding"
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 10 10">
-                          <path d="M 0.75 3.5 L 0.75 2.75 C 0.75 1.645 1.645 0.75 2.75 0.75 L 3.5 0.75" fill="transparent" strokeWidth="1.5" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" opacity="1"/>
-                          <path d="M 9.25 3.5 L 9.25 2.75 C 9.25 1.645 8.355 0.75 7.25 0.75 L 6.5 0.75" fill="transparent" strokeWidth="1.5" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" opacity="1"/>
-                          <path d="M 9.25 6.5 L 9.25 7.25 C 9.25 8.355 8.355 9.25 7.25 9.25 L 6.5 9.25" fill="transparent" strokeWidth="1.5" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" opacity="1"/>
-                          <path d="M 0.75 6.5 L 0.75 7.25 C 0.75 8.355 1.645 9.25 2.75 9.25 L 3.5 9.25" fill="transparent" strokeWidth="1.5" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" opacity="1"/>
+    );
+    const alignMiddleIcon = (
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 14" style={{ width: '16px', height: '16px' }}>
+        <path d="M 0 6.75 C 0 6.336 0.336 6 0.75 6 L 15.25 6 C 15.664 6 16 6.336 16 6.75 L 16 6.75 C 16 7.164 15.664 7.5 15.25 7.5 L 0.75 7.5 C 0.336 7.5 0 7.164 0 6.75 Z" fill="currentColor"></path>
+        <path d="M 5 3.5 C 5 2.395 5.895 1.5 7 1.5 L 9 1.5 C 10.105 1.5 11 2.395 11 3.5 L 11 10 C 11 11.105 10.105 12 9 12 L 7 12 C 5.895 12 5 11.105 5 10 Z" fill="currentColor"></path>
                         </svg>
-                      </button>
-                      <button
-                        type="button"
-                        className={`padding-mode-button ${paddingMode === 'individual' ? 'active' : ''}`}
-                        onClick={() => handlePaddingModeChange('individual')}
-                        aria-label="Individual padding"
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 10 10">
-                          <path d="M 0.75 3.5 L 0.75 2.75 C 0.75 1.645 1.645 0.75 2.75 0.75 L 3.5 0.75" fill="transparent" strokeWidth="1.5" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" opacity="1"/>
-                          <path d="M 9.25 3.5 L 9.25 2.75 C 9.25 1.645 8.355 0.75 7.25 0.75 L 6.5 0.75" fill="transparent" strokeWidth="1.5" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" opacity="1"/>
-                          <path d="M 9.25 6.5 L 9.25 7.25 C 9.25 8.355 8.355 9.25 7.25 9.25 L 6.5 9.25" fill="transparent" strokeWidth="1.5" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" opacity="1"/>
-                          <path d="M 0.75 6.5 L 0.75 7.25 C 0.75 8.355 1.645 9.25 2.75 9.25 L 3.5 9.25" fill="transparent" strokeWidth="1.5" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" opacity="1"/>
-                          <path d="M 5 0.75 L 5 9.25" fill="transparent" strokeWidth="1.5" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" opacity="1"/>
-                          <path d="M 0.75 5 L 9.25 5" fill="transparent" strokeWidth="1.5" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" opacity="1"/>
+    );
+    const alignBottomIcon = (
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 14 10" style={{ width: '16px', height: '16px' }}>
+        <path d="M 0 9.25 C 0 8.836 0.336 8.5 0.75 8.5 L 13.25 8.5 C 13.664 8.5 14 8.836 14 9.25 L 14 9.25 C 14 9.664 13.664 10 13.25 10 L 0.75 10 C 0.336 10 0 9.664 0 9.25 Z" fill="currentColor"></path>
+        <path d="M 4 2 C 4 0.895 4.895 0 6 0 L 8 0 C 9.105 0 10 0.895 10 2 L 10 5 C 10 6.105 9.105 7 8 7 L 6 7 C 4.895 7 4 6.105 4 5 Z" fill="currentColor"></path>
                         </svg>
-                      </button>
-                    </div>
-                  </>
-                ) : (
-                  <div className="padding-individual-row">
-                    <div className="padding-input-group">
-                      <label className="padding-label">Top</label>
-                      <input
-                        id="row-padding-top"
-                        type="number"
-                        min="0"
-                        value={topPadding}
-                        onChange={(e) => handleIndividualPaddingChange('top', parseInt(e.target.value, 10) || 0)}
-                        className="property-input padding-input"
-                      />
-                    </div>
-                    <div className="padding-input-group">
-                      <label className="padding-label">Right</label>
-                      <input
-                        id="row-padding-right"
-                        type="number"
-                        min="0"
-                        value={rightPadding}
-                        onChange={(e) => handleIndividualPaddingChange('right', parseInt(e.target.value, 10) || 0)}
-                        className="property-input padding-input"
-                      />
-                    </div>
-                    <div className="padding-input-group">
-                      <label className="padding-label">Bottom</label>
-                      <input
-                        id="row-padding-bottom"
-                        type="number"
-                        min="0"
-                        value={bottomPadding}
-                        onChange={(e) => handleIndividualPaddingChange('bottom', parseInt(e.target.value, 10) || 0)}
-                        className="property-input padding-input"
-                      />
-                    </div>
-                    <div className="padding-input-group">
-                      <label className="padding-label">Left</label>
-                      <input
-                        id="row-padding-left"
-                        type="number"
-                        min="0"
-                        value={leftPadding}
-                        onChange={(e) => handleIndividualPaddingChange('left', parseInt(e.target.value, 10) || 0)}
-                        className="property-input padding-input"
-                      />
-                    </div>
-                    <div className="padding-mode-toggle">
-                      <button
-                        type="button"
-                        className={`padding-mode-button ${paddingMode === 'uniform' ? 'active' : ''}`}
-                        onClick={() => handlePaddingModeChange('uniform')}
-                        aria-label="Uniform padding"
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 10 10">
-                          <path d="M 0.75 3.5 L 0.75 2.75 C 0.75 1.645 1.645 0.75 2.75 0.75 L 3.5 0.75" fill="transparent" strokeWidth="1.5" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" opacity="1"/>
-                          <path d="M 9.25 3.5 L 9.25 2.75 C 9.25 1.645 8.355 0.75 7.25 0.75 L 6.5 0.75" fill="transparent" strokeWidth="1.5" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" opacity="1"/>
-                          <path d="M 9.25 6.5 L 9.25 7.25 C 9.25 8.355 8.355 9.25 7.25 9.25 L 6.5 9.25" fill="transparent" strokeWidth="1.5" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" opacity="1"/>
-                          <path d="M 0.75 6.5 L 0.75 7.25 C 0.75 8.355 1.645 9.25 2.75 9.25 L 3.5 9.25" fill="transparent" strokeWidth="1.5" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" opacity="1"/>
+    );
+
+    // Link/unlink icons - larger size for better visibility
+    const linkIcon = (
+      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 10 10" style={{ width: '14px', height: '14px' }}>
+        <path d="M2.75.75a2 2 0 0 0-2 2v4.5a2 2 0 0 0 2 2h4.5a2 2 0 0 0 2-2v-4.5a2 2 0 0 0-2-2Z" fill="transparent" strokeWidth="1.5" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round"></path>
                         </svg>
-                      </button>
-                      <button
-                        type="button"
-                        className={`padding-mode-button ${paddingMode === 'individual' ? 'active' : ''}`}
-                        onClick={() => handlePaddingModeChange('individual')}
-                        aria-label="Individual padding"
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 10 10">
-                          <path d="M 0.75 3.5 L 0.75 2.75 C 0.75 1.645 1.645 0.75 2.75 0.75 L 3.5 0.75" fill="transparent" strokeWidth="1.5" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" opacity="1"/>
-                          <path d="M 9.25 3.5 L 9.25 2.75 C 9.25 1.645 8.355 0.75 7.25 0.75 L 6.5 0.75" fill="transparent" strokeWidth="1.5" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" opacity="1"/>
-                          <path d="M 9.25 6.5 L 9.25 7.25 C 9.25 8.355 8.355 9.25 7.25 9.25 L 6.5 9.25" fill="transparent" strokeWidth="1.5" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" opacity="1"/>
-                          <path d="M 0.75 6.5 L 0.75 7.25 C 0.75 8.355 1.645 9.25 2.75 9.25 L 3.5 9.25" fill="transparent" strokeWidth="1.5" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" opacity="1"/>
-                          <path d="M 5 0.75 L 5 9.25" fill="transparent" strokeWidth="1.5" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" opacity="1"/>
-                          <path d="M 0.75 5 L 9.25 5" fill="transparent" strokeWidth="1.5" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" opacity="1"/>
+    );
+    const unlinkIcon = (
+      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 10 10" style={{ width: '14px', height: '14px' }}>
+        <path d="M 0.75 3.5 L 0.75 2.75 C 0.75 1.645 1.645 0.75 2.75 0.75 L 3.5 0.75" fill="transparent" strokeWidth="1.5" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" opacity="1"></path>
+        <path d="M 9.25 3.5 L 9.25 2.75 C 9.25 1.645 8.355 0.75 7.25 0.75 L 6.5 0.75" fill="transparent" strokeWidth="1.5" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" opacity="1"></path>
+        <path d="M 9.25 6.5 L 9.25 7.25 C 9.25 8.355 8.355 9.25 7.25 9.25 L 6.5 9.25" fill="transparent" strokeWidth="1.5" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" opacity="1"></path>
+        <path d="M 0.75 6.5 L 0.75 7.25 C 0.75 8.355 1.645 9.25 2.75 9.25 L 3.5 9.25" fill="transparent" strokeWidth="1.5" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" opacity="1"></path>
                         </svg>
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-          <div className="property-group">
-            <div className="background-controls">
-              <div className="property-group">
-                <label className="property-label">Fill</label>
+    );
+
+    return (
+      <div className="properties-panel ui-properties-panel">
+        <div className="properties-content">
+          <PanelSection title="Vertically align">
+            <PropertyRow label="Align">
+              <SegmentedIconControl
+                value={verticalAlign}
+                segments={[
+                  { value: 'top', icon: alignTopIcon },
+                  { value: 'middle', icon: alignMiddleIcon },
+                  { value: 'bottom', icon: alignBottomIcon },
+                ]}
+                onChange={(value) => handleUpdateRowThemeProps({ verticalAlign: value as 'top' | 'middle' | 'bottom' })}
+              />
+            </PropertyRow>
+          </PanelSection>
+          <PanelSection title="Style">
+            <PropertyRow label="Fill">
                 <div
                   ref={rowFillPopoverAnchorRef}
-                  className="fill-input"
                   onClick={() => {
-                    // Always get fresh anchor element reference
                     const anchor = rowFillPopoverAnchorRef.current;
                     if (anchor) {
+                      // Close other popovers first
+                      setRowBorderPopoverOpen(false);
+                      setRowColorPickerOpen(false);
                       setRowFillPopoverAnchor(anchor);
                       setRowFillPopoverOpen(true);
                     }
                   }}
+                  style={{ width: '100%', flex: 1 }}
                 >
-                  {backgroundImage ? (
-                    <>
-                      <div className="fill-input-preview">
-                        <img src={backgroundImage} alt="Preview" />
-                      </div>
-                      <span style={{ fontSize: '13px', fontFamily: 'monospace', color: '#1a1a1a' }}>
-                        Image
-                      </span>
-                    </>
-                  ) : backgroundColor ? (
-                    <>
-                      <div
-                        className="fill-input-swatch"
-                        style={{ backgroundColor }}
-                      />
-                      <span style={{ fontSize: '13px', fontFamily: 'monospace', color: '#1a1a1a' }}>
-                        {backgroundColor.toUpperCase()}
-                      </span>
-                    </>
-                  ) : (
-                    <div className="fill-input-placeholder">Add...</div>
-                  )}
-                  {hasExplicitBackground && (
-                    <button
-                      type="button"
-                      className="fill-input-clear"
-                      onClick={(e) => {
+                <PillSelect
+                  thumbnail={backgroundImage}
+                  swatchColor={backgroundColor}
+                  text={backgroundImage ? 'Image' : backgroundColor ? backgroundColor.toUpperCase() : 'Add...'}
+                  onClick={() => {}}
+                  onClear={(e) => {
                         e.stopPropagation();
                         handleClearBackground();
-                        // Close the popover when clearing
                         setRowFillPopoverOpen(false);
                       }}
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" width="8" height="8.5" viewBox="0 0 8 8.5">
-                        <g fill="transparent" strokeWidth="1.5" stroke="currentColor" strokeLinecap="round">
-                          <path d="m1.5 6.75 5-5M6.5 6.75l-5-5"></path>
-                        </g>
-                      </svg>
-                    </button>
-                  )}
+                  showClear={hasExplicitBackground}
+                />
                 </div>
-              </div>
+            </PropertyRow>
 
-              <FillPopover
-                isOpen={rowFillPopoverOpen}
-                onClose={() => setRowFillPopoverOpen(false)}
-                anchorElement={rowFillPopoverAnchor}
-                fillType={backgroundImage ? 'image' : backgroundColor ? 'color' : 'color'}
-                imageUrl={backgroundImage}
-                imageType="Fill"
-                color={backgroundColor}
-                opacity={backgroundColorOpacity}
-                onImageUrlChange={(url) => {
-                  handleBackgroundImageChange(url);
-                }}
-                onImageTypeChange={() => {}}
-                onImageDescriptionChange={() => {}}
-                onColorChange={(color) => {
-                  handleBackgroundColorChange(color);
-                }}
-                onOpacityChange={handleBackgroundColorOpacityChange}
+            <PropertyRow label="Radius">
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center', width: '100%', flex: 1 }}>
+                <NumberPillInput
+                  value={uniformBorderRadius}
+                  onChange={handleUniformBorderRadiusChange}
+                  min={0}
+                />
+                <IconButtonGroup
+                  buttons={[
+                    { value: 'uniform', icon: linkIcon, label: 'Uniform radius' },
+                    { value: 'individual', icon: unlinkIcon, label: 'Individual radius' },
+                  ]}
+                  activeValue={borderRadiusMode}
+                  onButtonClick={(value) => handleBorderRadiusModeChange(value as 'uniform' | 'individual')}
               />
             </div>
-          </div>
-          <div className="property-group">
-            <div className="border-controls">
+            </PropertyRow>
+
+            <PropertyRow label="Border">
               <div
                 ref={rowBorderPopoverAnchorRef}
-                className="property-group"
-                style={{ cursor: 'pointer' }}
                 onClick={() => {
-                  // Always get fresh anchor element reference
                   const anchor = rowBorderPopoverAnchorRef.current;
                   if (anchor) {
+                    // Close other popovers first
+                    setRowFillPopoverOpen(false);
+                    setRowColorPickerOpen(false);
                     setRowBorderPopoverAnchor(anchor);
-                    // Initialize border if it doesn't exist when opening popover
                     if (!hasVisibleBorder && !rowBorderInitializedRef.current && selectedRow && onUpdateRow) {
                       rowBorderInitializedRef.current = true;
                       handleUpdateRowThemeProps({
@@ -1006,22 +867,67 @@ export function PropertiesPanel({
                     setRowBorderPopoverOpen(true);
                   }
                 }}
+                style={{ width: '100%', flex: 1 }}
               >
-                <label className="property-label">Border</label>
-                <div className="fill-input">
-                  <div
-                    className="fill-input-swatch"
-                    style={{ backgroundColor: borderColorForPreview || '#CBCBCB' }}
-                  />
-                  <span style={{ fontSize: '13px', fontFamily: 'monospace', color: '#1a1a1a' }}>
-                    {hasVisibleBorder ? borderStyle.charAt(0).toUpperCase() + borderStyle.slice(1) : 'Add...'}
-                  </span>
+                <PillSelect
+                  swatchColor={hasVisibleBorder || rowBorderPopoverOpen ? (borderColorForPreview || themePrimaryColor) : '#CBCBCB'}
+                  text={hasVisibleBorder || rowBorderPopoverOpen ? (borderStyle || 'solid') : 'Add...'}
+                  onClick={() => {}}
+                  onClear={(e) => {
+                    e.stopPropagation();
+                    handleResetBorder();
+                    setRowBorderPopoverOpen(false);
+                  }}
+                  showClear={hasVisibleBorder || rowBorderPopoverOpen}
+                />
                 </div>
+            </PropertyRow>
+          </PanelSection>
+          <PanelSection title="Layout">
+            <PropertyRow label="Padding">
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center', width: '100%', flex: 1 }}>
+                <NumberPillInput
+                  value={uniformPadding}
+                  onChange={handleUniformPaddingChange}
+                  min={0}
+                />
+                <IconButtonGroup
+                  buttons={[
+                    { value: 'uniform', icon: linkIcon, label: 'Uniform padding' },
+                    { value: 'individual', icon: unlinkIcon, label: 'Individual padding' },
+                  ]}
+                  activeValue={paddingMode}
+                  onButtonClick={(value) => handlePaddingModeChange(value as 'uniform' | 'individual')}
+                      />
               </div>
+            </PropertyRow>
+          </PanelSection>
+
+          <FillPopover
+            isOpen={rowFillPopoverOpen}
+            onClose={() => setRowFillPopoverOpen(false)}
+            anchorElement={rowFillPopoverAnchor}
+            fillType={backgroundImage ? 'image' : backgroundColor ? 'color' : 'color'}
+            imageUrl={backgroundImage}
+            imageType="Fill"
+            color={backgroundColor}
+            opacity={backgroundColorOpacity}
+            onImageUrlChange={(url) => {
+              handleBackgroundImageChange(url);
+            }}
+            onImageTypeChange={() => {}}
+            onImageDescriptionChange={() => {}}
+            onColorChange={(color) => {
+              handleBackgroundColorChange(color);
+            }}
+            onOpacityChange={handleBackgroundColorOpacityChange}
+          />
 
               <BorderPopover
                 isOpen={rowBorderPopoverOpen}
                 onClose={() => {
+                  // Just close the popover - do NOT reset the border
+                  // Only the clear button on the pill select should reset the border
                   setRowBorderPopoverOpen(false);
                 }}
                 anchorElement={rowBorderPopoverAnchor}
@@ -1054,6 +960,8 @@ export function PropertiesPanel({
                 }}
                 onStyleChange={handleBorderStyleChange}
                 onOpenColorPicker={() => {
+                  // Close fill popover first, then open color picker
+                  setRowFillPopoverOpen(false);
                   setRowColorPickerOpen(true);
                 }}
               />
@@ -1076,154 +984,9 @@ export function PropertiesPanel({
                     setRowBorderPopoverOpen(true);
                   }}
                   title="Border"
+                  hideImageTab={true}
                 />
               )}
-
-            </div>
-          </div>
-          {/* Border Radius */}
-          <div className="property-section">
-            <div className="property-section-header">
-              <div className="property-section-title">
-                <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style={{ marginRight: '6px' }}>
-                  <path d="M3 3h10v10H3z" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round"/>
-                </svg>
-                <label htmlFor="row-border-radius">Radius</label>
-              </div>
-              <button
-                type="button"
-                className="property-reset-button"
-                onClick={handleResetBorderRadius}
-                aria-label="Reset to default"
-                title="Reset to theme default"
-              >
-                <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-                  <path d="M2 8a6 6 0 0 1 6-6v2M14 8a6 6 0 0 1-6 6v-2M8 2L6 4M8 14l2-2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-              </button>
-            </div>
-            <div className="border-radius-controls">
-              <div className="border-radius-top-row">
-                {borderRadiusMode === 'uniform' ? (
-                  <>
-                    <input
-                      id="row-border-radius-uniform"
-                      type="number"
-                      min="0"
-                      value={uniformBorderRadius}
-                      onChange={(e) => handleUniformBorderRadiusChange(parseInt(e.target.value, 10) || 0)}
-                      className="property-input border-radius-input"
-                    />
-                    <div className="border-radius-mode-toggle">
-                      <button
-                        type="button"
-                        className={`border-radius-mode-button ${borderRadiusMode === 'uniform' ? 'active' : ''}`}
-                        onClick={() => handleBorderRadiusModeChange('uniform')}
-                        aria-label="Uniform border radius"
-                      >
-                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                          <rect x="3" y="3" width="10" height="10" stroke="currentColor" strokeWidth="1.5" fill="none"/>
-                        </svg>
-                      </button>
-                      <button
-                        type="button"
-                        className={`border-radius-mode-button ${borderRadiusMode === 'individual' ? 'active' : ''}`}
-                        onClick={() => handleBorderRadiusModeChange('individual')}
-                        aria-label="Individual border radius"
-                      >
-                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                          <path d="M3 3h10v10H3z" stroke="currentColor" strokeWidth="1.5" fill="none"/>
-                          <path d="M8 3v10M3 8h10" stroke="currentColor" strokeWidth="1" strokeDasharray="1 1"/>
-                        </svg>
-                      </button>
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <input
-                      type="number"
-                      min="0"
-                      value=""
-                      readOnly
-                      className="property-input border-radius-input"
-                      style={{ opacity: 0.5, pointerEvents: 'none' }}
-                    />
-                    <div className="border-radius-mode-toggle">
-                      <button
-                        type="button"
-                        className={`border-radius-mode-button ${borderRadiusMode === 'uniform' ? 'active' : ''}`}
-                        onClick={() => handleBorderRadiusModeChange('uniform')}
-                        aria-label="Uniform border radius"
-                      >
-                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                          <rect x="3" y="3" width="10" height="10" stroke="currentColor" strokeWidth="1.5" fill="none"/>
-                        </svg>
-                      </button>
-                      <button
-                        type="button"
-                        className={`border-radius-mode-button ${borderRadiusMode === 'individual' ? 'active' : ''}`}
-                        onClick={() => handleBorderRadiusModeChange('individual')}
-                        aria-label="Individual border radius"
-                      >
-                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                          <path d="M3 3h10v10H3z" stroke="currentColor" strokeWidth="1.5" fill="none"/>
-                          <path d="M8 3v10M3 8h10" stroke="currentColor" strokeWidth="1" strokeDasharray="1 1"/>
-                        </svg>
-                      </button>
-                    </div>
-                  </>
-                )}
-              </div>
-              {borderRadiusMode === 'individual' && (
-                <div className="border-radius-individual-row">
-                  <div className="border-radius-input-group">
-                    <input
-                      id="row-border-radius-top-left"
-                      type="number"
-                      min="0"
-                      value={topLeftRadius}
-                      onChange={(e) => handleIndividualBorderRadiusChange('topLeft', parseInt(e.target.value, 10) || 0)}
-                      className="property-input border-radius-input"
-                    />
-                    <label htmlFor="row-border-radius-top-left" className="border-radius-label">TL</label>
-                  </div>
-                  <div className="border-radius-input-group">
-                    <input
-                      id="row-border-radius-top-right"
-                      type="number"
-                      min="0"
-                      value={topRightRadius}
-                      onChange={(e) => handleIndividualBorderRadiusChange('topRight', parseInt(e.target.value, 10) || 0)}
-                      className="property-input border-radius-input"
-                    />
-                    <label htmlFor="row-border-radius-top-right" className="border-radius-label">TR</label>
-                  </div>
-                  <div className="border-radius-input-group">
-                    <input
-                      id="row-border-radius-bottom-right"
-                      type="number"
-                      min="0"
-                      value={bottomRightRadius}
-                      onChange={(e) => handleIndividualBorderRadiusChange('bottomRight', parseInt(e.target.value, 10) || 0)}
-                      className="property-input border-radius-input"
-                    />
-                    <label htmlFor="row-border-radius-bottom-right" className="border-radius-label">BR</label>
-                  </div>
-                  <div className="border-radius-input-group">
-                    <input
-                      id="row-border-radius-bottom-left"
-                      type="number"
-                      min="0"
-                      value={bottomLeftRadius}
-                      onChange={(e) => handleIndividualBorderRadiusChange('bottomLeft', parseInt(e.target.value, 10) || 0)}
-                      className="property-input border-radius-input"
-                    />
-                    <label htmlFor="row-border-radius-bottom-left" className="border-radius-label">BL</label>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
         </div>
       </div>
     );
@@ -1532,267 +1295,117 @@ export function PropertiesPanel({
       });
     };
 
-    return (
-      <div className="properties-panel">
-        <h2 className="properties-title">Properties</h2>
-        <div className="properties-content">
-          <div className="property-group">
-            <label htmlFor="cell-vertical-align">Vertical Align</label>
-            <div className="vertical-align-selector">
-              {(['top', 'middle', 'bottom'] as const).map((align) => (
-                <button
-                  key={align}
-                  type="button"
-                  className={`vertical-align-button ${verticalAlign === align ? 'active' : ''}`}
-                  onClick={() => handleUpdateCellThemeProps({
-                    verticalAlign: align,
-                  })}
-                >
-                  {align === 'top' && 'Top'}
-                  {align === 'middle' && 'Middle'}
-                  {align === 'bottom' && 'Bottom'}
-                </button>
-              ))}
-            </div>
-          </div>
-          <div className="property-group">
-            <div className="property-label-with-icon">
-              <span className="property-icon">+</span>
-              <label htmlFor="cell-padding">Padding</label>
-              <button
-                type="button"
-                className="property-reset-button"
-                onClick={handleResetPadding}
-                aria-label="Reset to default"
-                title="Reset to theme default"
-              >
-                <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-                  <path d="M2 8a6 6 0 0 1 6-6v2M14 8a6 6 0 0 1-6 6v-2M8 2L6 4M8 14l2-2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+    // Align icons (reuse same icons) - larger size for better visibility
+    const alignTopIcon = (
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 14 10" style={{ width: '16px', height: '16px' }}>
+        <path d="M 0 0.75 C 0 0.336 0.336 0 0.75 0 L 13.25 0 C 13.664 0 14 0.336 14 0.75 L 14 0.75 C 14 1.164 13.664 1.5 13.25 1.5 L 0.75 1.5 C 0.336 1.5 0 1.164 0 0.75 Z" fill="currentColor"></path>
+        <path d="M 4 5 C 4 3.895 4.895 3 6 3 L 8 3 C 9.105 3 10 3.895 10 5 L 10 8 C 10 9.105 9.105 10 8 10 L 6 10 C 4.895 10 4 9.105 4 8 Z" fill="currentColor"></path>
                 </svg>
-              </button>
-            </div>
-            <div className="padding-controls">
-              <div className="padding-top-row">
-                {paddingMode === 'uniform' ? (
-                  <>
-                    <input
-                      id="cell-padding-uniform"
-                      type="number"
-                      min="0"
-                      value={uniformPadding}
-                      onChange={(e) => handleUniformPaddingChange(parseInt(e.target.value, 10) || 0)}
-                      className="property-input padding-input"
-                    />
-                    <div className="padding-mode-toggle">
-                      <button
-                        type="button"
-                        className={`padding-mode-button ${paddingMode === 'uniform' ? 'active' : ''}`}
-                        onClick={() => handlePaddingModeChange('uniform')}
-                        aria-label="Uniform padding"
-                      >
-                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                          <rect x="3" y="3" width="10" height="10" stroke="currentColor" strokeWidth="1.5" fill="none"/>
+    );
+    const alignMiddleIcon = (
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 14" style={{ width: '16px', height: '16px' }}>
+        <path d="M 0 6.75 C 0 6.336 0.336 6 0.75 6 L 15.25 6 C 15.664 6 16 6.336 16 6.75 L 16 6.75 C 16 7.164 15.664 7.5 15.25 7.5 L 0.75 7.5 C 0.336 7.5 0 7.164 0 6.75 Z" fill="currentColor"></path>
+        <path d="M 5 3.5 C 5 2.395 5.895 1.5 7 1.5 L 9 1.5 C 10.105 1.5 11 2.395 11 3.5 L 11 10 C 11 11.105 10.105 12 9 12 L 7 12 C 5.895 12 5 11.105 5 10 Z" fill="currentColor"></path>
                         </svg>
-                      </button>
-                      <button
-                        type="button"
-                        className={`padding-mode-button ${paddingMode === 'individual' ? 'active' : ''}`}
-                        onClick={() => handlePaddingModeChange('individual')}
-                        aria-label="Individual padding"
-                      >
-                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                          <path d="M3 3h10v10H3z" stroke="currentColor" strokeWidth="1.5" fill="none" strokeDasharray="2 2"/>
-                          <path d="M8 3v10M3 8h10" stroke="currentColor" strokeWidth="1" strokeDasharray="1 1"/>
+    );
+    const alignBottomIcon = (
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 14 10" style={{ width: '16px', height: '16px' }}>
+        <path d="M 0 9.25 C 0 8.836 0.336 8.5 0.75 8.5 L 13.25 8.5 C 13.664 8.5 14 8.836 14 9.25 L 14 9.25 C 14 9.664 13.664 10 13.25 10 L 0.75 10 C 0.336 10 0 9.664 0 9.25 Z" fill="currentColor"></path>
+        <path d="M 4 2 C 4 0.895 4.895 0 6 0 L 8 0 C 9.105 0 10 0.895 10 2 L 10 5 C 10 6.105 9.105 7 8 7 L 6 7 C 4.895 7 4 6.105 4 5 Z" fill="currentColor"></path>
                         </svg>
-                      </button>
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <input
-                      type="number"
-                      min="0"
-                      value=""
-                      readOnly
-                      className="property-input padding-input"
-                      style={{ opacity: 0.5, pointerEvents: 'none' }}
-                    />
-                    <input
-                      type="number"
-                      min="0"
-                      value="0"
-                      readOnly
-                      className="property-input padding-input"
-                      style={{ opacity: 0.5, pointerEvents: 'none' }}
-                    />
-                    <div className="padding-mode-toggle">
-                      <button
-                        type="button"
-                        className={`padding-mode-button ${paddingMode === 'uniform' ? 'active' : ''}`}
-                        onClick={() => handlePaddingModeChange('uniform')}
-                        aria-label="Uniform padding"
-                      >
-                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                          <rect x="3" y="3" width="10" height="10" stroke="currentColor" strokeWidth="1.5" fill="none"/>
+    );
+
+    // Link/unlink icons - larger size for better visibility
+    const linkIcon = (
+      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 10 10" style={{ width: '14px', height: '14px' }}>
+        <path d="M2.75.75a2 2 0 0 0-2 2v4.5a2 2 0 0 0 2 2h4.5a2 2 0 0 0 2-2v-4.5a2 2 0 0 0-2-2Z" fill="transparent" strokeWidth="1.5" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round"></path>
                         </svg>
-                      </button>
-                      <button
-                        type="button"
-                        className={`padding-mode-button ${paddingMode === 'individual' ? 'active' : ''}`}
-                        onClick={() => handlePaddingModeChange('individual')}
-                        aria-label="Individual padding"
-                      >
-                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                          <path d="M3 3h10v10H3z" stroke="currentColor" strokeWidth="1.5" fill="none" strokeDasharray="2 2"/>
-                          <path d="M8 3v10M3 8h10" stroke="currentColor" strokeWidth="1" strokeDasharray="1 1"/>
+    );
+    const unlinkIcon = (
+      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 10 10" style={{ width: '14px', height: '14px' }}>
+        <path d="M 0.75 3.5 L 0.75 2.75 C 0.75 1.645 1.645 0.75 2.75 0.75 L 3.5 0.75" fill="transparent" strokeWidth="1.5" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" opacity="1"></path>
+        <path d="M 9.25 3.5 L 9.25 2.75 C 9.25 1.645 8.355 0.75 7.25 0.75 L 6.5 0.75" fill="transparent" strokeWidth="1.5" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" opacity="1"></path>
+        <path d="M 9.25 6.5 L 9.25 7.25 C 9.25 8.355 8.355 9.25 7.25 9.25 L 6.5 9.25" fill="transparent" strokeWidth="1.5" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" opacity="1"></path>
+        <path d="M 0.75 6.5 L 0.75 7.25 C 0.75 8.355 1.645 9.25 2.75 9.25 L 3.5 9.25" fill="transparent" strokeWidth="1.5" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" opacity="1"></path>
                         </svg>
-                      </button>
-                    </div>
-                  </>
-                )}
-              </div>
-              {paddingMode === 'individual' && (
-                <div className="padding-individual-row">
-                  <div className="padding-input-group">
-                    <input
-                      id="cell-padding-top"
-                      type="number"
-                      min="0"
-                      value={topPadding}
-                      onChange={(e) => handleIndividualPaddingChange('top', parseInt(e.target.value, 10) || 0)}
-                      className="property-input padding-input"
-                    />
-                    <label htmlFor="cell-padding-top" className="padding-label">T</label>
-                  </div>
-                  <div className="padding-input-group">
-                    <input
-                      id="cell-padding-right"
-                      type="number"
-                      min="0"
-                      value={rightPadding}
-                      onChange={(e) => handleIndividualPaddingChange('right', parseInt(e.target.value, 10) || 0)}
-                      className="property-input padding-input"
-                    />
-                    <label htmlFor="cell-padding-right" className="padding-label">R</label>
-                  </div>
-                  <div className="padding-input-group">
-                    <input
-                      id="cell-padding-bottom"
-                      type="number"
-                      min="0"
-                      value={bottomPadding}
-                      onChange={(e) => handleIndividualPaddingChange('bottom', parseInt(e.target.value, 10) || 0)}
-                      className="property-input padding-input"
-                    />
-                    <label htmlFor="cell-padding-bottom" className="padding-label">B</label>
-                  </div>
-                  <div className="padding-input-group">
-                    <input
-                      id="cell-padding-left"
-                      type="number"
-                      min="0"
-                      value={leftPadding}
-                      onChange={(e) => handleIndividualPaddingChange('left', parseInt(e.target.value, 10) || 0)}
-                      className="property-input padding-input"
-                    />
-                    <label htmlFor="cell-padding-left" className="padding-label">L</label>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-          <div className="property-group">
-            <div className="background-controls">
-              <div className="property-group">
-                <label className="property-label">Fill</label>
+    );
+
+    return (
+      <div className="properties-panel ui-properties-panel">
+        <div className="properties-content">
+          <PanelSection title="Vertically align">
+            <PropertyRow label="Align">
+              <SegmentedIconControl
+                value={verticalAlign}
+                segments={[
+                  { value: 'top', icon: alignTopIcon },
+                  { value: 'middle', icon: alignMiddleIcon },
+                  { value: 'bottom', icon: alignBottomIcon },
+                ]}
+                onChange={(value) => handleUpdateCellThemeProps({ verticalAlign: value as 'top' | 'middle' | 'bottom' })}
+              />
+            </PropertyRow>
+          </PanelSection>
+
+          <PanelSection title="Style">
+            <PropertyRow label="Fill">
                 <div
                   ref={cellFillPopoverAnchorRef}
-                  className="fill-input"
                   onClick={() => {
-                    // Always get fresh anchor element reference
                     const anchor = cellFillPopoverAnchorRef.current;
                     if (anchor) {
+                      // Close other popovers first
+                      setCellBorderPopoverOpen(false);
+                      setCellColorPickerOpen(false);
                       setCellFillPopoverAnchor(anchor);
                       setCellFillPopoverOpen(true);
                     }
                   }}
+                  style={{ width: '100%', flex: 1 }}
                 >
-                  {backgroundImage ? (
-                    <>
-                      <div className="fill-input-preview">
-                        <img src={backgroundImage} alt="Preview" />
-                      </div>
-                      <span style={{ fontSize: '13px', fontFamily: 'monospace', color: '#1a1a1a' }}>
-                        Image
-                      </span>
-                    </>
-                  ) : backgroundColor ? (
-                    <>
-                      <div
-                        className="fill-input-swatch"
-                        style={{ backgroundColor }}
-                      />
-                      <span style={{ fontSize: '13px', fontFamily: 'monospace', color: '#1a1a1a' }}>
-                        {backgroundColor.toUpperCase()}
-                      </span>
-                    </>
-                  ) : (
-                    <div className="fill-input-placeholder">Add...</div>
-                  )}
-                  {hasExplicitBackground && (
-                    <button
-                      type="button"
-                      className="fill-input-clear"
-                      onClick={(e) => {
+                <PillSelect
+                  thumbnail={backgroundImage}
+                  swatchColor={backgroundColor}
+                  text={backgroundImage ? 'Image' : backgroundColor ? backgroundColor.toUpperCase() : 'Add...'}
+                  onClick={() => {}}
+                  onClear={(e) => {
                         e.stopPropagation();
                         handleClearBackground();
-                        // Close the popover when clearing
                         setCellFillPopoverOpen(false);
                       }}
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" width="8" height="8.5" viewBox="0 0 8 8.5">
-                        <g fill="transparent" strokeWidth="1.5" stroke="currentColor" strokeLinecap="round">
-                          <path d="m1.5 6.75 5-5M6.5 6.75l-5-5"></path>
-                        </g>
-                      </svg>
-                    </button>
-                  )}
+                  showClear={hasExplicitBackground}
+                />
                 </div>
-              </div>
+            </PropertyRow>
 
-              <FillPopover
-                isOpen={cellFillPopoverOpen}
-                onClose={() => setCellFillPopoverOpen(false)}
-                anchorElement={cellFillPopoverAnchor}
-                fillType={backgroundImage ? 'image' : backgroundColor ? 'color' : 'color'}
-                imageUrl={backgroundImage}
-                imageType="Fill"
-                color={backgroundColor}
-                opacity={backgroundColorOpacity}
-                onImageUrlChange={(url) => {
-                  handleBackgroundImageChange(url);
-                }}
-                onImageTypeChange={() => {}}
-                onImageDescriptionChange={() => {}}
-                onColorChange={(color) => {
-                  handleBackgroundColorChange(color);
-                }}
-                onOpacityChange={handleBackgroundColorOpacityChange}
+            <PropertyRow label="Radius">
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center', width: '100%', flex: 1 }}>
+                <NumberPillInput
+                  value={uniformBorderRadius}
+                  onChange={handleUniformBorderRadiusChange}
+                  min={0}
+                />
+                <IconButtonGroup
+                  buttons={[
+                    { value: 'uniform', icon: linkIcon, label: 'Uniform radius' },
+                    { value: 'individual', icon: unlinkIcon, label: 'Individual radius' },
+                  ]}
+                  activeValue={borderRadiusMode}
+                  onButtonClick={(value) => handleBorderRadiusModeChange(value as 'uniform' | 'individual')}
               />
             </div>
-          </div>
-          <div className="property-group">
-            <div className="border-controls">
+            </PropertyRow>
+
+            <PropertyRow label="Border">
               <div
                 ref={cellBorderPopoverAnchorRef}
-                className="property-group"
-                style={{ cursor: 'pointer' }}
                 onClick={() => {
-                  // Always get fresh anchor element reference
                   const anchor = cellBorderPopoverAnchorRef.current;
                   if (anchor) {
+                    // Close other popovers first
+                    setCellFillPopoverOpen(false);
+                    setCellColorPickerOpen(false);
                     setCellBorderPopoverAnchor(anchor);
-                    // Initialize border if it doesn't exist when opening popover
                     if (!hasVisibleBorder && !cellBorderInitializedRef.current && selectedCell && onUpdateCell) {
                       cellBorderInitializedRef.current = true;
                       handleUpdateCellThemeProps({
@@ -1806,22 +1419,67 @@ export function PropertiesPanel({
                     setCellBorderPopoverOpen(true);
                   }
                 }}
+                style={{ width: '100%', flex: 1 }}
               >
-                <label className="property-label">Border</label>
-                <div className="fill-input">
-                  <div
-                    className="fill-input-swatch"
-                    style={{ backgroundColor: borderColorForPreview || '#CBCBCB' }}
-                  />
-                  <span style={{ fontSize: '13px', fontFamily: 'monospace', color: '#1a1a1a' }}>
-                    {hasVisibleBorder ? borderStyle.charAt(0).toUpperCase() + borderStyle.slice(1) : 'Add...'}
-                  </span>
+                <PillSelect
+                  swatchColor={hasVisibleBorder || cellBorderPopoverOpen ? (borderColorForPreview || themePrimaryColor) : '#CBCBCB'}
+                  text={hasVisibleBorder || cellBorderPopoverOpen ? (borderStyle || 'solid') : 'Add...'}
+                  onClick={() => {}}
+                  onClear={(e) => {
+                    e.stopPropagation();
+                    handleResetBorder();
+                    setCellBorderPopoverOpen(false);
+                  }}
+                  showClear={hasVisibleBorder || cellBorderPopoverOpen}
+                />
                 </div>
+            </PropertyRow>
+          </PanelSection>
+          <PanelSection title="Layout">
+            <PropertyRow label="Padding">
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center', width: '100%', flex: 1 }}>
+                <NumberPillInput
+                  value={uniformPadding}
+                  onChange={handleUniformPaddingChange}
+                  min={0}
+                />
+                <IconButtonGroup
+                  buttons={[
+                    { value: 'uniform', icon: linkIcon, label: 'Uniform padding' },
+                    { value: 'individual', icon: unlinkIcon, label: 'Individual padding' },
+                  ]}
+                  activeValue={paddingMode}
+                  onButtonClick={(value) => handlePaddingModeChange(value as 'uniform' | 'individual')}
+                />
               </div>
+            </PropertyRow>
+          </PanelSection>
+
+          <FillPopover
+            isOpen={cellFillPopoverOpen}
+            onClose={() => setCellFillPopoverOpen(false)}
+            anchorElement={cellFillPopoverAnchor}
+            fillType={backgroundImage ? 'image' : backgroundColor ? 'color' : 'color'}
+            imageUrl={backgroundImage}
+            imageType="Fill"
+            color={backgroundColor}
+            opacity={backgroundColorOpacity}
+            onImageUrlChange={(url) => {
+              handleBackgroundImageChange(url);
+            }}
+            onImageTypeChange={() => {}}
+            onImageDescriptionChange={() => {}}
+            onColorChange={(color) => {
+              handleBackgroundColorChange(color);
+            }}
+            onOpacityChange={handleBackgroundColorOpacityChange}
+          />
 
               <BorderPopover
                 isOpen={cellBorderPopoverOpen}
                 onClose={() => {
+                  // Just close the popover - do NOT reset the border
+                  // Only the clear button on the pill select should reset the border
                   setCellBorderPopoverOpen(false);
                 }}
                 anchorElement={cellBorderPopoverAnchor}
@@ -1854,6 +1512,8 @@ export function PropertiesPanel({
                 }}
                 onStyleChange={handleBorderStyleChange}
                 onOpenColorPicker={() => {
+                  // Close fill popover first, then open color picker
+                  setCellFillPopoverOpen(false);
                   setCellColorPickerOpen(true);
                 }}
               />
@@ -1876,153 +1536,9 @@ export function PropertiesPanel({
                     setCellBorderPopoverOpen(true);
                   }}
                   title="Border"
+                  hideImageTab={true}
                 />
               )}
-            </div>
-          </div>
-          {/* Border Radius */}
-          <div className="property-section">
-            <div className="property-section-header">
-              <div className="property-section-title">
-                <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style={{ marginRight: '6px' }}>
-                  <path d="M3 3h10v10H3z" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round"/>
-                </svg>
-                <label htmlFor="cell-border-radius">Radius</label>
-              </div>
-              <button
-                type="button"
-                className="property-reset-button"
-                onClick={handleResetBorderRadius}
-                aria-label="Reset to default"
-                title="Reset to theme default"
-              >
-                <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-                  <path d="M2 8a6 6 0 0 1 6-6v2M14 8a6 6 0 0 1-6 6v-2M8 2L6 4M8 14l2-2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-              </button>
-            </div>
-            <div className="border-radius-controls">
-              <div className="border-radius-top-row">
-                {borderRadiusMode === 'uniform' ? (
-                  <>
-                    <input
-                      id="cell-border-radius-uniform"
-                      type="number"
-                      min="0"
-                      value={uniformBorderRadius}
-                      onChange={(e) => handleUniformBorderRadiusChange(parseInt(e.target.value, 10) || 0)}
-                      className="property-input border-radius-input"
-                    />
-                    <div className="border-radius-mode-toggle">
-                      <button
-                        type="button"
-                        className={`border-radius-mode-button ${borderRadiusMode === 'uniform' ? 'active' : ''}`}
-                        onClick={() => handleBorderRadiusModeChange('uniform')}
-                        aria-label="Uniform border radius"
-                      >
-                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                          <rect x="3" y="3" width="10" height="10" stroke="currentColor" strokeWidth="1.5" fill="none"/>
-                        </svg>
-                      </button>
-                      <button
-                        type="button"
-                        className={`border-radius-mode-button ${borderRadiusMode === 'individual' ? 'active' : ''}`}
-                        onClick={() => handleBorderRadiusModeChange('individual')}
-                        aria-label="Individual border radius"
-                      >
-                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                          <path d="M3 3h10v10H3z" stroke="currentColor" strokeWidth="1.5" fill="none"/>
-                          <path d="M8 3v10M3 8h10" stroke="currentColor" strokeWidth="1" strokeDasharray="1 1"/>
-                        </svg>
-                      </button>
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <input
-                      type="number"
-                      min="0"
-                      value=""
-                      readOnly
-                      className="property-input border-radius-input"
-                      style={{ opacity: 0.5, pointerEvents: 'none' }}
-                    />
-                    <div className="border-radius-mode-toggle">
-                      <button
-                        type="button"
-                        className={`border-radius-mode-button ${borderRadiusMode === 'uniform' ? 'active' : ''}`}
-                        onClick={() => handleBorderRadiusModeChange('uniform')}
-                        aria-label="Uniform border radius"
-                      >
-                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                          <rect x="3" y="3" width="10" height="10" stroke="currentColor" strokeWidth="1.5" fill="none"/>
-                        </svg>
-                      </button>
-                      <button
-                        type="button"
-                        className={`border-radius-mode-button ${borderRadiusMode === 'individual' ? 'active' : ''}`}
-                        onClick={() => handleBorderRadiusModeChange('individual')}
-                        aria-label="Individual border radius"
-                      >
-                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                          <path d="M3 3h10v10H3z" stroke="currentColor" strokeWidth="1.5" fill="none"/>
-                          <path d="M8 3v10M3 8h10" stroke="currentColor" strokeWidth="1" strokeDasharray="1 1"/>
-                        </svg>
-                      </button>
-                    </div>
-                  </>
-                )}
-              </div>
-              {borderRadiusMode === 'individual' && (
-                <div className="border-radius-individual-row">
-                  <div className="border-radius-input-group">
-                    <input
-                      id="cell-border-radius-top-left"
-                      type="number"
-                      min="0"
-                      value={topLeftRadius}
-                      onChange={(e) => handleIndividualBorderRadiusChange('topLeft', parseInt(e.target.value, 10) || 0)}
-                      className="property-input border-radius-input"
-                    />
-                    <label htmlFor="cell-border-radius-top-left" className="border-radius-label">TL</label>
-                  </div>
-                  <div className="border-radius-input-group">
-                    <input
-                      id="cell-border-radius-top-right"
-                      type="number"
-                      min="0"
-                      value={topRightRadius}
-                      onChange={(e) => handleIndividualBorderRadiusChange('topRight', parseInt(e.target.value, 10) || 0)}
-                      className="property-input border-radius-input"
-                    />
-                    <label htmlFor="cell-border-radius-top-right" className="border-radius-label">TR</label>
-                  </div>
-                  <div className="border-radius-input-group">
-                    <input
-                      id="cell-border-radius-bottom-right"
-                      type="number"
-                      min="0"
-                      value={bottomRightRadius}
-                      onChange={(e) => handleIndividualBorderRadiusChange('bottomRight', parseInt(e.target.value, 10) || 0)}
-                      className="property-input border-radius-input"
-                    />
-                    <label htmlFor="cell-border-radius-bottom-right" className="border-radius-label">BR</label>
-                  </div>
-                  <div className="border-radius-input-group">
-                    <input
-                      id="cell-border-radius-bottom-left"
-                      type="number"
-                      min="0"
-                      value={bottomLeftRadius}
-                      onChange={(e) => handleIndividualBorderRadiusChange('bottomLeft', parseInt(e.target.value, 10) || 0)}
-                      className="property-input border-radius-input"
-                    />
-                    <label htmlFor="cell-border-radius-bottom-left" className="border-radius-label">BL</label>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
         </div>
       </div>
     );
