@@ -3,6 +3,10 @@ import { ImageFillPanel } from './ImageFillPanel';
 import { nanoid } from 'nanoid';
 import { useTheme, useThemeSwitcher } from '../theme/ThemeProvider';
 import type { ThemeId } from '../theme/ThemeProvider';
+import { useState, useRef, useEffect, useMemo } from 'react';
+import { FillPopover } from './FillPopover';
+import { ColorPickerPopover } from './ColorPickerPopover';
+import { BorderPopover } from './BorderPopover';
 
 interface PropertiesPanelProps {
   selectedBlock: Block | null;
@@ -117,12 +121,105 @@ export function PropertiesPanel({
   onDeleteBlock,
 }: PropertiesPanelProps) {
   const { themeId } = useThemeSwitcher();
+  const theme = useTheme(); // Call useTheme at the top level, before any conditional returns
   // Check if selected row is a columns block
   const isColumnsBlockRow = selectedRow?.props?.isColumnsBlock === true;
 
+  // Popover state management - Row
+  const [rowFillPopoverAnchor, setRowFillPopoverAnchor] = useState<HTMLElement | null>(null);
+  const [rowFillPopoverOpen, setRowFillPopoverOpen] = useState(false);
+  const [rowColorPickerOpen, setRowColorPickerOpen] = useState(false);
+  const [rowBorderPopoverAnchor, setRowBorderPopoverAnchor] = useState<HTMLElement | null>(null);
+  const [rowBorderPopoverOpen, setRowBorderPopoverOpen] = useState(false);
+  const rowFillPopoverAnchorRef = useRef<HTMLDivElement>(null);
+  const rowBorderPopoverAnchorRef = useRef<HTMLDivElement>(null);
+  const rowBorderInitializedRef = useRef(false);
+  const isMountedRef = useRef(true);
+  
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
+  // Popover state management - Cell
+  const [cellFillPopoverAnchor, setCellFillPopoverAnchor] = useState<HTMLElement | null>(null);
+  const [cellFillPopoverOpen, setCellFillPopoverOpen] = useState(false);
+  const [cellColorPickerOpen, setCellColorPickerOpen] = useState(false);
+  const [cellBorderPopoverAnchor, setCellBorderPopoverAnchor] = useState<HTMLElement | null>(null);
+  const [cellBorderPopoverOpen, setCellBorderPopoverOpen] = useState(false);
+  const cellFillPopoverAnchorRef = useRef<HTMLDivElement>(null);
+  const cellBorderPopoverAnchorRef = useRef<HTMLDivElement>(null);
+  const cellBorderInitializedRef = useRef(false);
+
+
+  // Popover state management - Page
+  const [pageFillPopoverAnchor, setPageFillPopoverAnchor] = useState<HTMLElement | null>(null);
+  const [pageFillPopoverOpen, setPageFillPopoverOpen] = useState(false);
+  const [pageColorPickerOpen, setPageColorPickerOpen] = useState(false);
+  const pageFillPopoverAnchorRef = useRef<HTMLDivElement>(null);
+
+  // Close all popovers function
+  const closeAllPopovers = () => {
+    setRowFillPopoverOpen(false);
+    setRowColorPickerOpen(false);
+    setRowBorderPopoverOpen(false);
+    setRowFillPopoverAnchor(null);
+    setRowBorderPopoverAnchor(null);
+    
+    setCellFillPopoverOpen(false);
+    setCellColorPickerOpen(false);
+    setCellBorderPopoverOpen(false);
+    setCellFillPopoverAnchor(null);
+    setCellBorderPopoverAnchor(null);
+    
+    setPageFillPopoverOpen(false);
+    setPageColorPickerOpen(false);
+    setPageFillPopoverAnchor(null);
+  };
+
+  // Close all popovers when selection changes
+  const prevSelectionRef = useRef<{ rowId?: string; cellId?: string; blockId?: string; isPage?: boolean }>({});
+  useEffect(() => {
+    const currentSelection = {
+      rowId: selectedRow?.id,
+      cellId: selectedCell?.id,
+      blockId: selectedBlock?.id,
+      isPage: isPageSelected,
+    };
+    
+    const prevSelection = prevSelectionRef.current;
+    const selectionChanged = 
+      prevSelection.rowId !== currentSelection.rowId ||
+      prevSelection.cellId !== currentSelection.cellId ||
+      prevSelection.blockId !== currentSelection.blockId ||
+      prevSelection.isPage !== currentSelection.isPage;
+    
+    if (selectionChanged && (prevSelection.rowId || prevSelection.cellId || prevSelection.blockId || prevSelection.isPage)) {
+      // Only close if we had a previous selection (not on initial mount)
+      closeAllPopovers();
+    }
+    
+    prevSelectionRef.current = currentSelection;
+  }, [selectedRow?.id, selectedCell?.id, selectedBlock?.id, isPageSelected]);
+
+  // Handle ESC key to close all popovers
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        closeAllPopovers();
+      }
+    };
+    
+    window.addEventListener('keydown', handleEscape);
+    return () => {
+      window.removeEventListener('keydown', handleEscape);
+    };
+  }, []); // Empty deps - closeAllPopovers is stable (only calls setters)
+
   // Page properties panel - shown when page is selected (and not a row, cell, or block)
   if (isPageSelected && !selectedRow && !selectedCell && !selectedBlock && onUpdatePageProps) {
-    const theme = useTheme();
     const defaultPageBackground = theme.pageBackground || { backgroundColor: '#ffffff', backgroundColorOpacity: 1, backgroundImage: undefined, backgroundImageOpacity: 1 };
     
     // Get theme-specific page properties
@@ -131,6 +228,8 @@ export function PropertiesPanel({
     const backgroundColorOpacity = themePageProps.backgroundColorOpacity ?? defaultPageBackground.backgroundColorOpacity ?? 1;
     const backgroundImage = themePageProps.backgroundImage ?? defaultPageBackground.backgroundImage;
     const backgroundImageOpacity = themePageProps.backgroundImageOpacity ?? defaultPageBackground.backgroundImageOpacity ?? 1;
+    // Check if color/image is explicitly set (can be removed) vs just theme default
+    const hasExplicitBackground = themePageProps.backgroundColor !== undefined || themePageProps.backgroundImage !== undefined;
     // maxRowWidth: null = full width, 1024 = 1024px max width, undefined = default (1024)
     const maxRowWidth = themePageProps.maxRowWidth;
     const isFullWidth = maxRowWidth === null;
@@ -149,7 +248,14 @@ export function PropertiesPanel({
     };
 
     const handleBackgroundColorChange = (color: string | undefined) => {
-      handleUpdatePageThemeProps({ backgroundColor: color });
+      if (color) {
+        handleUpdatePageThemeProps({ 
+          backgroundColor: color,
+          backgroundImage: undefined, // Clear image when setting color
+        });
+      } else {
+        handleUpdatePageThemeProps({ backgroundColor: undefined });
+      }
     };
 
     const handleBackgroundColorOpacityChange = (opacity: number) => {
@@ -157,11 +263,25 @@ export function PropertiesPanel({
     };
 
     const handleBackgroundImageChange = (url: string) => {
-      handleUpdatePageThemeProps({ backgroundImage: url || undefined });
+      if (url) {
+        handleUpdatePageThemeProps({ 
+          backgroundImage: url,
+          backgroundColor: undefined, // Clear color when setting image
+        });
+      } else {
+        handleUpdatePageThemeProps({ backgroundImage: undefined });
+      }
     };
 
     const handleBackgroundImageOpacityChange = (opacity: number) => {
       handleUpdatePageThemeProps({ backgroundImageOpacity: opacity });
+    };
+
+    const handleClearBackground = () => {
+      handleUpdatePageThemeProps({
+        backgroundColor: undefined,
+        backgroundImage: undefined,
+      });
     };
 
     const handleMaxRowWidthChange = (isFull: boolean) => {
@@ -183,101 +303,83 @@ export function PropertiesPanel({
         <h2 className="properties-title">Properties</h2>
         <div className="properties-content">
           <div className="property-section">
-            <div className="property-section-header">
-              <div className="property-section-title">
-                <span className="property-icon">+</span>
-                <label htmlFor="page-background">Background</label>
-              </div>
-              <button
-                type="button"
-                className="property-reset-button"
-                onClick={handleResetBackground}
-                aria-label="Reset to default"
-                title="Reset to theme default"
-              >
-                <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-                  <path d="M2 8a6 6 0 0 1 6-6v2M14 8a6 6 0 0 1-6 6v-2M8 2L6 4M8 14l2-2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-              </button>
-            </div>
             <div className="background-controls">
               <div className="property-group">
-                <label htmlFor="page-background-color">Background Color</label>
-                <div className="color-input-wrapper">
-                  <input
-                    id="page-background-color"
-                    type="color"
-                    value={backgroundColor || '#ffffff'}
-                    onChange={(e) => handleBackgroundColorChange(e.target.value)}
-                    className="property-color-input"
-                    disabled={!backgroundColor}
-                  />
-                  <input
-                    type="text"
-                    value={backgroundColor || ''}
-                    onChange={(e) => handleBackgroundColorChange(e.target.value || undefined)}
-                    className="property-input color-text-input"
-                    placeholder={backgroundColor ? "#ffffff" : "Transparent"}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => handleBackgroundColorChange(undefined as any)}
-                    className="transparent-button"
-                    title="Set to transparent"
-                    style={{
-                      padding: '6px 12px',
-                      fontSize: '12px',
-                      border: '1px solid #e0e0e0',
-                      borderRadius: '6px',
-                      background: !backgroundColor ? '#f0f0f0' : 'transparent',
-                      color: !backgroundColor ? '#666' : '#333',
-                      cursor: 'pointer',
-                      whiteSpace: 'nowrap',
-                    }}
-                  >
-                    {backgroundColor ? 'Set transparent' : 'Transparent'}
-                  </button>
-                </div>
-                <div className="opacity-control">
-                  <label htmlFor="page-background-color-opacity">Opacity: {Math.round(backgroundColorOpacity * 100)}%</label>
-                  <input
-                    id="page-background-color-opacity"
-                    type="range"
-                    min="0"
-                    max="1"
-                    step="0.01"
-                    value={backgroundColorOpacity}
-                    onChange={(e) => handleBackgroundColorOpacityChange(parseFloat(e.target.value))}
-                    className="opacity-range"
-                  />
+                <label className="property-label">Fill</label>
+                <div
+                  ref={pageFillPopoverAnchorRef}
+                  className="fill-input"
+                  onClick={() => {
+                    // Always get fresh anchor element reference
+                    const anchor = pageFillPopoverAnchorRef.current;
+                    if (anchor) {
+                      setPageFillPopoverAnchor(anchor);
+                      setPageFillPopoverOpen(true);
+                    }
+                  }}
+                >
+                  {backgroundImage ? (
+                    <>
+                      <div className="fill-input-preview">
+                        <img src={backgroundImage} alt="Preview" />
+                      </div>
+                      <span style={{ fontSize: '13px', fontFamily: 'monospace', color: '#1a1a1a' }}>
+                        Image
+                      </span>
+                    </>
+                  ) : backgroundColor ? (
+                    <>
+                      <div
+                        className="fill-input-swatch"
+                        style={{ backgroundColor }}
+                      />
+                      <span style={{ fontSize: '13px', fontFamily: 'monospace', color: '#1a1a1a' }}>
+                        {backgroundColor.toUpperCase()}
+                      </span>
+                    </>
+                  ) : (
+                    <div className="fill-input-placeholder">Add...</div>
+                  )}
+                  {hasExplicitBackground && (
+                    <button
+                      type="button"
+                      className="fill-input-clear"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleClearBackground();
+                        // Close the popover when clearing
+                        setPageFillPopoverOpen(false);
+                      }}
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="8" height="8.5" viewBox="0 0 8 8.5">
+                        <g fill="transparent" strokeWidth="1.5" stroke="currentColor" strokeLinecap="round">
+                          <path d="m1.5 6.75 5-5M6.5 6.75l-5-5"></path>
+                        </g>
+                      </svg>
+                    </button>
+                  )}
                 </div>
               </div>
-              <div className="property-group">
-                <label htmlFor="page-background-image">Background Image URL</label>
-                <input
-                  id="page-background-image"
-                  type="text"
-                  value={backgroundImage || ''}
-                  onChange={(e) => handleBackgroundImageChange(e.target.value)}
-                  className="property-input"
-                  placeholder="https://example.com/image.jpg"
-                />
-                {backgroundImage && (
-                  <div className="opacity-control">
-                    <label htmlFor="page-background-image-opacity">Opacity: {Math.round(backgroundImageOpacity * 100)}%</label>
-                    <input
-                      id="page-background-image-opacity"
-                      type="range"
-                      min="0"
-                      max="1"
-                      step="0.01"
-                      value={backgroundImageOpacity}
-                      onChange={(e) => handleBackgroundImageOpacityChange(parseFloat(e.target.value))}
-                      className="opacity-range"
-                    />
-                  </div>
-                )}
-              </div>
+
+              <FillPopover
+                isOpen={pageFillPopoverOpen}
+                onClose={() => setPageFillPopoverOpen(false)}
+                anchorElement={pageFillPopoverAnchor}
+                fillType={backgroundImage ? 'image' : backgroundColor ? 'color' : 'color'}
+                imageUrl={backgroundImage}
+                imageType="Fill"
+                color={backgroundColor}
+                onImageUrlChange={(url) => {
+                  handleBackgroundImageChange(url);
+                }}
+                onImageTypeChange={() => {}}
+                onImageDescriptionChange={() => {}}
+                onColorChange={(color) => {
+                  handleBackgroundColorChange(color);
+                }}
+                opacity={backgroundColorOpacity}
+                onOpacityChange={handleBackgroundColorOpacityChange}
+              />
             </div>
             <div className="property-section">
               <div className="property-section-header">
@@ -340,7 +442,6 @@ export function PropertiesPanel({
   // Row properties mirror cell properties: vertical alignment, padding, and background
   // All properties are theme-level configurable with defaults
   if (selectedRow && !selectedCell && !selectedBlock && !isColumnsBlockRow && onUpdateRow) {
-    const theme = useTheme();
     const defaultPadding = theme.rowPadding || { mode: 'uniform', uniform: 0 };
     const defaultBackground = theme.rowBackground || { backgroundColor: '#ffffff', backgroundColorOpacity: 1, backgroundImage: undefined, backgroundImageOpacity: 1 };
     const defaultBorder = theme.rowBorder || { color: undefined, width: { mode: 'uniform', uniform: 0 }, style: 'solid' };
@@ -348,6 +449,7 @@ export function PropertiesPanel({
     
     // Get theme-specific properties
     const themeProps = getRowThemeProps(selectedRow, themeId);
+    const rowThemeProps = selectedRow.props?.themes?.[themeId];
     
     const verticalAlign = themeProps.verticalAlign || 'top';
     const padding = themeProps.padding || defaultPadding;
@@ -355,8 +457,10 @@ export function PropertiesPanel({
     const backgroundColorOpacity = themeProps.backgroundColorOpacity ?? defaultBackground.backgroundColorOpacity ?? 1;
     const backgroundImage = themeProps.backgroundImage ?? defaultBackground.backgroundImage;
     const backgroundImageOpacity = themeProps.backgroundImageOpacity ?? defaultBackground.backgroundImageOpacity ?? 1;
+    // Check if color/image is explicitly set (can be removed) vs just theme default
+    const hasExplicitBackground = rowThemeProps?.backgroundColor !== undefined || rowThemeProps?.backgroundImage !== undefined || 
+                                   selectedRow.props?.backgroundColor !== undefined || selectedRow.props?.backgroundImage !== undefined;
     const border = themeProps.border || defaultBorder;
-    const borderColor = border.color ?? defaultBorder.color ?? '#222222';
     const borderWidth = border.width || defaultBorder.width || { mode: 'uniform', uniform: 0 };
     const borderWidthMode = borderWidth.mode || defaultBorder.width?.mode || 'uniform';
     const uniformBorderWidth = borderWidth.uniform ?? defaultBorder.width?.uniform ?? 0;
@@ -364,6 +468,15 @@ export function PropertiesPanel({
     const rightBorderWidth = borderWidth.right ?? defaultBorder.width?.right ?? 0;
     const bottomBorderWidth = borderWidth.bottom ?? defaultBorder.width?.bottom ?? 0;
     const leftBorderWidth = borderWidth.left ?? defaultBorder.width?.left ?? 0;
+    // Only show border color if border width is > 0 (border is actually visible)
+    const hasVisibleBorder = borderWidthMode === 'uniform' 
+      ? uniformBorderWidth > 0 
+      : topBorderWidth > 0 || rightBorderWidth > 0 || bottomBorderWidth > 0 || leftBorderWidth > 0;
+    const themePrimaryColor = theme?.colors?.accent || '#326CF6';
+    // Always use a stable color value for preview - use border color if set, otherwise theme primary
+    const borderColorForPreview = border.color ?? defaultBorder.color ?? themePrimaryColor;
+    // Only show border color if border width is > 0 (border is actually visible)
+    const borderColor = hasVisibleBorder ? borderColorForPreview : themePrimaryColor;
     const borderStyle = border.style || defaultBorder.style || 'solid';
     const borderRadius = themeProps.borderRadius || defaultBorderRadius;
     const borderRadiusMode = borderRadius.mode || defaultBorderRadius.mode || 'uniform';
@@ -381,21 +494,25 @@ export function PropertiesPanel({
 
     // Helper to update theme-specific row properties
     const handleUpdateRowThemeProps = (updates: Partial<ThemeSpecificRowProps>) => {
-      if (!onUpdateRow) return;
-      const currentThemeProps = selectedRow.props?.themes?.[themeId] || {};
-      onUpdateRow({
-        ...selectedRow,
-        props: {
-          ...selectedRow.props,
-          themes: {
-            ...selectedRow.props?.themes,
-            [themeId]: {
-              ...currentThemeProps,
-              ...updates,
+      if (!onUpdateRow || !selectedRow || !isMountedRef.current) return;
+      try {
+        const currentThemeProps = selectedRow.props?.themes?.[themeId] || {};
+        onUpdateRow({
+          ...selectedRow,
+          props: {
+            ...selectedRow.props,
+            themes: {
+              ...selectedRow.props?.themes,
+              [themeId]: {
+                ...currentThemeProps,
+                ...updates,
+              },
             },
           },
-        },
-      });
+        });
+      } catch (error) {
+        console.error('Error updating row theme props:', error);
+      }
     };
 
     const handleUpdateRow = (updates: Partial<Row>) => {
@@ -447,9 +564,16 @@ export function PropertiesPanel({
     };
 
     const handleBackgroundColorChange = (value: string | undefined) => {
-      handleUpdateRowThemeProps({
-        backgroundColor: value || undefined,
-      });
+      if (value) {
+        handleUpdateRowThemeProps({
+          backgroundColor: value,
+          backgroundImage: undefined, // Clear image when setting color
+        });
+      } else {
+        handleUpdateRowThemeProps({
+          backgroundColor: undefined,
+        });
+      }
     };
 
     const handleBackgroundColorOpacityChange = (value: number) => {
@@ -459,8 +583,22 @@ export function PropertiesPanel({
     };
 
     const handleBackgroundImageChange = (value: string) => {
+      if (value) {
+        handleUpdateRowThemeProps({
+          backgroundImage: value,
+          backgroundColor: undefined, // Clear color when setting image
+        });
+      } else {
+        handleUpdateRowThemeProps({
+          backgroundImage: undefined,
+        });
+      }
+    };
+
+    const handleClearBackground = () => {
       handleUpdateRowThemeProps({
-        backgroundImage: value || undefined,
+        backgroundColor: undefined,
+        backgroundImage: undefined,
       });
     };
 
@@ -480,20 +618,36 @@ export function PropertiesPanel({
     };
 
     const handleBorderColorChange = (value: string) => {
-      handleUpdateRowThemeProps({
-        border: {
-          ...border,
-          color: value || undefined,
-        },
-      });
+      // Initialize border if it doesn't exist when user changes color
+      if (!hasVisibleBorder && !rowBorderInitializedRef.current) {
+        rowBorderInitializedRef.current = true;
+        handleUpdateRowThemeProps({
+          border: {
+            color: value || themePrimaryColor,
+            width: { mode: 'uniform', uniform: 2 },
+            style: 'solid',
+          },
+        });
+      } else {
+        handleUpdateRowThemeProps({
+          border: {
+            ...border,
+            color: value || undefined,
+            // Ensure style is set when color is set
+            style: border.style || borderStyle || 'solid',
+            // Ensure width is set when color is set
+            width: border.width || { mode: 'uniform', uniform: 2 },
+          },
+        });
+      }
     };
 
     const handleBorderWidthModeChange = (mode: 'uniform' | 'individual') => {
       handleUpdateRowThemeProps({
         border: {
           ...border,
-          // Ensure color is set if width is being set (use current color or default)
-          color: border.color || borderColor || '#222222',
+          // Ensure color is set if width is being set (use current color or theme primary)
+          color: border.color || borderColor || themePrimaryColor,
           width: {
             ...borderWidth,
             mode,
@@ -507,8 +661,8 @@ export function PropertiesPanel({
       handleUpdateRowThemeProps({
         border: {
           ...border,
-          // Ensure color is set if width is being set (use current color or default)
-          color: border.color || borderColor || '#222222',
+          // Ensure color is set if width is being set (use current color or theme primary)
+          color: border.color || borderColor || themePrimaryColor,
           width: {
             ...borderWidth,
             uniform: value,
@@ -522,8 +676,8 @@ export function PropertiesPanel({
       handleUpdateRowThemeProps({
         border: {
           ...border,
-          // Ensure color is set if width is being set (use current color or default)
-          color: border.color || borderColor || '#222222',
+          // Ensure color is set if width is being set (use current color or theme primary)
+          color: border.color || borderColor || themePrimaryColor,
           width: {
             ...borderWidth,
             [side]: value,
@@ -642,8 +796,11 @@ export function PropertiesPanel({
                         onClick={() => handlePaddingModeChange('uniform')}
                         aria-label="Uniform padding"
                       >
-                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                          <rect x="3" y="3" width="10" height="10" stroke="currentColor" strokeWidth="1.5" fill="none"/>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 10 10">
+                          <path d="M 0.75 3.5 L 0.75 2.75 C 0.75 1.645 1.645 0.75 2.75 0.75 L 3.5 0.75" fill="transparent" strokeWidth="1.5" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" opacity="1"/>
+                          <path d="M 9.25 3.5 L 9.25 2.75 C 9.25 1.645 8.355 0.75 7.25 0.75 L 6.5 0.75" fill="transparent" strokeWidth="1.5" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" opacity="1"/>
+                          <path d="M 9.25 6.5 L 9.25 7.25 C 9.25 8.355 8.355 9.25 7.25 9.25 L 6.5 9.25" fill="transparent" strokeWidth="1.5" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" opacity="1"/>
+                          <path d="M 0.75 6.5 L 0.75 7.25 C 0.75 8.355 1.645 9.25 2.75 9.25 L 3.5 9.25" fill="transparent" strokeWidth="1.5" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" opacity="1"/>
                         </svg>
                       </button>
                       <button
@@ -652,9 +809,13 @@ export function PropertiesPanel({
                         onClick={() => handlePaddingModeChange('individual')}
                         aria-label="Individual padding"
                       >
-                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                          <path d="M3 3h10v10H3z" stroke="currentColor" strokeWidth="1.5" fill="none"/>
-                          <path d="M8 3v10M3 8h10" stroke="currentColor" strokeWidth="1.5"/>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 10 10">
+                          <path d="M 0.75 3.5 L 0.75 2.75 C 0.75 1.645 1.645 0.75 2.75 0.75 L 3.5 0.75" fill="transparent" strokeWidth="1.5" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" opacity="1"/>
+                          <path d="M 9.25 3.5 L 9.25 2.75 C 9.25 1.645 8.355 0.75 7.25 0.75 L 6.5 0.75" fill="transparent" strokeWidth="1.5" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" opacity="1"/>
+                          <path d="M 9.25 6.5 L 9.25 7.25 C 9.25 8.355 8.355 9.25 7.25 9.25 L 6.5 9.25" fill="transparent" strokeWidth="1.5" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" opacity="1"/>
+                          <path d="M 0.75 6.5 L 0.75 7.25 C 0.75 8.355 1.645 9.25 2.75 9.25 L 3.5 9.25" fill="transparent" strokeWidth="1.5" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" opacity="1"/>
+                          <path d="M 5 0.75 L 5 9.25" fill="transparent" strokeWidth="1.5" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" opacity="1"/>
+                          <path d="M 0.75 5 L 9.25 5" fill="transparent" strokeWidth="1.5" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" opacity="1"/>
                         </svg>
                       </button>
                     </div>
@@ -712,8 +873,11 @@ export function PropertiesPanel({
                         onClick={() => handlePaddingModeChange('uniform')}
                         aria-label="Uniform padding"
                       >
-                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                          <rect x="3" y="3" width="10" height="10" stroke="currentColor" strokeWidth="1.5" fill="none"/>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 10 10">
+                          <path d="M 0.75 3.5 L 0.75 2.75 C 0.75 1.645 1.645 0.75 2.75 0.75 L 3.5 0.75" fill="transparent" strokeWidth="1.5" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" opacity="1"/>
+                          <path d="M 9.25 3.5 L 9.25 2.75 C 9.25 1.645 8.355 0.75 7.25 0.75 L 6.5 0.75" fill="transparent" strokeWidth="1.5" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" opacity="1"/>
+                          <path d="M 9.25 6.5 L 9.25 7.25 C 9.25 8.355 8.355 9.25 7.25 9.25 L 6.5 9.25" fill="transparent" strokeWidth="1.5" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" opacity="1"/>
+                          <path d="M 0.75 6.5 L 0.75 7.25 C 0.75 8.355 1.645 9.25 2.75 9.25 L 3.5 9.25" fill="transparent" strokeWidth="1.5" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" opacity="1"/>
                         </svg>
                       </button>
                       <button
@@ -722,9 +886,13 @@ export function PropertiesPanel({
                         onClick={() => handlePaddingModeChange('individual')}
                         aria-label="Individual padding"
                       >
-                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                          <path d="M3 3h10v10H3z" stroke="currentColor" strokeWidth="1.5" fill="none"/>
-                          <path d="M8 3v10M3 8h10" stroke="currentColor" strokeWidth="1.5"/>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 10 10">
+                          <path d="M 0.75 3.5 L 0.75 2.75 C 0.75 1.645 1.645 0.75 2.75 0.75 L 3.5 0.75" fill="transparent" strokeWidth="1.5" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" opacity="1"/>
+                          <path d="M 9.25 3.5 L 9.25 2.75 C 9.25 1.645 8.355 0.75 7.25 0.75 L 6.5 0.75" fill="transparent" strokeWidth="1.5" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" opacity="1"/>
+                          <path d="M 9.25 6.5 L 9.25 7.25 C 9.25 8.355 8.355 9.25 7.25 9.25 L 6.5 9.25" fill="transparent" strokeWidth="1.5" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" opacity="1"/>
+                          <path d="M 0.75 6.5 L 0.75 7.25 C 0.75 8.355 1.645 9.25 2.75 9.25 L 3.5 9.25" fill="transparent" strokeWidth="1.5" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" opacity="1"/>
+                          <path d="M 5 0.75 L 5 9.25" fill="transparent" strokeWidth="1.5" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" opacity="1"/>
+                          <path d="M 0.75 5 L 9.25 5" fill="transparent" strokeWidth="1.5" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" opacity="1"/>
                         </svg>
                       </button>
                     </div>
@@ -734,277 +902,183 @@ export function PropertiesPanel({
             </div>
           </div>
           <div className="property-group">
-            <div className="property-label-with-icon">
-              <span className="property-icon">+</span>
-              <label htmlFor="row-background">Background</label>
-              <button
-                type="button"
-                className="property-reset-button"
-                onClick={handleResetBackground}
-                aria-label="Reset to default"
-                title="Reset to theme default"
-              >
-                <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-                  <path d="M2 8a6 6 0 0 1 6-6v2M14 8a6 6 0 0 1-6 6v-2M8 2L6 4M8 14l2-2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-              </button>
-            </div>
             <div className="background-controls">
               <div className="property-group">
-                <label htmlFor="row-background-color">Background Color</label>
-                <div className="color-input-wrapper">
-                  <input
-                    id="row-background-color"
-                    type="color"
-                    value={backgroundColor || '#ffffff'}
-                    onChange={(e) => handleBackgroundColorChange(e.target.value)}
-                    className="property-color-input"
-                    disabled={!backgroundColor}
-                  />
-                  <input
-                    type="text"
-                    value={backgroundColor || ''}
-                    onChange={(e) => handleBackgroundColorChange(e.target.value || undefined)}
-                    className="property-input color-text-input"
-                    placeholder={backgroundColor ? "#ffffff" : "Transparent"}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => handleBackgroundColorChange(undefined as any)}
-                    className="transparent-button"
-                    title="Set to transparent"
-                    style={{
-                      padding: '6px 12px',
-                      fontSize: '12px',
-                      border: '1px solid #e0e0e0',
-                      borderRadius: '6px',
-                      background: !backgroundColor ? '#f0f0f0' : 'transparent',
-                      color: !backgroundColor ? '#666' : '#333',
-                      cursor: 'pointer',
-                      whiteSpace: 'nowrap',
-                    }}
-                  >
-                    {backgroundColor ? 'Set transparent' : 'Transparent'}
-                  </button>
-                </div>
-                <div className="opacity-control">
-                  <label htmlFor="row-background-color-opacity">Opacity: {Math.round(backgroundColorOpacity * 100)}%</label>
-                  <input
-                    id="row-background-color-opacity"
-                    type="range"
-                    min="0"
-                    max="1"
-                    step="0.01"
-                    value={backgroundColorOpacity}
-                    onChange={(e) => handleBackgroundColorOpacityChange(parseFloat(e.target.value))}
-                    className="property-range opacity-range"
-                  />
+                <label className="property-label">Fill</label>
+                <div
+                  ref={rowFillPopoverAnchorRef}
+                  className="fill-input"
+                  onClick={() => {
+                    // Always get fresh anchor element reference
+                    const anchor = rowFillPopoverAnchorRef.current;
+                    if (anchor) {
+                      setRowFillPopoverAnchor(anchor);
+                      setRowFillPopoverOpen(true);
+                    }
+                  }}
+                >
+                  {backgroundImage ? (
+                    <>
+                      <div className="fill-input-preview">
+                        <img src={backgroundImage} alt="Preview" />
+                      </div>
+                      <span style={{ fontSize: '13px', fontFamily: 'monospace', color: '#1a1a1a' }}>
+                        Image
+                      </span>
+                    </>
+                  ) : backgroundColor ? (
+                    <>
+                      <div
+                        className="fill-input-swatch"
+                        style={{ backgroundColor }}
+                      />
+                      <span style={{ fontSize: '13px', fontFamily: 'monospace', color: '#1a1a1a' }}>
+                        {backgroundColor.toUpperCase()}
+                      </span>
+                    </>
+                  ) : (
+                    <div className="fill-input-placeholder">Add...</div>
+                  )}
+                  {hasExplicitBackground && (
+                    <button
+                      type="button"
+                      className="fill-input-clear"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleClearBackground();
+                        // Close the popover when clearing
+                        setRowFillPopoverOpen(false);
+                      }}
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="8" height="8.5" viewBox="0 0 8 8.5">
+                        <g fill="transparent" strokeWidth="1.5" stroke="currentColor" strokeLinecap="round">
+                          <path d="m1.5 6.75 5-5M6.5 6.75l-5-5"></path>
+                        </g>
+                      </svg>
+                    </button>
+                  )}
                 </div>
               </div>
-              <div className="property-group">
-                <label htmlFor="row-background-image">Background Image URL</label>
-                <input
-                  id="row-background-image"
-                  type="text"
-                  value={backgroundImage || ''}
-                  onChange={(e) => handleBackgroundImageChange(e.target.value)}
-                  className="property-input"
-                  placeholder="https://example.com/image.jpg"
-                />
-                {backgroundImage && (
-                  <>
-                    <div className="background-image-preview">
-                      <img
-                        src={backgroundImage}
-                        alt="Background preview"
-                        className="background-preview-img"
-                        onError={(e) => {
-                          (e.target as HTMLImageElement).style.display = 'none';
-                        }}
-                      />
-                    </div>
-                    <div className="opacity-control">
-                      <label htmlFor="row-background-image-opacity">Opacity: {Math.round(backgroundImageOpacity * 100)}%</label>
-                      <input
-                        id="row-background-image-opacity"
-                        type="range"
-                        min="0"
-                        max="1"
-                        step="0.01"
-                        value={backgroundImageOpacity}
-                        onChange={(e) => handleBackgroundImageOpacityChange(parseFloat(e.target.value))}
-                        className="property-range opacity-range"
-                      />
-                    </div>
-                  </>
-                )}
-              </div>
+
+              <FillPopover
+                isOpen={rowFillPopoverOpen}
+                onClose={() => setRowFillPopoverOpen(false)}
+                anchorElement={rowFillPopoverAnchor}
+                fillType={backgroundImage ? 'image' : backgroundColor ? 'color' : 'color'}
+                imageUrl={backgroundImage}
+                imageType="Fill"
+                color={backgroundColor}
+                opacity={backgroundColorOpacity}
+                onImageUrlChange={(url) => {
+                  handleBackgroundImageChange(url);
+                }}
+                onImageTypeChange={() => {}}
+                onImageDescriptionChange={() => {}}
+                onColorChange={(color) => {
+                  handleBackgroundColorChange(color);
+                }}
+                onOpacityChange={handleBackgroundColorOpacityChange}
+              />
             </div>
           </div>
           <div className="property-group">
-            <div className="property-label-with-icon">
-              <span className="property-icon">+</span>
-              <label htmlFor="row-border">Border</label>
-              <button
-                type="button"
-                className="property-reset-button"
-                onClick={handleResetBorder}
-                aria-label="Reset to default"
-                title="Reset to theme default"
-              >
-                <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-                  <path d="M2 8a6 6 0 0 1 6-6v2M14 8a6 6 0 0 1-6 6v-2M8 2L6 4M8 14l2-2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-              </button>
-            </div>
             <div className="border-controls">
-              <div className="property-group">
-                <label htmlFor="row-border-color">Color</label>
-                <div className="color-input-wrapper">
-                  <input
-                    id="row-border-color"
-                    type="color"
-                    value={borderColor || '#222222'}
-                    onChange={(e) => handleBorderColorChange(e.target.value)}
-                    className="property-color-input"
+              <div
+                ref={rowBorderPopoverAnchorRef}
+                className="property-group"
+                style={{ cursor: 'pointer' }}
+                onClick={() => {
+                  // Always get fresh anchor element reference
+                  const anchor = rowBorderPopoverAnchorRef.current;
+                  if (anchor) {
+                    setRowBorderPopoverAnchor(anchor);
+                    // Initialize border if it doesn't exist when opening popover
+                    if (!hasVisibleBorder && !rowBorderInitializedRef.current && selectedRow && onUpdateRow) {
+                      rowBorderInitializedRef.current = true;
+                      handleUpdateRowThemeProps({
+                        border: {
+                          color: themePrimaryColor,
+                          width: { mode: 'uniform', uniform: 2 },
+                          style: 'solid',
+                        },
+                      });
+                    }
+                    setRowBorderPopoverOpen(true);
+                  }
+                }}
+              >
+                <label className="property-label">Border</label>
+                <div className="fill-input">
+                  <div
+                    className="fill-input-swatch"
+                    style={{ backgroundColor: borderColorForPreview || '#CBCBCB' }}
                   />
-                  <input
-                    type="text"
-                    value={borderColor || ''}
-                    onChange={(e) => handleBorderColorChange(e.target.value)}
-                    className="property-input color-text-input"
-                    placeholder="#222222"
-                  />
+                  <span style={{ fontSize: '13px', fontFamily: 'monospace', color: '#1a1a1a' }}>
+                    {hasVisibleBorder ? borderStyle.charAt(0).toUpperCase() + borderStyle.slice(1) : 'Add...'}
+                  </span>
                 </div>
               </div>
-              <div className="property-group">
-                <label htmlFor="row-border-width">Width</label>
-                <div className="border-width-controls">
-                  <div className="border-width-top-row">
-                    {borderWidthMode === 'uniform' ? (
-                      <>
-                        <input
-                          id="row-border-width-uniform"
-                          type="number"
-                          min="0"
-                          value={uniformBorderWidth}
-                          onChange={(e) => handleUniformBorderWidthChange(parseInt(e.target.value, 10) || 0)}
-                          className="property-input border-width-input"
-                        />
-                        <div className="border-width-mode-toggle">
-                          <button
-                            type="button"
-                            className={`border-width-mode-button ${borderWidthMode === 'uniform' ? 'active' : ''}`}
-                            onClick={() => handleBorderWidthModeChange('uniform')}
-                            aria-label="Uniform border width"
-                          >
-                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                              <rect x="3" y="3" width="10" height="10" stroke="currentColor" strokeWidth="1.5" fill="none"/>
-                            </svg>
-                          </button>
-                          <button
-                            type="button"
-                            className={`border-width-mode-button ${borderWidthMode === 'individual' ? 'active' : ''}`}
-                            onClick={() => handleBorderWidthModeChange('individual')}
-                            aria-label="Individual border width"
-                          >
-                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                              <path d="M3 3h10v10H3z" stroke="currentColor" strokeWidth="1.5" fill="none"/>
-                              <path d="M8 3v10M3 8h10" stroke="currentColor" strokeWidth="1.5"/>
-                            </svg>
-                          </button>
-                        </div>
-                      </>
-                    ) : (
-                      <div className="border-width-individual-row">
-                        <div className="border-width-input-group">
-                          <input
-                            id="row-border-width-top"
-                            type="number"
-                            min="0"
-                            value={topBorderWidth}
-                            onChange={(e) => handleIndividualBorderWidthChange('top', parseInt(e.target.value, 10) || 0)}
-                            className="property-input border-width-input"
-                          />
-                        </div>
-                        <div className="border-width-input-group">
-                          <input
-                            id="row-border-width-right"
-                            type="number"
-                            min="0"
-                            value={rightBorderWidth}
-                            onChange={(e) => handleIndividualBorderWidthChange('right', parseInt(e.target.value, 10) || 0)}
-                            className="property-input border-width-input"
-                          />
-                        </div>
-                        <div className="border-width-input-group">
-                          <input
-                            id="row-border-width-bottom"
-                            type="number"
-                            min="0"
-                            value={bottomBorderWidth}
-                            onChange={(e) => handleIndividualBorderWidthChange('bottom', parseInt(e.target.value, 10) || 0)}
-                            className="property-input border-width-input"
-                          />
-                        </div>
-                        <div className="border-width-input-group">
-                          <input
-                            id="row-border-width-left"
-                            type="number"
-                            min="0"
-                            value={leftBorderWidth}
-                            onChange={(e) => handleIndividualBorderWidthChange('left', parseInt(e.target.value, 10) || 0)}
-                            className="property-input border-width-input"
-                          />
-                        </div>
-                        <div className="border-width-labels">
-                          <span className="border-width-label">T</span>
-                          <span className="border-width-label">R</span>
-                          <span className="border-width-label">B</span>
-                          <span className="border-width-label">L</span>
-                        </div>
-                        <div className="border-width-mode-toggle">
-                          <button
-                            type="button"
-                            className={`border-width-mode-button ${borderWidthMode === 'uniform' ? 'active' : ''}`}
-                            onClick={() => handleBorderWidthModeChange('uniform')}
-                            aria-label="Uniform border width"
-                          >
-                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                              <rect x="3" y="3" width="10" height="10" stroke="currentColor" strokeWidth="1.5" fill="none"/>
-                            </svg>
-                          </button>
-                          <button
-                            type="button"
-                            className={`border-width-mode-button ${borderWidthMode === 'individual' ? 'active' : ''}`}
-                            onClick={() => handleBorderWidthModeChange('individual')}
-                            aria-label="Individual border width"
-                          >
-                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                              <path d="M3 3h10v10H3z" stroke="currentColor" strokeWidth="1.5" fill="none"/>
-                              <path d="M8 3v10M3 8h10" stroke="currentColor" strokeWidth="1.5"/>
-                            </svg>
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-              <div className="property-group">
-                <label htmlFor="row-border-style">Style</label>
-                <select
-                  id="row-border-style"
-                  value={borderStyle}
-                  onChange={(e) => handleBorderStyleChange(e.target.value as 'solid' | 'dashed' | 'dotted' | 'double')}
-                  className="property-select"
-                >
-                  <option value="solid">Solid</option>
-                  <option value="dashed">Dashed</option>
-                  <option value="dotted">Dotted</option>
-                  <option value="double">Double</option>
-                </select>
-              </div>
+
+              <BorderPopover
+                isOpen={rowBorderPopoverOpen}
+                onClose={() => {
+                  setRowBorderPopoverOpen(false);
+                }}
+                anchorElement={rowBorderPopoverAnchor}
+                color={borderColorForPreview || themePrimaryColor}
+                width={hasVisibleBorder ? borderWidth : { mode: 'uniform', uniform: 2 }}
+                style={borderStyle}
+                onColorChange={handleBorderColorChange}
+                onWidthChange={(width) => {
+                  // Initialize border if it doesn't exist when user changes width
+                  if (!hasVisibleBorder && !rowBorderInitializedRef.current && selectedRow && onUpdateRow) {
+                    rowBorderInitializedRef.current = true;
+                    handleUpdateRowThemeProps({
+                      border: {
+                        color: themePrimaryColor,
+                        width: width,
+                        style: 'solid',
+                      },
+                    });
+                    return; // Don't call the handler again since we just initialized
+                  }
+                  // Normal width change handler
+                  if (width.mode === 'uniform') {
+                    handleUniformBorderWidthChange(width.uniform || 0);
+                  } else {
+                    handleIndividualBorderWidthChange('top', width.top || 0);
+                    handleIndividualBorderWidthChange('right', width.right || 0);
+                    handleIndividualBorderWidthChange('bottom', width.bottom || 0);
+                    handleIndividualBorderWidthChange('left', width.left || 0);
+                  }
+                }}
+                onStyleChange={handleBorderStyleChange}
+                onOpenColorPicker={() => {
+                  setRowColorPickerOpen(true);
+                }}
+              />
+
+              {rowBorderPopoverOpen && (
+                <ColorPickerPopover
+                  isOpen={rowColorPickerOpen && rowBorderPopoverOpen}
+                  onClose={() => {
+                    setRowColorPickerOpen(false);
+                    setRowBorderPopoverOpen(true);
+                  }}
+                  anchorElement={rowBorderPopoverAnchor}
+                  color={borderColor || '#326CF6'}
+                  opacity={1}
+                  onColorChange={handleBorderColorChange}
+                  onOpacityChange={() => {}}
+                  showBackButton={true}
+                  onBack={() => {
+                    setRowColorPickerOpen(false);
+                    setRowBorderPopoverOpen(true);
+                  }}
+                  title="Border"
+                />
+              )}
+
             </div>
           </div>
           {/* Border Radius */}
@@ -1157,7 +1231,6 @@ export function PropertiesPanel({
 
   // If cell is selected, show cell properties
   if (selectedCell && !selectedBlock && !isColumnsBlockRow) {
-    const theme = useTheme();
     const defaultPadding = theme.cellPadding || { mode: 'uniform', uniform: 0 };
     const defaultBackground = theme.cellBackground || { backgroundColor: undefined, backgroundColorOpacity: 1, backgroundImage: undefined, backgroundImageOpacity: 1 };
     const defaultBorder = theme.cellBorder || { color: undefined, width: { mode: 'uniform', uniform: 0 }, style: 'solid' };
@@ -1165,6 +1238,7 @@ export function PropertiesPanel({
     
     // Get theme-specific properties with fallback to theme defaults
     const themeProps = getCellThemeProps(selectedCell, themeId, theme);
+    const cellThemeProps = selectedCell.props?.themes?.[themeId];
     
     const verticalAlign = themeProps.verticalAlign || 'top';
     const padding = themeProps.padding || defaultPadding;
@@ -1172,8 +1246,10 @@ export function PropertiesPanel({
     const backgroundColorOpacity = themeProps.backgroundColorOpacity ?? defaultBackground.backgroundColorOpacity ?? 1;
     const backgroundImage = themeProps.backgroundImage ?? defaultBackground.backgroundImage;
     const backgroundImageOpacity = themeProps.backgroundImageOpacity ?? defaultBackground.backgroundImageOpacity ?? 1;
+    // Check if color/image is explicitly set (can be removed) vs just theme default
+    const hasExplicitBackground = cellThemeProps?.backgroundColor !== undefined || cellThemeProps?.backgroundImage !== undefined ||
+                                   selectedCell.props?.backgroundColor !== undefined || selectedCell.props?.backgroundImage !== undefined;
     const border = themeProps.border || defaultBorder;
-    const borderColor = border.color ?? defaultBorder.color ?? '#222222';
     const borderWidth = border.width || defaultBorder.width || { mode: 'uniform', uniform: 0 };
     const borderWidthMode = borderWidth.mode || defaultBorder.width?.mode || 'uniform';
     const uniformBorderWidth = borderWidth.uniform ?? defaultBorder.width?.uniform ?? 0;
@@ -1181,6 +1257,15 @@ export function PropertiesPanel({
     const rightBorderWidth = borderWidth.right ?? defaultBorder.width?.right ?? 0;
     const bottomBorderWidth = borderWidth.bottom ?? defaultBorder.width?.bottom ?? 0;
     const leftBorderWidth = borderWidth.left ?? defaultBorder.width?.left ?? 0;
+    // Only show border color if border width is > 0 (border is actually visible)
+    const hasVisibleBorder = borderWidthMode === 'uniform' 
+      ? uniformBorderWidth > 0 
+      : topBorderWidth > 0 || rightBorderWidth > 0 || bottomBorderWidth > 0 || leftBorderWidth > 0;
+    const themePrimaryColor = theme?.colors?.accent || '#326CF6';
+    // Always use a stable color value for preview - use border color if set, otherwise theme primary
+    const borderColorForPreview = border.color ?? defaultBorder.color ?? themePrimaryColor;
+    // Only show border color if border width is > 0 (border is actually visible)
+    const borderColor = hasVisibleBorder ? borderColorForPreview : themePrimaryColor;
     const borderStyle = border.style || defaultBorder.style || 'solid';
     const borderRadius = themeProps.borderRadius || defaultBorderRadius;
     const borderRadiusMode = borderRadius.mode || defaultBorderRadius.mode || 'uniform';
@@ -1198,21 +1283,25 @@ export function PropertiesPanel({
 
     // Helper to update theme-specific cell properties
     const handleUpdateCellThemeProps = (updates: Partial<ThemeSpecificCellProps>) => {
-      if (!onUpdateCell) return;
-      const currentThemeProps = selectedCell.props?.themes?.[themeId] || {};
-      onUpdateCell({
-        ...selectedCell,
-        props: {
-          ...selectedCell.props,
-          themes: {
-            ...selectedCell.props?.themes,
-            [themeId]: {
-              ...currentThemeProps,
-              ...updates,
+      if (!onUpdateCell || !selectedCell || !isMountedRef.current) return;
+      try {
+        const currentThemeProps = selectedCell.props?.themes?.[themeId] || {};
+        onUpdateCell({
+          ...selectedCell,
+          props: {
+            ...selectedCell.props,
+            themes: {
+              ...selectedCell.props?.themes,
+              [themeId]: {
+                ...currentThemeProps,
+                ...updates,
+              },
             },
           },
-        },
-      });
+        });
+      } catch (error) {
+        console.error('Error updating cell theme props:', error);
+      }
     };
 
     const handleUpdateCell = (updates: Partial<Cell>) => {
@@ -1265,9 +1354,16 @@ export function PropertiesPanel({
     };
 
     const handleBackgroundColorChange = (value: string | undefined) => {
-      handleUpdateCellThemeProps({
-        backgroundColor: value || undefined,
-      });
+      if (value) {
+        handleUpdateCellThemeProps({
+          backgroundColor: value,
+          backgroundImage: undefined, // Clear image when setting color
+        });
+      } else {
+        handleUpdateCellThemeProps({
+          backgroundColor: undefined,
+        });
+      }
     };
 
     const handleBackgroundColorOpacityChange = (value: number) => {
@@ -1277,8 +1373,22 @@ export function PropertiesPanel({
     };
 
     const handleBackgroundImageChange = (value: string) => {
+      if (value) {
+        handleUpdateCellThemeProps({
+          backgroundImage: value,
+          backgroundColor: undefined, // Clear color when setting image
+        });
+      } else {
+        handleUpdateCellThemeProps({
+          backgroundImage: undefined,
+        });
+      }
+    };
+
+    const handleClearBackground = () => {
       handleUpdateCellThemeProps({
-        backgroundImage: value || undefined,
+        backgroundColor: undefined,
+        backgroundImage: undefined,
       });
     };
 
@@ -1298,20 +1408,36 @@ export function PropertiesPanel({
     };
 
     const handleBorderColorChange = (value: string) => {
-      handleUpdateCellThemeProps({
-        border: {
-          ...border,
-          color: value || undefined,
-        },
-      });
+      // Initialize border if it doesn't exist when user changes color
+      if (!hasVisibleBorder && !cellBorderInitializedRef.current) {
+        cellBorderInitializedRef.current = true;
+        handleUpdateCellThemeProps({
+          border: {
+            color: value || themePrimaryColor,
+            width: { mode: 'uniform', uniform: 2 },
+            style: 'solid',
+          },
+        });
+      } else {
+        handleUpdateCellThemeProps({
+          border: {
+            ...border,
+            color: value || undefined,
+            // Ensure style is set when color is set
+            style: border.style || borderStyle || 'solid',
+            // Ensure width is set when color is set
+            width: border.width || { mode: 'uniform', uniform: 2 },
+          },
+        });
+      }
     };
 
     const handleBorderWidthModeChange = (mode: 'uniform' | 'individual') => {
       handleUpdateCellThemeProps({
         border: {
           ...border,
-          // Ensure color is set if width is being set (use current color or default)
-          color: border.color || borderColor || '#222222',
+          // Ensure color is set if width is being set (use current color or theme primary)
+          color: border.color || borderColor || themePrimaryColor,
           width: {
             ...borderWidth,
             mode,
@@ -1325,8 +1451,10 @@ export function PropertiesPanel({
       handleUpdateCellThemeProps({
         border: {
           ...border,
-          // Ensure color is set if width is being set (use current color or default)
-          color: border.color || borderColor || '#222222',
+          // Ensure color is set if width is being set (use current color or theme primary)
+          color: border.color || borderColor || themePrimaryColor,
+          // Ensure style is set
+          style: border.style || borderStyle || 'solid',
           width: {
             ...borderWidth,
             uniform: value,
@@ -1340,8 +1468,10 @@ export function PropertiesPanel({
       handleUpdateCellThemeProps({
         border: {
           ...border,
-          // Ensure color is set if width is being set (use current color or default)
-          color: border.color || borderColor || '#222222',
+          // Ensure color is set if width is being set (use current color or theme primary)
+          color: border.color || borderColor || themePrimaryColor,
+          // Ensure style is set
+          style: border.style || borderStyle || 'solid',
           width: {
             ...borderWidth,
             [side]: value,
@@ -1572,277 +1702,182 @@ export function PropertiesPanel({
             </div>
           </div>
           <div className="property-group">
-            <div className="property-label-with-icon">
-              <span className="property-icon">+</span>
-              <label htmlFor="cell-background">Background</label>
-              <button
-                type="button"
-                className="property-reset-button"
-                onClick={handleResetBackground}
-                aria-label="Reset to default"
-                title="Reset to theme default"
-              >
-                <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-                  <path d="M2 8a6 6 0 0 1 6-6v2M14 8a6 6 0 0 1-6 6v-2M8 2L6 4M8 14l2-2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-              </button>
-            </div>
             <div className="background-controls">
               <div className="property-group">
-                <label htmlFor="cell-background-color">Background Color</label>
-                <div className="color-input-wrapper">
-                  <input
-                    id="cell-background-color"
-                    type="color"
-                    value={backgroundColor || '#ffffff'}
-                    onChange={(e) => handleBackgroundColorChange(e.target.value)}
-                    className="property-color-input"
-                    disabled={!backgroundColor}
-                  />
-                  <input
-                    type="text"
-                    value={backgroundColor || ''}
-                    onChange={(e) => handleBackgroundColorChange(e.target.value || undefined)}
-                    className="property-input color-text-input"
-                    placeholder={backgroundColor ? "#ffffff" : "Transparent"}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => handleBackgroundColorChange(undefined as any)}
-                    className="transparent-button"
-                    title="Set to transparent"
-                    style={{
-                      padding: '6px 12px',
-                      fontSize: '12px',
-                      border: '1px solid #e0e0e0',
-                      borderRadius: '6px',
-                      background: !backgroundColor ? '#f0f0f0' : 'transparent',
-                      color: !backgroundColor ? '#666' : '#333',
-                      cursor: 'pointer',
-                      whiteSpace: 'nowrap',
-                    }}
-                  >
-                    {backgroundColor ? 'Set transparent' : 'Transparent'}
-                  </button>
-                </div>
-                <div className="opacity-control">
-                  <label htmlFor="cell-background-color-opacity">Opacity: {Math.round(backgroundColorOpacity * 100)}%</label>
-                  <input
-                    id="cell-background-color-opacity"
-                    type="range"
-                    min="0"
-                    max="1"
-                    step="0.01"
-                    value={backgroundColorOpacity}
-                    onChange={(e) => handleBackgroundColorOpacityChange(parseFloat(e.target.value))}
-                    className="property-range opacity-range"
-                  />
+                <label className="property-label">Fill</label>
+                <div
+                  ref={cellFillPopoverAnchorRef}
+                  className="fill-input"
+                  onClick={() => {
+                    // Always get fresh anchor element reference
+                    const anchor = cellFillPopoverAnchorRef.current;
+                    if (anchor) {
+                      setCellFillPopoverAnchor(anchor);
+                      setCellFillPopoverOpen(true);
+                    }
+                  }}
+                >
+                  {backgroundImage ? (
+                    <>
+                      <div className="fill-input-preview">
+                        <img src={backgroundImage} alt="Preview" />
+                      </div>
+                      <span style={{ fontSize: '13px', fontFamily: 'monospace', color: '#1a1a1a' }}>
+                        Image
+                      </span>
+                    </>
+                  ) : backgroundColor ? (
+                    <>
+                      <div
+                        className="fill-input-swatch"
+                        style={{ backgroundColor }}
+                      />
+                      <span style={{ fontSize: '13px', fontFamily: 'monospace', color: '#1a1a1a' }}>
+                        {backgroundColor.toUpperCase()}
+                      </span>
+                    </>
+                  ) : (
+                    <div className="fill-input-placeholder">Add...</div>
+                  )}
+                  {hasExplicitBackground && (
+                    <button
+                      type="button"
+                      className="fill-input-clear"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleClearBackground();
+                        // Close the popover when clearing
+                        setCellFillPopoverOpen(false);
+                      }}
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="8" height="8.5" viewBox="0 0 8 8.5">
+                        <g fill="transparent" strokeWidth="1.5" stroke="currentColor" strokeLinecap="round">
+                          <path d="m1.5 6.75 5-5M6.5 6.75l-5-5"></path>
+                        </g>
+                      </svg>
+                    </button>
+                  )}
                 </div>
               </div>
-              <div className="property-group">
-                <label htmlFor="cell-background-image">Background Image URL</label>
-                <input
-                  id="cell-background-image"
-                  type="text"
-                  value={backgroundImage || ''}
-                  onChange={(e) => handleBackgroundImageChange(e.target.value)}
-                  className="property-input"
-                  placeholder="https://example.com/image.jpg"
-                />
-                {backgroundImage && (
-                  <>
-                    <div className="background-image-preview">
-                      <img
-                        src={backgroundImage}
-                        alt="Background preview"
-                        className="background-preview-img"
-                        onError={(e) => {
-                          (e.target as HTMLImageElement).style.display = 'none';
-                        }}
-                      />
-                    </div>
-                    <div className="opacity-control">
-                      <label htmlFor="cell-background-image-opacity">Opacity: {Math.round(backgroundImageOpacity * 100)}%</label>
-                      <input
-                        id="cell-background-image-opacity"
-                        type="range"
-                        min="0"
-                        max="1"
-                        step="0.01"
-                        value={backgroundImageOpacity}
-                        onChange={(e) => handleBackgroundImageOpacityChange(parseFloat(e.target.value))}
-                        className="property-range opacity-range"
-                      />
-                    </div>
-                  </>
-                )}
-              </div>
+
+              <FillPopover
+                isOpen={cellFillPopoverOpen}
+                onClose={() => setCellFillPopoverOpen(false)}
+                anchorElement={cellFillPopoverAnchor}
+                fillType={backgroundImage ? 'image' : backgroundColor ? 'color' : 'color'}
+                imageUrl={backgroundImage}
+                imageType="Fill"
+                color={backgroundColor}
+                opacity={backgroundColorOpacity}
+                onImageUrlChange={(url) => {
+                  handleBackgroundImageChange(url);
+                }}
+                onImageTypeChange={() => {}}
+                onImageDescriptionChange={() => {}}
+                onColorChange={(color) => {
+                  handleBackgroundColorChange(color);
+                }}
+                onOpacityChange={handleBackgroundColorOpacityChange}
+              />
             </div>
           </div>
           <div className="property-group">
-            <div className="property-label-with-icon">
-              <span className="property-icon">+</span>
-              <label htmlFor="cell-border">Border</label>
-              <button
-                type="button"
-                className="property-reset-button"
-                onClick={handleResetBorder}
-                aria-label="Reset to default"
-                title="Reset to theme default"
-              >
-                <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-                  <path d="M2 8a6 6 0 0 1 6-6v2M14 8a6 6 0 0 1-6 6v-2M8 2L6 4M8 14l2-2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-              </button>
-            </div>
             <div className="border-controls">
-              <div className="property-group">
-                <label htmlFor="cell-border-color">Color</label>
-                <div className="color-input-wrapper">
-                  <input
-                    id="cell-border-color"
-                    type="color"
-                    value={borderColor || '#222222'}
-                    onChange={(e) => handleBorderColorChange(e.target.value)}
-                    className="property-color-input"
+              <div
+                ref={cellBorderPopoverAnchorRef}
+                className="property-group"
+                style={{ cursor: 'pointer' }}
+                onClick={() => {
+                  // Always get fresh anchor element reference
+                  const anchor = cellBorderPopoverAnchorRef.current;
+                  if (anchor) {
+                    setCellBorderPopoverAnchor(anchor);
+                    // Initialize border if it doesn't exist when opening popover
+                    if (!hasVisibleBorder && !cellBorderInitializedRef.current && selectedCell && onUpdateCell) {
+                      cellBorderInitializedRef.current = true;
+                      handleUpdateCellThemeProps({
+                        border: {
+                          color: themePrimaryColor,
+                          width: { mode: 'uniform', uniform: 2 },
+                          style: 'solid',
+                        },
+                      });
+                    }
+                    setCellBorderPopoverOpen(true);
+                  }
+                }}
+              >
+                <label className="property-label">Border</label>
+                <div className="fill-input">
+                  <div
+                    className="fill-input-swatch"
+                    style={{ backgroundColor: borderColorForPreview || '#CBCBCB' }}
                   />
-                  <input
-                    type="text"
-                    value={borderColor || ''}
-                    onChange={(e) => handleBorderColorChange(e.target.value)}
-                    className="property-input color-text-input"
-                    placeholder="#222222"
-                  />
+                  <span style={{ fontSize: '13px', fontFamily: 'monospace', color: '#1a1a1a' }}>
+                    {hasVisibleBorder ? borderStyle.charAt(0).toUpperCase() + borderStyle.slice(1) : 'Add...'}
+                  </span>
                 </div>
               </div>
-              <div className="property-group">
-                <label htmlFor="cell-border-width">Width</label>
-                <div className="border-width-controls">
-                  <div className="border-width-top-row">
-                    {borderWidthMode === 'uniform' ? (
-                      <>
-                        <input
-                          id="cell-border-width-uniform"
-                          type="number"
-                          min="0"
-                          value={uniformBorderWidth}
-                          onChange={(e) => handleUniformBorderWidthChange(parseInt(e.target.value, 10) || 0)}
-                          className="property-input border-width-input"
-                        />
-                        <div className="border-width-mode-toggle">
-                          <button
-                            type="button"
-                            className={`border-width-mode-button ${borderWidthMode === 'uniform' ? 'active' : ''}`}
-                            onClick={() => handleBorderWidthModeChange('uniform')}
-                            aria-label="Uniform border width"
-                          >
-                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                              <rect x="3" y="3" width="10" height="10" stroke="currentColor" strokeWidth="1.5" fill="none"/>
-                            </svg>
-                          </button>
-                          <button
-                            type="button"
-                            className={`border-width-mode-button ${borderWidthMode === 'individual' ? 'active' : ''}`}
-                            onClick={() => handleBorderWidthModeChange('individual')}
-                            aria-label="Individual border width"
-                          >
-                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                              <path d="M3 3h10v10H3z" stroke="currentColor" strokeWidth="1.5" fill="none"/>
-                              <path d="M8 3v10M3 8h10" stroke="currentColor" strokeWidth="1.5"/>
-                            </svg>
-                          </button>
-                        </div>
-                      </>
-                    ) : (
-                      <div className="border-width-individual-row">
-                        <div className="border-width-input-group">
-                          <input
-                            id="cell-border-width-top"
-                            type="number"
-                            min="0"
-                            value={topBorderWidth}
-                            onChange={(e) => handleIndividualBorderWidthChange('top', parseInt(e.target.value, 10) || 0)}
-                            className="property-input border-width-input"
-                          />
-                        </div>
-                        <div className="border-width-input-group">
-                          <input
-                            id="cell-border-width-right"
-                            type="number"
-                            min="0"
-                            value={rightBorderWidth}
-                            onChange={(e) => handleIndividualBorderWidthChange('right', parseInt(e.target.value, 10) || 0)}
-                            className="property-input border-width-input"
-                          />
-                        </div>
-                        <div className="border-width-input-group">
-                          <input
-                            id="cell-border-width-bottom"
-                            type="number"
-                            min="0"
-                            value={bottomBorderWidth}
-                            onChange={(e) => handleIndividualBorderWidthChange('bottom', parseInt(e.target.value, 10) || 0)}
-                            className="property-input border-width-input"
-                          />
-                        </div>
-                        <div className="border-width-input-group">
-                          <input
-                            id="cell-border-width-left"
-                            type="number"
-                            min="0"
-                            value={leftBorderWidth}
-                            onChange={(e) => handleIndividualBorderWidthChange('left', parseInt(e.target.value, 10) || 0)}
-                            className="property-input border-width-input"
-                          />
-                        </div>
-                        <div className="border-width-labels">
-                          <span className="border-width-label">T</span>
-                          <span className="border-width-label">R</span>
-                          <span className="border-width-label">B</span>
-                          <span className="border-width-label">L</span>
-                        </div>
-                        <div className="border-width-mode-toggle">
-                          <button
-                            type="button"
-                            className={`border-width-mode-button ${borderWidthMode === 'uniform' ? 'active' : ''}`}
-                            onClick={() => handleBorderWidthModeChange('uniform')}
-                            aria-label="Uniform border width"
-                          >
-                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                              <rect x="3" y="3" width="10" height="10" stroke="currentColor" strokeWidth="1.5" fill="none"/>
-                            </svg>
-                          </button>
-                          <button
-                            type="button"
-                            className={`border-width-mode-button ${borderWidthMode === 'individual' ? 'active' : ''}`}
-                            onClick={() => handleBorderWidthModeChange('individual')}
-                            aria-label="Individual border width"
-                          >
-                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                              <path d="M3 3h10v10H3z" stroke="currentColor" strokeWidth="1.5" fill="none"/>
-                              <path d="M8 3v10M3 8h10" stroke="currentColor" strokeWidth="1.5"/>
-                            </svg>
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-              <div className="property-group">
-                <label htmlFor="cell-border-style">Style</label>
-                <select
-                  id="cell-border-style"
-                  value={borderStyle}
-                  onChange={(e) => handleBorderStyleChange(e.target.value as 'solid' | 'dashed' | 'dotted' | 'double')}
-                  className="property-select"
-                >
-                  <option value="solid">Solid</option>
-                  <option value="dashed">Dashed</option>
-                  <option value="dotted">Dotted</option>
-                  <option value="double">Double</option>
-                </select>
-              </div>
+
+              <BorderPopover
+                isOpen={cellBorderPopoverOpen}
+                onClose={() => {
+                  setCellBorderPopoverOpen(false);
+                }}
+                anchorElement={cellBorderPopoverAnchor}
+                color={borderColorForPreview}
+                width={hasVisibleBorder ? borderWidth : { mode: 'uniform', uniform: 2 }}
+                style={borderStyle}
+                onColorChange={handleBorderColorChange}
+                onWidthChange={(width) => {
+                  // Initialize border if it doesn't exist when user changes width
+                  if (!hasVisibleBorder && !cellBorderInitializedRef.current && selectedCell && onUpdateCell) {
+                    cellBorderInitializedRef.current = true;
+                    handleUpdateCellThemeProps({
+                      border: {
+                        color: themePrimaryColor,
+                        width: width,
+                        style: 'solid',
+                      },
+                    });
+                    return; // Don't call the handler again since we just initialized
+                  }
+                  // Normal width change handler
+                  if (width.mode === 'uniform') {
+                    handleUniformBorderWidthChange(width.uniform || 0);
+                  } else {
+                    handleIndividualBorderWidthChange('top', width.top || 0);
+                    handleIndividualBorderWidthChange('right', width.right || 0);
+                    handleIndividualBorderWidthChange('bottom', width.bottom || 0);
+                    handleIndividualBorderWidthChange('left', width.left || 0);
+                  }
+                }}
+                onStyleChange={handleBorderStyleChange}
+                onOpenColorPicker={() => {
+                  setCellColorPickerOpen(true);
+                }}
+              />
+
+              {cellBorderPopoverOpen && (
+                <ColorPickerPopover
+                  isOpen={cellColorPickerOpen && cellBorderPopoverOpen}
+                  onClose={() => {
+                    setCellColorPickerOpen(false);
+                    setCellBorderPopoverOpen(true);
+                  }}
+                  anchorElement={cellBorderPopoverAnchor}
+                  color={borderColor || '#326CF6'}
+                  opacity={1}
+                  onColorChange={handleBorderColorChange}
+                  onOpacityChange={() => {}}
+                  showBackButton={true}
+                  onBack={() => {
+                    setCellColorPickerOpen(false);
+                    setCellBorderPopoverOpen(true);
+                  }}
+                  title="Border"
+                />
+              )}
             </div>
           </div>
           {/* Border Radius */}
@@ -2344,6 +2379,16 @@ export function PropertiesPanel({
         >
           Delete Block
         </button>
+      </div>
+    </div>
+  );
+
+  // Fallback: always render something to prevent blank page
+  return (
+    <div className="properties-panel">
+      <h2 className="properties-title">Properties</h2>
+      <div className="properties-content">
+        <p style={{ padding: '16px', color: '#666' }}>No selection</p>
       </div>
     </div>
   );
