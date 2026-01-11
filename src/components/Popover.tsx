@@ -69,7 +69,7 @@ export function Popover({
       const margin = 16; // 16px margin for top/bottom
       
       // Position popover to the left of the anchor (right sidebar)
-      let left = anchorRect.left - popoverRect.width - gap;
+      let left = anchorRect.left - popoverRect.width - gap - 100;
       let top = anchorRect.top;
 
       // Ensure popover stays in viewport horizontally
@@ -173,7 +173,7 @@ export function Popover({
       const gap = 8;
       const margin = 16;
       
-      let left = anchorRect.left - popoverRect.width - gap;
+      let left = anchorRect.left - popoverRect.width - gap - 100;
       let top = anchorRect.top;
 
       if (left < gap) {
