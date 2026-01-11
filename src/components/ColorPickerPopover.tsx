@@ -137,32 +137,47 @@ export function ColorPickerPopover({
   const spectrumRef = useRef<HTMLDivElement>(null);
   const hueSliderRef = useRef<HTMLDivElement>(null);
   const opacitySliderRef = useRef<HTMLDivElement>(null);
+  
+  // Hex input state for free typing/pasting
+  const [hexInputValue, setHexInputValue] = useState(initialColor || '#000000');
+  const isTypingHexRef = useRef(false);
+  const prevIsOpenRef = useRef(false);
 
-  // Initialize from color
+  // Initialize from color only when popover first opens (to prevent flickering)
   useEffect(() => {
-    if (initialColor) {
-      const rgb = hexToRgb(initialColor);
-      if (rgb) {
-        const hsl = rgbToHsl(rgb.r, rgb.g, rgb.b);
-        setHue(hsl.h);
-        setSaturation(hsl.s);
-        setLightness(hsl.l);
+    if (isOpen && !prevIsOpenRef.current) {
+      // Popover just opened - initialize HSL from initialColor
+      if (initialColor) {
+        const rgb = hexToRgb(initialColor);
+        if (rgb) {
+          const hsl = rgbToHsl(rgb.r, rgb.g, rgb.b);
+          setHue(hsl.h);
+          setSaturation(hsl.s);
+          setLightness(hsl.l);
+        }
       }
+      setColor(initialColor || '#000000');
+      setHexInputValue(initialColor || '#000000');
     }
-  }, [initialColor]);
+    prevIsOpenRef.current = isOpen;
+  }, [isOpen, initialColor]);
 
-  // Update color when HSL changes
+  // Update color when HSL changes (only if popover is open and user is not typing hex)
   useEffect(() => {
+    if (!isOpen) return;
+    if (isTypingHexRef.current) return;
     const rgb = hslToRgb(hue, saturation, lightness);
     const hex = rgbToHex(rgb.r, rgb.g, rgb.b);
     setColor(hex);
+    setHexInputValue(hex);
     onColorChange(hex);
-  }, [hue, saturation, lightness, onColorChange]);
+  }, [hue, saturation, lightness, onColorChange, isOpen]);
 
-  // Update opacity
+  // Update opacity (only if popover is open)
   useEffect(() => {
+    if (!isOpen) return;
     onOpacityChange(opacity);
-  }, [opacity, onOpacityChange]);
+  }, [opacity, onOpacityChange, isOpen]);
 
   const handleSpectrumClick = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!spectrumRef.current) return;
@@ -270,19 +285,57 @@ export function ColorPickerPopover({
         <div className="color-picker-inputs">
           <input
             type="text"
-            value={color.toUpperCase()}
+            value={hexInputValue.toUpperCase()}
             onChange={(e) => {
-              const newColor = e.target.value;
-              if (/^#[0-9A-Fa-f]{0,6}$/.test(newColor)) {
-                setColor(newColor);
-                const rgb = hexToRgb(newColor);
+              isTypingHexRef.current = true;
+              let newValue = e.target.value;
+              // Remove # prefix for processing
+              if (newValue.startsWith('#')) {
+                newValue = newValue.substring(1);
+              }
+              // Filter out non-hex characters and limit to 6 digits
+              newValue = newValue.replace(/[^0-9A-Fa-f]/g, '').substring(0, 6);
+              // Add # prefix back for display
+              const displayValue = newValue.length > 0 ? `#${newValue}` : '#';
+              setHexInputValue(displayValue);
+              
+              // Only update color if we have a complete 6-character hex
+              if (newValue.length === 6) {
+                const fullHex = `#${newValue}`;
+                const rgb = hexToRgb(fullHex);
                 if (rgb) {
                   const hsl = rgbToHsl(rgb.r, rgb.g, rgb.b);
                   setHue(hsl.h);
                   setSaturation(hsl.s);
                   setLightness(hsl.l);
+                  setColor(fullHex);
+                  onColorChange(fullHex);
+                  isTypingHexRef.current = false;
                 }
               }
+            }}
+            onBlur={(e) => {
+              isTypingHexRef.current = false;
+              let newValue = e.target.value.replace('#', '');
+              // Normalize: pad with zeros if less than 6 digits, limit to 6
+              newValue = newValue.padEnd(6, '0').substring(0, 6);
+              const fullHex = `#${newValue}`;
+              const rgb = hexToRgb(fullHex);
+              if (rgb) {
+                const hsl = rgbToHsl(rgb.r, rgb.g, rgb.b);
+                setHue(hsl.h);
+                setSaturation(hsl.s);
+                setLightness(hsl.l);
+                setColor(fullHex);
+                setHexInputValue(fullHex);
+                onColorChange(fullHex);
+              } else {
+                // Reset to current color if invalid
+                setHexInputValue(color);
+              }
+            }}
+            onFocus={(e) => {
+              e.target.select();
             }}
             className="color-picker-hex-input"
             placeholder="#000000"

@@ -145,6 +145,17 @@ export interface ThemeSpecificCellProps {
     bottomLeft?: number;
     mode?: 'uniform' | 'individual';
   };
+  shadow?: {
+    type: 'box' | 'realistic';
+    position: 'outside' | 'inside';
+    color: string;
+    opacity: number;
+    x: number;
+    y: number;
+    blur: number;
+    spread: number;
+  } | null;
+  bgBlur?: number;
 }
 
 export interface Cell {
@@ -227,6 +238,17 @@ export interface ThemeSpecificRowProps {
     bottomLeft?: number;
     mode?: 'uniform' | 'individual';
   };
+  shadow?: {
+    type: 'box' | 'realistic';
+    position: 'outside' | 'inside';
+    color: string;
+    opacity: number;
+    x: number;
+    y: number;
+    blur: number;
+    spread: number;
+  } | null;
+  bgBlur?: number;
 }
 
 /**

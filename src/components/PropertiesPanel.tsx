@@ -13,6 +13,10 @@ import { SegmentedIconControl } from './ui/SegmentedIconControl';
 import { NumberPillInput } from './ui/NumberPillInput';
 import { IconButtonGroup } from './ui/IconButtonGroup';
 import { PillSelect } from './ui/PillSelect';
+import { ShadowPopover, type Shadow } from './ShadowPopover';
+import { NumberSliderInput } from './ui/NumberSliderInput';
+import { EffectsMenu } from './ui/EffectsMenu';
+import { SegmentedTextControl } from './ui/SegmentedTextControl';
 
 interface PropertiesPanelProps {
   selectedBlock: Block | null;
@@ -142,6 +146,61 @@ export function PropertiesPanel({
   const rowBorderInitializedRef = useRef(false);
   const isMountedRef = useRef(true);
   
+  // Shadow and BG Blur state - Row
+  const [rowShadowPopoverAnchor, setRowShadowPopoverAnchor] = useState<HTMLElement | null>(null);
+  const [rowShadowPopoverOpen, setRowShadowPopoverOpen] = useState(false);
+  const [rowShadowColorPickerOpen, setRowShadowColorPickerOpen] = useState(false);
+  const rowShadowPopoverAnchorRef = useRef<HTMLDivElement>(null);
+  const rowShadowInitializedRef = useRef(false);
+  
+  // Effects menu state - Row
+  const [rowStyleEffectsMenuOpen, setRowStyleEffectsMenuOpen] = useState(false);
+  const [rowStyleEffectsMenuAnchor, setRowStyleEffectsMenuAnchor] = useState<HTMLElement | null>(null);
+  const [rowActiveEffects, setRowActiveEffects] = useState<Set<string>>(new Set());
+  
+  // Effects menu state - Cell (must be at top level)
+  const [cellStyleEffectsMenuOpen, setCellStyleEffectsMenuOpen] = useState(false);
+  const [cellStyleEffectsMenuAnchor, setCellStyleEffectsMenuAnchor] = useState<HTMLElement | null>(null);
+  const [cellActiveEffects, setCellActiveEffects] = useState<Set<string>>(new Set());
+  
+  // Cell shadow and bgBlur state (must be at top level, not inside conditional block)
+  const [cellShadowPopoverAnchor, setCellShadowPopoverAnchor] = useState<HTMLElement | null>(null);
+  const [cellShadowPopoverOpen, setCellShadowPopoverOpen] = useState(false);
+  const [cellShadowColorPickerOpen, setCellShadowColorPickerOpen] = useState(false);
+  const cellShadowPopoverAnchorRef = useRef<HTMLDivElement>(null);
+  const cellShadowInitializedRef = useRef(false);
+  
+  // Compute active effects from props (for persistence) - use useMemo to avoid infinite loops
+  const computedRowActiveEffects = useMemo(() => {
+    if (selectedRow && selectedRow.id) {
+      const currentThemeProps = selectedRow.props?.themes?.[themeId];
+      const effects = new Set<string>();
+      if (currentThemeProps?.shadow !== null && currentThemeProps?.shadow !== undefined) {
+        effects.add('Shadows');
+      }
+      if (currentThemeProps?.bgBlur !== undefined && currentThemeProps.bgBlur > 0) {
+        effects.add('BG Blur');
+      }
+      return effects;
+    }
+    return new Set<string>();
+  }, [selectedRow?.id, themeId, selectedRow?.props?.themes?.[themeId]?.shadow, selectedRow?.props?.themes?.[themeId]?.bgBlur]);
+  
+  const computedCellActiveEffects = useMemo(() => {
+    if (selectedCell && selectedCell.id) {
+      const currentThemeProps = selectedCell.props?.themes?.[themeId];
+      const effects = new Set<string>();
+      if (currentThemeProps?.shadow !== null && currentThemeProps?.shadow !== undefined) {
+        effects.add('Shadows');
+      }
+      if (currentThemeProps?.bgBlur !== undefined && currentThemeProps.bgBlur > 0) {
+        effects.add('BG Blur');
+      }
+      return effects;
+    }
+    return new Set<string>();
+  }, [selectedCell?.id, themeId, selectedCell?.props?.themes?.[themeId]?.shadow, selectedCell?.props?.themes?.[themeId]?.bgBlur]);
+  
   useEffect(() => {
     isMountedRef.current = true;
     return () => {
@@ -224,6 +283,70 @@ export function PropertiesPanel({
     };
   }, []); // Empty deps - closeAllPopovers is stable (only calls setters)
 
+  // Initialize rowActiveEffects from selectedRow props (for persistence)
+  // Must be at top level, not inside conditional block
+  useEffect(() => {
+    if (selectedRow && selectedRow.id) {
+      const currentThemeProps = selectedRow.props?.themes?.[themeId];
+      const hasShadow = currentThemeProps?.shadow !== null && currentThemeProps?.shadow !== undefined;
+      const hasBgBlur = currentThemeProps?.bgBlur !== undefined && currentThemeProps.bgBlur > 0;
+      
+      setRowActiveEffects(prev => {
+        const newEffects = new Set<string>();
+        if (hasShadow) newEffects.add('Shadows');
+        if (hasBgBlur) newEffects.add('BG Blur');
+        
+        // Only update if the effects have actually changed
+        const prevArray = Array.from(prev).sort();
+        const newArray = Array.from(newEffects).sort();
+        if (prevArray.length !== newArray.length || prevArray.some((val, i) => val !== newArray[i])) {
+          return newEffects;
+        }
+        return prev;
+      });
+    } else {
+      // Reset when no row is selected
+      setRowActiveEffects(prev => {
+        if (prev.size > 0) {
+          return new Set();
+        }
+        return prev;
+      });
+    }
+  }, [selectedRow?.id, themeId, selectedRow?.props?.themes?.[themeId]?.shadow, selectedRow?.props?.themes?.[themeId]?.bgBlur]);
+
+  // Initialize cellActiveEffects from selectedCell props (for persistence)
+  // Must be at top level, not inside conditional block
+  useEffect(() => {
+    if (selectedCell && selectedCell.id) {
+      const currentThemeProps = selectedCell.props?.themes?.[themeId];
+      const hasShadow = currentThemeProps?.shadow !== null && currentThemeProps?.shadow !== undefined;
+      const hasBgBlur = currentThemeProps?.bgBlur !== undefined && currentThemeProps.bgBlur > 0;
+      
+      setCellActiveEffects(prev => {
+        const newEffects = new Set<string>();
+        if (hasShadow) newEffects.add('Shadows');
+        if (hasBgBlur) newEffects.add('BG Blur');
+        
+        // Only update if the effects have actually changed
+        const prevArray = Array.from(prev).sort();
+        const newArray = Array.from(newEffects).sort();
+        if (prevArray.length !== newArray.length || prevArray.some((val, i) => val !== newArray[i])) {
+          return newEffects;
+        }
+        return prev;
+      });
+    } else {
+      // Reset when no cell is selected
+      setCellActiveEffects(prev => {
+        if (prev.size > 0) {
+          return new Set();
+        }
+        return prev;
+      });
+    }
+  }, [selectedCell?.id, themeId, selectedCell?.props?.themes?.[themeId]?.shadow, selectedCell?.props?.themes?.[themeId]?.bgBlur]);
+
   // Page properties panel - shown when page is selected (and not a row, cell, or block)
   if (isPageSelected && !selectedRow && !selectedCell && !selectedBlock && onUpdatePageProps) {
     const defaultPageBackground = theme.pageBackground || { backgroundColor: '#ffffff', backgroundColorOpacity: 1, backgroundImage: undefined, backgroundImageOpacity: 1 };
@@ -290,9 +413,12 @@ export function PropertiesPanel({
       });
     };
 
-    const handleMaxRowWidthChange = (isFull: boolean) => {
-      handleUpdatePageThemeProps({ maxRowWidth: isFull ? null : 1024 });
+    const handleMaxRowWidthChange = (value: string) => {
+      // Map "no" to null (full width), "yes" to 1024
+      handleUpdatePageThemeProps({ maxRowWidth: value === 'no' ? null : (value === 'yes' ? 1024 : undefined) });
     };
+    
+    const constrainValue = isFullWidth ? 'no' : 'yes';
 
     const handleResetBackground = () => {
       handleUpdatePageThemeProps({
@@ -305,67 +431,49 @@ export function PropertiesPanel({
     };
 
     return (
-      <div className="properties-panel">
-        <h2 className="properties-title">Properties</h2>
+      <div className="properties-panel ui-properties-panel">
         <div className="properties-content">
-          <div className="property-section">
-            <div className="background-controls">
-              <div className="property-group">
-                <label className="property-label">Fill</label>
+          <PanelSection title="Constrain centrally">
+            <PropertyRow label="Constrain">
+              <SegmentedTextControl
+                value={constrainValue}
+                segments={[
+                  { value: 'no', label: 'No' },
+                  { value: 'yes', label: 'Yes' },
+                ]}
+                onChange={handleMaxRowWidthChange}
+              />
+            </PropertyRow>
+          </PanelSection>
+
+          <PanelSection title="Style">
+            <PropertyRow label="Fill">
                 <div
                   ref={pageFillPopoverAnchorRef}
-                  className="fill-input"
                   onClick={() => {
-                    // Always get fresh anchor element reference
                     const anchor = pageFillPopoverAnchorRef.current;
                     if (anchor) {
                       setPageFillPopoverAnchor(anchor);
                       setPageFillPopoverOpen(true);
                     }
                   }}
-                >
-                  {backgroundImage ? (
-                    <>
-                      <div className="fill-input-preview">
-                        <img src={backgroundImage} alt="Preview" />
-                      </div>
-                      <span style={{ fontSize: '13px', fontFamily: 'monospace', color: '#1a1a1a' }}>
-                        Image
-                      </span>
-                    </>
-                  ) : backgroundColor ? (
-                    <>
-                      <div
-                        className="fill-input-swatch"
-                        style={{ backgroundColor }}
-                      />
-                      <span style={{ fontSize: '13px', fontFamily: 'monospace', color: '#1a1a1a' }}>
-                        {backgroundColor.toUpperCase()}
-                      </span>
-                    </>
-                  ) : (
-                    <div className="fill-input-placeholder">Add...</div>
-                  )}
-                  {hasExplicitBackground && (
-                    <button
-                      type="button"
-                      className="fill-input-clear"
-                      onClick={(e) => {
+                style={{ width: '100%', flex: 1 }}
+              >
+                <PillSelect
+                  thumbnail={backgroundImage}
+                  swatchColor={backgroundColor}
+                  text={backgroundImage ? 'Image' : backgroundColor ? backgroundColor.toUpperCase() : 'Add...'}
+                  onClick={() => {}}
+                  onClear={(e) => {
                         e.stopPropagation();
                         handleClearBackground();
-                        // Close the popover when clearing
                         setPageFillPopoverOpen(false);
                       }}
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" width="8" height="8.5" viewBox="0 0 8 8.5">
-                        <g fill="transparent" strokeWidth="1.5" stroke="currentColor" strokeLinecap="round">
-                          <path d="m1.5 6.75 5-5M6.5 6.75l-5-5"></path>
-                        </g>
-                      </svg>
-                    </button>
-                  )}
+                  showClear={hasExplicitBackground}
+                />
                 </div>
-              </div>
+            </PropertyRow>
+          </PanelSection>
 
               <FillPopover
                 isOpen={pageFillPopoverOpen}
@@ -386,59 +494,6 @@ export function PropertiesPanel({
                 opacity={backgroundColorOpacity}
                 onOpacityChange={handleBackgroundColorOpacityChange}
               />
-            </div>
-            <div className="property-section">
-              <div className="property-section-header">
-                <div className="property-section-title">
-                  <span className="property-icon">📐</span>
-                  <label>Layout</label>
-                </div>
-              </div>
-              <div className="property-group">
-                <label>Row Width</label>
-                <div className="row-width-selector" style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
-                  <button
-                    type="button"
-                    className={`row-width-button ${isFullWidth ? 'active' : ''}`}
-                    onClick={() => handleMaxRowWidthChange(true)}
-                    style={{
-                      flex: 1,
-                      padding: '8px 16px',
-                      border: `1px solid ${isFullWidth ? '#8b5cf6' : '#e0e0e0'}`,
-                      borderRadius: '6px',
-                      background: isFullWidth ? '#8b5cf6' : 'transparent',
-                      color: isFullWidth ? '#ffffff' : '#333',
-                      cursor: 'pointer',
-                      fontSize: '14px',
-                      fontWeight: isFullWidth ? '500' : '400',
-                      transition: 'all 0.15s',
-                    }}
-                  >
-                    Full width
-                  </button>
-                  <button
-                    type="button"
-                    className={`row-width-button ${!isFullWidth ? 'active' : ''}`}
-                    onClick={() => handleMaxRowWidthChange(false)}
-                    style={{
-                      flex: 1,
-                      padding: '8px 16px',
-                      border: `1px solid ${!isFullWidth ? '#8b5cf6' : '#e0e0e0'}`,
-                      borderRadius: '6px',
-                      background: !isFullWidth ? '#8b5cf6' : 'transparent',
-                      color: !isFullWidth ? '#ffffff' : '#333',
-                      cursor: 'pointer',
-                      fontSize: '14px',
-                      fontWeight: !isFullWidth ? '500' : '400',
-                      transition: 'all 0.15s',
-                    }}
-                  >
-                    1024
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
         </div>
       </div>
     );
@@ -497,6 +552,11 @@ export function PropertiesPanel({
     const rightPadding = padding.right ?? defaultPadding.right ?? 0;
     const bottomPadding = padding.bottom ?? defaultPadding.bottom ?? 0;
     const leftPadding = padding.left ?? defaultPadding.left ?? 0;
+    
+    // Shadow and BG Blur
+    const shadow = themeProps.shadow ?? null;
+    const bgBlur = themeProps.bgBlur ?? 0;
+    const hasShadow = shadow !== null;
 
     // Helper to update theme-specific row properties
     const handleUpdateRowThemeProps = (updates: Partial<ThemeSpecificRowProps>) => {
@@ -707,6 +767,69 @@ export function PropertiesPanel({
         border: defaultBorder,
       });
     };
+    
+    // Shadow handlers
+    const handleShadowChange = (newShadow: Shadow | null) => {
+      handleUpdateRowThemeProps({
+        shadow: newShadow,
+      });
+    };
+    
+    const handleResetShadow = () => {
+      // Only remove shadow from canvas, keep the row visible
+      handleUpdateRowThemeProps({
+        shadow: null,
+      });
+      // Remove from active effects
+      setRowActiveEffects(prev => {
+        const next = new Set(prev);
+        next.delete('Shadows');
+        return next;
+      });
+    };
+    
+    // BG Blur handlers
+    const handleBgBlurChange = (value: number) => {
+      handleUpdateRowThemeProps({
+        bgBlur: value,
+      });
+    };
+    
+    const handleResetBgBlur = () => {
+      handleUpdateRowThemeProps({
+        bgBlur: 0,
+      });
+      // Remove from active effects
+      setRowActiveEffects(prev => {
+        const next = new Set(prev);
+        next.delete('BG Blur');
+        return next;
+      });
+    };
+    
+    // Effects menu handlers
+    const handleAddEffect = (button: HTMLElement) => {
+      setRowStyleEffectsMenuAnchor(button);
+      setRowStyleEffectsMenuOpen(true);
+    };
+    
+    const handleSelectEffect = (effect: string) => {
+      setRowActiveEffects(prev => {
+        const next = new Set(prev);
+        next.add(effect);
+        return next;
+      });
+      
+      // Initialize default values for new effects
+      if (effect === 'Shadows') {
+        // Don't initialize shadow yet - it will be initialized when "Add..." is clicked
+      } else if (effect === 'BG Blur') {
+        handleBgBlurChange(10); // Default blur value
+      }
+    };
+    
+    // Calculate available effects (must be after all handlers and before return)
+    const availableEffects = ['Shadows', 'BG Blur'].filter(effect => !rowActiveEffects.has(effect));
 
     const handleBorderRadiusModeChange = (mode: 'uniform' | 'individual') => {
       handleUpdateRowThemeProps({
@@ -782,20 +905,11 @@ export function PropertiesPanel({
     return (
       <div className="properties-panel ui-properties-panel">
         <div className="properties-content">
-          <PanelSection title="Vertically align">
-            <PropertyRow label="Align">
-              <SegmentedIconControl
-                value={verticalAlign}
-                segments={[
-                  { value: 'top', icon: alignTopIcon },
-                  { value: 'middle', icon: alignMiddleIcon },
-                  { value: 'bottom', icon: alignBottomIcon },
-                ]}
-                onChange={(value) => handleUpdateRowThemeProps({ verticalAlign: value as 'top' | 'middle' | 'bottom' })}
-              />
-            </PropertyRow>
-          </PanelSection>
-          <PanelSection title="Style">
+          <PanelSection 
+            title="Style" 
+            showAddButton={availableEffects.length > 0}
+            onAddEffect={handleAddEffect}
+          >
             <PropertyRow label="Fill">
                 <div
                   ref={rowFillPopoverAnchorRef}
@@ -805,6 +919,8 @@ export function PropertiesPanel({
                       // Close other popovers first
                       setRowBorderPopoverOpen(false);
                       setRowColorPickerOpen(false);
+                      setRowShadowPopoverOpen(false);
+                      setRowShadowColorPickerOpen(false);
                       setRowFillPopoverAnchor(anchor);
                       setRowFillPopoverOpen(true);
                     }
@@ -823,7 +939,7 @@ export function PropertiesPanel({
                       }}
                   showClear={hasExplicitBackground}
                 />
-                </div>
+                      </div>
             </PropertyRow>
 
             <PropertyRow label="Radius">
@@ -853,8 +969,10 @@ export function PropertiesPanel({
                     // Close other popovers first
                     setRowFillPopoverOpen(false);
                     setRowColorPickerOpen(false);
+                    setRowShadowPopoverOpen(false);
+                    setRowShadowColorPickerOpen(false);
                     setRowBorderPopoverAnchor(anchor);
-                    if (!hasVisibleBorder && !rowBorderInitializedRef.current && selectedRow && onUpdateRow) {
+                    if (!hasVisibleBorder && !rowBorderInitializedRef.current && selectedRow) {
                       rowBorderInitializedRef.current = true;
                       handleUpdateRowThemeProps({
                         border: {
@@ -882,7 +1000,79 @@ export function PropertiesPanel({
                 />
                 </div>
             </PropertyRow>
+            
+            {rowActiveEffects.has('Shadows') && (
+              <PropertyRow label="Shadow">
+                <div
+                  ref={rowShadowPopoverAnchorRef}
+                  onClick={() => {
+                    const anchor = rowShadowPopoverAnchorRef.current;
+                    if (anchor) {
+                      // Close other popovers first
+                      setRowFillPopoverOpen(false);
+                      setRowBorderPopoverOpen(false);
+                      setRowColorPickerOpen(false);
+                      setRowShadowPopoverAnchor(anchor);
+                      // Initialize shadow if it's empty (showing "Add...")
+                      if (!hasShadow && !rowShadowInitializedRef.current) {
+                        rowShadowInitializedRef.current = true;
+                        handleShadowChange({
+                          type: 'box',
+                          position: 'outside',
+                          color: '#000000',
+                          opacity: 0.25,
+                          x: 0,
+                          y: 4,
+                          blur: 8,
+                          spread: 0,
+                        });
+                      }
+                      setRowShadowPopoverOpen(true);
+                    }
+                  }}
+                  style={{ width: '100%', flex: 1 }}
+                >
+                  <PillSelect
+                    swatchColor={hasShadow ? (shadow?.color || '#000000') : '#CBCBCB'}
+                    text={hasShadow ? 'Shadow' : 'Add...'}
+                    onClick={() => {}}
+                    onClear={(e) => {
+                      e.stopPropagation();
+                      handleResetShadow();
+                    }}
+                    showClear={hasShadow}
+                  />
+                </div>
+              </PropertyRow>
+            )}
+            
+            {rowActiveEffects.has('BG Blur') && (
+              <PropertyRow label="BG Blur">
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center', width: '100%', flex: 1 }}>
+                  <NumberSliderInput
+                    value={bgBlur}
+                    onChange={handleBgBlurChange}
+                    min={0}
+                    max={100}
+                    step={1}
+                  />
+                    <button
+                      type="button"
+                    className="ui-effect-remove-button"
+                    onClick={handleResetBgBlur}
+                    aria-label="Remove BG Blur"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="8" height="8.5" viewBox="0 0 8 8.5">
+                        <g fill="transparent" strokeWidth="1.5" stroke="currentColor" strokeLinecap="round">
+                          <path d="m1.5 6.75 5-5M6.5 6.75l-5-5"></path>
+                        </g>
+                      </svg>
+                    </button>
+                </div>
+              </PropertyRow>
+            )}
           </PanelSection>
+          
           <PanelSection title="Layout">
             <PropertyRow label="Padding">
               <div style={{ display: 'flex', gap: '8px', alignItems: 'center', width: '100%', flex: 1 }}>
@@ -899,29 +1089,47 @@ export function PropertiesPanel({
                   activeValue={paddingMode}
                   onButtonClick={(value) => handlePaddingModeChange(value as 'uniform' | 'individual')}
                       />
-              </div>
+                </div>
             </PropertyRow>
           </PanelSection>
+          
+          <PanelSection title="Vertically align">
+            <PropertyRow label="Align">
+              <SegmentedIconControl
+                value={verticalAlign}
+                segments={[
+                  { value: 'top', icon: alignTopIcon },
+                  { value: 'middle', icon: alignMiddleIcon },
+                  { value: 'bottom', icon: alignBottomIcon },
+                ]}
+                onChange={(value) => handleUpdateRowThemeProps({ verticalAlign: value as 'top' | 'middle' | 'bottom' })}
+              />
+            </PropertyRow>
+          </PanelSection>
+          
+          <PanelSection title="Effects" />
+          
+          <PanelSection title="Advanced style" />
 
-          <FillPopover
-            isOpen={rowFillPopoverOpen}
-            onClose={() => setRowFillPopoverOpen(false)}
-            anchorElement={rowFillPopoverAnchor}
-            fillType={backgroundImage ? 'image' : backgroundColor ? 'color' : 'color'}
-            imageUrl={backgroundImage}
-            imageType="Fill"
-            color={backgroundColor}
-            opacity={backgroundColorOpacity}
-            onImageUrlChange={(url) => {
-              handleBackgroundImageChange(url);
-            }}
-            onImageTypeChange={() => {}}
-            onImageDescriptionChange={() => {}}
-            onColorChange={(color) => {
-              handleBackgroundColorChange(color);
-            }}
-            onOpacityChange={handleBackgroundColorOpacityChange}
-          />
+              <FillPopover
+                isOpen={rowFillPopoverOpen}
+                onClose={() => setRowFillPopoverOpen(false)}
+                anchorElement={rowFillPopoverAnchor}
+                fillType={backgroundImage ? 'image' : backgroundColor ? 'color' : 'color'}
+                imageUrl={backgroundImage}
+                imageType="Fill"
+                color={backgroundColor}
+                opacity={backgroundColorOpacity}
+                onImageUrlChange={(url) => {
+                  handleBackgroundImageChange(url);
+                }}
+                onImageTypeChange={() => {}}
+                onImageDescriptionChange={() => {}}
+                onColorChange={(color) => {
+                  handleBackgroundColorChange(color);
+                }}
+                onOpacityChange={handleBackgroundColorOpacityChange}
+              />
 
               <BorderPopover
                 isOpen={rowBorderPopoverOpen}
@@ -987,6 +1195,58 @@ export function PropertiesPanel({
                   hideImageTab={true}
                 />
               )}
+              
+              {hasShadow && (
+                <ShadowPopover
+                  isOpen={rowShadowPopoverOpen && hasShadow}
+                  onClose={() => setRowShadowPopoverOpen(false)}
+                  anchorElement={rowShadowPopoverAnchor}
+                  shadow={shadow}
+                  onShadowChange={handleShadowChange}
+                  onOpenColorPicker={() => {
+                    setRowShadowPopoverOpen(false);
+                    setRowShadowColorPickerOpen(true);
+                  }}
+                />
+              )}
+              
+              {hasShadow && rowShadowPopoverOpen && (
+                <ColorPickerPopover
+                  isOpen={rowShadowColorPickerOpen && rowShadowPopoverOpen && hasShadow}
+                  onClose={() => {
+                    setRowShadowColorPickerOpen(false);
+                    setRowShadowPopoverOpen(true);
+                  }}
+                  anchorElement={rowShadowPopoverAnchor}
+                  color={shadow?.color || '#000000'}
+                  opacity={shadow?.opacity || 0.25}
+                  onColorChange={(color) => {
+                    if (shadow) {
+                      handleShadowChange({ ...shadow, color });
+                    }
+                  }}
+                  onOpacityChange={(opacity) => {
+                    if (shadow) {
+                      handleShadowChange({ ...shadow, opacity });
+                    }
+                  }}
+                  showBackButton={true}
+                  onBack={() => {
+                    setRowShadowColorPickerOpen(false);
+                    setRowShadowPopoverOpen(true);
+                  }}
+                  title="Shadow"
+                  hideImageTab={true}
+                />
+              )}
+              
+              <EffectsMenu
+                isOpen={rowStyleEffectsMenuOpen}
+                onClose={() => setRowStyleEffectsMenuOpen(false)}
+                anchorElement={rowStyleEffectsMenuAnchor}
+                availableEffects={availableEffects}
+                onSelectEffect={handleSelectEffect}
+              />
         </div>
       </div>
     );
@@ -1043,6 +1303,11 @@ export function PropertiesPanel({
     const rightPadding = padding.right ?? defaultPadding.right ?? 0;
     const bottomPadding = padding.bottom ?? defaultPadding.bottom ?? 0;
     const leftPadding = padding.left ?? defaultPadding.left ?? 0;
+    
+    // Shadow and BG Blur
+    const shadow = themeProps.shadow ?? null;
+    const bgBlur = themeProps.bgBlur ?? 0;
+    const hasShadow = shadow !== null;
 
     // Helper to update theme-specific cell properties
     const handleUpdateCellThemeProps = (updates: Partial<ThemeSpecificCellProps>) => {
@@ -1258,6 +1523,66 @@ export function PropertiesPanel({
         border: defaultBorder,
       });
     };
+    
+    // Shadow handlers - Cell
+    const handleShadowChange = (newShadow: Shadow | null) => {
+      handleUpdateCellThemeProps({
+        shadow: newShadow,
+      });
+    };
+    
+    const handleResetShadow = () => {
+      // Only remove shadow from canvas, keep the row visible
+      handleUpdateCellThemeProps({
+        shadow: null,
+      });
+      // Remove from active effects
+      setCellActiveEffects(prev => {
+        const next = new Set(prev);
+        next.delete('Shadows');
+        return next;
+      });
+    };
+    
+    // BG Blur handlers - Cell
+    const handleBgBlurChange = (value: number) => {
+      handleUpdateCellThemeProps({
+        bgBlur: value,
+      });
+    };
+    
+    const handleResetBgBlur = () => {
+      handleUpdateCellThemeProps({
+        bgBlur: 0,
+      });
+      // Remove from active effects
+      setCellActiveEffects(prev => {
+        const next = new Set(prev);
+        next.delete('BG Blur');
+        return next;
+      });
+    };
+    
+    // Effects menu handlers - Cell
+    const handleAddEffect = (button: HTMLElement) => {
+      setCellStyleEffectsMenuAnchor(button);
+      setCellStyleEffectsMenuOpen(true);
+    };
+    
+    const handleSelectEffect = (effect: string) => {
+      setCellActiveEffects(prev => {
+        const next = new Set(prev);
+        next.add(effect);
+        return next;
+      });
+      
+      // Initialize default values for new effects
+      if (effect === 'Shadows') {
+        // Don't initialize shadow yet - it will be initialized when "Add..." is clicked
+      } else if (effect === 'BG Blur') {
+        handleBgBlurChange(10); // Default blur value
+      }
+    };
 
     const handleBorderRadiusModeChange = (mode: 'uniform' | 'individual') => {
       handleUpdateCellThemeProps({
@@ -1329,25 +1654,18 @@ export function PropertiesPanel({
         <path d="M 0.75 6.5 L 0.75 7.25 C 0.75 8.355 1.645 9.25 2.75 9.25 L 3.5 9.25" fill="transparent" strokeWidth="1.5" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" opacity="1"></path>
                         </svg>
     );
+    
+    // Calculate available effects (must be after all handlers and before return)
+    const availableEffects = ['Shadows', 'BG Blur'].filter(effect => !cellActiveEffects.has(effect));
 
     return (
       <div className="properties-panel ui-properties-panel">
         <div className="properties-content">
-          <PanelSection title="Vertically align">
-            <PropertyRow label="Align">
-              <SegmentedIconControl
-                value={verticalAlign}
-                segments={[
-                  { value: 'top', icon: alignTopIcon },
-                  { value: 'middle', icon: alignMiddleIcon },
-                  { value: 'bottom', icon: alignBottomIcon },
-                ]}
-                onChange={(value) => handleUpdateCellThemeProps({ verticalAlign: value as 'top' | 'middle' | 'bottom' })}
-              />
-            </PropertyRow>
-          </PanelSection>
-
-          <PanelSection title="Style">
+          <PanelSection 
+            title="Style" 
+            showAddButton={availableEffects.length > 0}
+            onAddEffect={handleAddEffect}
+          >
             <PropertyRow label="Fill">
                 <div
                   ref={cellFillPopoverAnchorRef}
@@ -1357,6 +1675,8 @@ export function PropertiesPanel({
                       // Close other popovers first
                       setCellBorderPopoverOpen(false);
                       setCellColorPickerOpen(false);
+                      setCellShadowPopoverOpen(false);
+                      setCellShadowColorPickerOpen(false);
                       setCellFillPopoverAnchor(anchor);
                       setCellFillPopoverOpen(true);
                     }
@@ -1375,7 +1695,7 @@ export function PropertiesPanel({
                       }}
                   showClear={hasExplicitBackground}
                 />
-                </div>
+                  </div>
             </PropertyRow>
 
             <PropertyRow label="Radius">
@@ -1393,20 +1713,22 @@ export function PropertiesPanel({
                   activeValue={borderRadiusMode}
                   onButtonClick={(value) => handleBorderRadiusModeChange(value as 'uniform' | 'individual')}
               />
-            </div>
+                  </div>
             </PropertyRow>
 
             <PropertyRow label="Border">
               <div
                 ref={cellBorderPopoverAnchorRef}
-                onClick={() => {
+                  onClick={() => {
                   const anchor = cellBorderPopoverAnchorRef.current;
-                  if (anchor) {
+                    if (anchor) {
                     // Close other popovers first
                     setCellFillPopoverOpen(false);
                     setCellColorPickerOpen(false);
+                    setCellShadowPopoverOpen(false);
+                    setCellShadowColorPickerOpen(false);
                     setCellBorderPopoverAnchor(anchor);
-                    if (!hasVisibleBorder && !cellBorderInitializedRef.current && selectedCell && onUpdateCell) {
+                    if (!hasVisibleBorder && !cellBorderInitializedRef.current && selectedCell) {
                       cellBorderInitializedRef.current = true;
                       handleUpdateCellThemeProps({
                         border: {
@@ -1432,9 +1754,81 @@ export function PropertiesPanel({
                   }}
                   showClear={hasVisibleBorder || cellBorderPopoverOpen}
                 />
-                </div>
+                      </div>
             </PropertyRow>
+            
+            {cellActiveEffects.has('Shadows') && (
+              <PropertyRow label="Shadow">
+                <div
+                  ref={cellShadowPopoverAnchorRef}
+                  onClick={() => {
+                    const anchor = cellShadowPopoverAnchorRef.current;
+                    if (anchor) {
+                      // Close other popovers first
+                      setCellFillPopoverOpen(false);
+                      setCellBorderPopoverOpen(false);
+                      setCellColorPickerOpen(false);
+                      setCellShadowPopoverAnchor(anchor);
+                      // Initialize shadow if it's empty (showing "Add...")
+                      if (!hasShadow && !cellShadowInitializedRef.current) {
+                        cellShadowInitializedRef.current = true;
+                        handleShadowChange({
+                          type: 'box',
+                          position: 'outside',
+                          color: '#000000',
+                          opacity: 0.25,
+                          x: 0,
+                          y: 4,
+                          blur: 8,
+                          spread: 0,
+                        });
+                      }
+                      setCellShadowPopoverOpen(true);
+                    }
+                  }}
+                  style={{ width: '100%', flex: 1 }}
+                >
+                  <PillSelect
+                    swatchColor={hasShadow ? (shadow?.color || '#000000') : '#CBCBCB'}
+                    text={hasShadow ? 'Shadow' : 'Add...'}
+                    onClick={() => {}}
+                    onClear={(e) => {
+                      e.stopPropagation();
+                      handleResetShadow();
+                    }}
+                    showClear={hasShadow}
+                  />
+                </div>
+              </PropertyRow>
+            )}
+            
+            {cellActiveEffects.has('BG Blur') && (
+              <PropertyRow label="BG Blur">
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center', width: '100%', flex: 1 }}>
+                  <NumberSliderInput
+                    value={bgBlur}
+                    onChange={handleBgBlurChange}
+                    min={0}
+                    max={100}
+                    step={1}
+                  />
+                    <button
+                      type="button"
+                    className="ui-effect-remove-button"
+                    onClick={handleResetBgBlur}
+                    aria-label="Remove BG Blur"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="8" height="8.5" viewBox="0 0 8 8.5">
+                        <g fill="transparent" strokeWidth="1.5" stroke="currentColor" strokeLinecap="round">
+                          <path d="m1.5 6.75 5-5M6.5 6.75l-5-5"></path>
+                        </g>
+                      </svg>
+                    </button>
+                </div>
+              </PropertyRow>
+            )}
           </PanelSection>
+          
           <PanelSection title="Layout">
             <PropertyRow label="Padding">
               <div style={{ display: 'flex', gap: '8px', alignItems: 'center', width: '100%', flex: 1 }}>
@@ -1451,29 +1845,47 @@ export function PropertiesPanel({
                   activeValue={paddingMode}
                   onButtonClick={(value) => handlePaddingModeChange(value as 'uniform' | 'individual')}
                 />
-              </div>
+                </div>
             </PropertyRow>
           </PanelSection>
+          
+          <PanelSection title="Vertically align">
+            <PropertyRow label="Align">
+              <SegmentedIconControl
+                value={verticalAlign}
+                segments={[
+                  { value: 'top', icon: alignTopIcon },
+                  { value: 'middle', icon: alignMiddleIcon },
+                  { value: 'bottom', icon: alignBottomIcon },
+                ]}
+                onChange={(value) => handleUpdateCellThemeProps({ verticalAlign: value as 'top' | 'middle' | 'bottom' })}
+              />
+            </PropertyRow>
+          </PanelSection>
+          
+          <PanelSection title="Effects" />
+          
+          <PanelSection title="Advanced style" />
 
-          <FillPopover
-            isOpen={cellFillPopoverOpen}
-            onClose={() => setCellFillPopoverOpen(false)}
-            anchorElement={cellFillPopoverAnchor}
-            fillType={backgroundImage ? 'image' : backgroundColor ? 'color' : 'color'}
-            imageUrl={backgroundImage}
-            imageType="Fill"
-            color={backgroundColor}
-            opacity={backgroundColorOpacity}
-            onImageUrlChange={(url) => {
-              handleBackgroundImageChange(url);
-            }}
-            onImageTypeChange={() => {}}
-            onImageDescriptionChange={() => {}}
-            onColorChange={(color) => {
-              handleBackgroundColorChange(color);
-            }}
-            onOpacityChange={handleBackgroundColorOpacityChange}
-          />
+              <FillPopover
+                isOpen={cellFillPopoverOpen}
+                onClose={() => setCellFillPopoverOpen(false)}
+                anchorElement={cellFillPopoverAnchor}
+                fillType={backgroundImage ? 'image' : backgroundColor ? 'color' : 'color'}
+                imageUrl={backgroundImage}
+                imageType="Fill"
+                color={backgroundColor}
+                opacity={backgroundColorOpacity}
+                onImageUrlChange={(url) => {
+                  handleBackgroundImageChange(url);
+                }}
+                onImageTypeChange={() => {}}
+                onImageDescriptionChange={() => {}}
+                onColorChange={(color) => {
+                  handleBackgroundColorChange(color);
+                }}
+                onOpacityChange={handleBackgroundColorOpacityChange}
+              />
 
               <BorderPopover
                 isOpen={cellBorderPopoverOpen}
@@ -1489,7 +1901,7 @@ export function PropertiesPanel({
                 onColorChange={handleBorderColorChange}
                 onWidthChange={(width) => {
                   // Initialize border if it doesn't exist when user changes width
-                  if (!hasVisibleBorder && !cellBorderInitializedRef.current && selectedCell && onUpdateCell) {
+                  if (!hasVisibleBorder && !cellBorderInitializedRef.current && selectedCell) {
                     cellBorderInitializedRef.current = true;
                     handleUpdateCellThemeProps({
                       border: {
@@ -1539,6 +1951,58 @@ export function PropertiesPanel({
                   hideImageTab={true}
                 />
               )}
+              
+              {hasShadow && (
+                <ShadowPopover
+                  isOpen={cellShadowPopoverOpen && hasShadow}
+                  onClose={() => setCellShadowPopoverOpen(false)}
+                  anchorElement={cellShadowPopoverAnchor}
+                  shadow={shadow}
+                  onShadowChange={handleShadowChange}
+                  onOpenColorPicker={() => {
+                    setCellShadowPopoverOpen(false);
+                    setCellShadowColorPickerOpen(true);
+                  }}
+                />
+              )}
+              
+              {hasShadow && cellShadowPopoverOpen && (
+                <ColorPickerPopover
+                  isOpen={cellShadowColorPickerOpen && cellShadowPopoverOpen && hasShadow}
+                  onClose={() => {
+                    setCellShadowColorPickerOpen(false);
+                    setCellShadowPopoverOpen(true);
+                  }}
+                  anchorElement={cellShadowPopoverAnchor}
+                  color={shadow?.color || '#000000'}
+                  opacity={shadow?.opacity || 0.25}
+                  onColorChange={(color) => {
+                    if (shadow) {
+                      handleShadowChange({ ...shadow, color });
+                    }
+                  }}
+                  onOpacityChange={(opacity) => {
+                    if (shadow) {
+                      handleShadowChange({ ...shadow, opacity });
+                    }
+                  }}
+                  showBackButton={true}
+                  onBack={() => {
+                    setCellShadowColorPickerOpen(false);
+                    setCellShadowPopoverOpen(true);
+                  }}
+                  title="Shadow"
+                  hideImageTab={true}
+                />
+              )}
+              
+              <EffectsMenu
+                isOpen={cellStyleEffectsMenuOpen}
+                onClose={() => setCellStyleEffectsMenuOpen(false)}
+                anchorElement={cellStyleEffectsMenuAnchor}
+                availableEffects={availableEffects}
+                onSelectEffect={handleSelectEffect}
+              />
         </div>
       </div>
     );

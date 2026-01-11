@@ -12,6 +12,7 @@ interface PopoverProps {
   className?: string;
   maxHeight?: string;
   contentKey?: string | number; // Key to track content changes (e.g., activeTab)
+  position?: 'left' | 'below'; // Position relative to anchor
 }
 
 export function Popover({
@@ -25,6 +26,7 @@ export function Popover({
   className = '',
   maxHeight,
   contentKey,
+  position: positionProp = 'left',
 }: PopoverProps) {
   const popoverRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
@@ -68,17 +70,39 @@ export function Popover({
       const gap = 8; // 8px gap between anchor and popover
       const margin = 16; // 16px margin for top/bottom
       
-      // Position popover to the left of the anchor (right sidebar)
-      let left = anchorRect.left - popoverRect.width - gap - 100;
-      let top = anchorRect.top;
-
-      // Ensure popover stays in viewport horizontally
-      if (left < gap) {
-        // Not enough space on left, try right side
-        left = anchorRect.right + gap;
-        // If still doesn't fit, align to viewport edge
+      let left: number;
+      let top: number;
+      
+      if (positionProp === 'below') {
+        // Position popover below the anchor
+        left = anchorRect.left;
+        top = anchorRect.bottom + gap;
+        
+        // If not enough space below, position above
+        if (top + popoverRect.height > viewportHeight - margin) {
+          top = anchorRect.top - popoverRect.height - gap;
+        }
+        
+        // Ensure popover stays in viewport horizontally
         if (left + popoverRect.width > viewportWidth - gap) {
           left = viewportWidth - popoverRect.width - gap;
+        }
+        if (left < gap) {
+          left = gap;
+        }
+      } else {
+        // Position popover to the left of the anchor (right sidebar)
+        left = anchorRect.left - popoverRect.width - gap - 100;
+        top = anchorRect.top;
+
+        // Ensure popover stays in viewport horizontally
+        if (left < gap) {
+          // Not enough space on left, try right side
+          left = anchorRect.right + gap;
+          // If still doesn't fit, align to viewport edge
+          if (left + popoverRect.width > viewportWidth - gap) {
+            left = viewportWidth - popoverRect.width - gap;
+          }
         }
       }
 
@@ -117,17 +141,12 @@ export function Popover({
       setPosition(finalPosition);
       setIsPositionComputed(true);
       
-      // For layout effect (synchronous), show immediately
-      // For regular effect, use double RAF
-      if (isLayoutEffect) {
-        setShouldShow(true);
-      } else {
+      // Use double RAF to ensure DOM is ready
+      requestAnimationFrame(() => {
         requestAnimationFrame(() => {
-          requestAnimationFrame(() => {
-            setShouldShow(true);
-          });
+          setShouldShow(true);
         });
-      }
+      });
     };
 
     // Use requestAnimationFrame to ensure DOM is ready before calculating position
@@ -143,7 +162,7 @@ export function Popover({
       window.removeEventListener('resize', updatePosition);
       window.removeEventListener('scroll', updatePosition, true);
     };
-  }, [isOpen, anchorElement]);
+  }, [isOpen, anchorElement, positionProp]);
 
   // Reposition synchronously when content changes (e.g., tab switch)
   // Use useLayoutEffect to prevent visible jump
@@ -173,13 +192,36 @@ export function Popover({
       const gap = 8;
       const margin = 16;
       
-      let left = anchorRect.left - popoverRect.width - gap - 100;
-      let top = anchorRect.top;
-
-      if (left < gap) {
-        left = anchorRect.right + gap;
+      let left: number;
+      let top: number;
+      
+      if (positionProp === 'below') {
+        // Position popover below the anchor
+        left = anchorRect.left;
+        top = anchorRect.bottom + gap;
+        
+        // If not enough space below, position above
+        if (top + popoverRect.height > viewportHeight - margin) {
+          top = anchorRect.top - popoverRect.height - gap;
+        }
+        
+        // Ensure popover stays in viewport horizontally
         if (left + popoverRect.width > viewportWidth - gap) {
           left = viewportWidth - popoverRect.width - gap;
+        }
+        if (left < gap) {
+          left = gap;
+        }
+      } else {
+        // Position popover to the left of the anchor (right sidebar)
+        left = anchorRect.left - popoverRect.width - gap - 100;
+        top = anchorRect.top;
+
+        if (left < gap) {
+          left = anchorRect.right + gap;
+          if (left + popoverRect.width > viewportWidth - gap) {
+            left = viewportWidth - popoverRect.width - gap;
+          }
         }
       }
 
@@ -214,7 +256,7 @@ export function Popover({
     };
 
     updatePositionSync();
-  }, [contentKey, isOpen, anchorElement, isPositionComputed]);
+  }, [contentKey, isOpen, anchorElement, isPositionComputed, positionProp]);
 
   useEffect(() => {
     if (!isOpen) return;
