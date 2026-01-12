@@ -7,19 +7,32 @@ interface PillSelectProps {
   onClick?: () => void;
   onClear?: (e: React.MouseEvent) => void;
   showClear?: boolean;
+  icon?: React.ReactNode; // Optional icon to display before text
 }
 
-export function PillSelect({ thumbnail, swatchColor, text, onClick, onClear, showClear = false }: PillSelectProps) {
+export function PillSelect({ thumbnail, swatchColor, text, onClick, onClear, showClear = false, icon }: PillSelectProps) {
+  // If icon is provided with swatchColor, show icon inside swatch
+  const showIconInSwatch = icon && swatchColor && !thumbnail;
+  // Check if swatch is in selected state (primary blue)
+  const isSelected = swatchColor === '#326CF6';
+  
   return (
     <button type="button" className="ui-pill-select" onClick={onClick}>
       {(thumbnail || swatchColor) && (
-        <div className={`ui-pill-select-thumb ${swatchColor ? 'swatch' : ''}`}>
+        <div className={`ui-pill-select-thumb ${swatchColor ? 'swatch' : ''} ${isSelected ? 'swatch-selected' : ''}`}>
           {thumbnail ? (
             <img src={thumbnail} alt="" />
           ) : swatchColor ? (
-            <div style={{ width: '100%', height: '100%', backgroundColor: swatchColor }} />
+            <div style={{ width: '100%', height: '100%', backgroundColor: swatchColor, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              {showIconInSwatch && (
+                <div className="ui-pill-select-icon-in-swatch">{icon}</div>
+              )}
+            </div>
           ) : null}
         </div>
+      )}
+      {icon && !thumbnail && !swatchColor && (
+        <div className="ui-pill-select-icon">{icon}</div>
       )}
       <span className="ui-pill-select-text">{text}</span>
       {showClear && onClear && (

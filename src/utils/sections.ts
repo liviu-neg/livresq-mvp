@@ -330,11 +330,16 @@ export function findCellLocationInRows(
   return null;
 }
 
+import type { Theme } from '../theme/tokens';
+import type { ThemeSpecificRowProps } from '../types';
+import { curatedStyles } from '../styles/curatedStyles';
+
 /**
  * Create a new Row with one empty Cell
+ * Optionally applies default style from theme
  */
-export function createNewRow(): Row {
-  return {
+export function createNewRow(theme?: Theme, themeId?: string): Row {
+  const row: Row = {
     id: nanoid(),
     cells: [
       {
@@ -343,6 +348,42 @@ export function createNewRow(): Row {
       },
     ],
   };
+
+  // Apply default row style if theme has one
+  if (theme && theme.defaultRowStyle && themeId) {
+    const defaultStyle = theme.defaultRowStyle;
+    let styleProperties: Partial<ThemeSpecificRowProps> = {};
+
+    if (defaultStyle.type === 'curated' && defaultStyle.curatedId) {
+      // Get curated style properties
+      const curatedStyle = curatedStyles.find(
+        s => s.id === defaultStyle.curatedId
+      );
+      if (curatedStyle) {
+        styleProperties = curatedStyle.getProperties({
+          accent: theme.colors.accent || '#326CF6',
+          surface: theme.colors.surface || '#ffffff',
+          border: theme.colors.border || '#e0e0e0',
+        });
+      }
+    } else if (defaultStyle.type === 'custom' && defaultStyle.customProperties) {
+      styleProperties = defaultStyle.customProperties;
+    }
+
+    // Apply style properties and set styleId to null (indicating default theme style)
+    if (Object.keys(styleProperties).length > 0) {
+      row.props = {
+        themes: {
+          [themeId]: {
+            ...styleProperties,
+            styleId: null, // null = default theme style
+          },
+        },
+      };
+    }
+  }
+
+  return row;
 }
 
 /**

@@ -23,7 +23,7 @@ import { PreviewToolbar, deviceConfigs } from './components/PreviewToolbar';
 import { PreviewStage } from './components/PreviewStage';
 import { ImageFillModal } from './components/ImageFillModal';
 import { ThemeEditor } from './components/ThemeEditor';
-import { useThemeSwitcher } from './theme/ThemeProvider';
+import { useThemeSwitcher, useTheme } from './theme/ThemeProvider';
 import type { DeviceType } from './components/PreviewToolbar';
 import type { Block, BlockType, ColumnsBlock, Row, Cell, Resource, SectionTemplate } from './types';
 import { createBlock, getPredefinedSections } from './types';
@@ -46,6 +46,7 @@ import './App.css';
 
 function App() {
   const { customThemes, updateCustomThemes } = useThemeSwitcher();
+  const { theme, themeId } = useTheme();
   // Use rows as primary state (Row/Cell/Resource model)
   const [rows, setRows] = useState<Row[]>([]);
   const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null);
@@ -692,7 +693,7 @@ function App() {
 
     // Regular blocks - create a new row with the block as a resource
     const newBlock = createBlock(blockType);
-    const newRow = createNewRow();
+    const newRow = createNewRow(theme, themeId);
     newRow.cells[0].resources = [newBlock];
 
     // If a Row is selected OR if a block is selected (use its parent row), insert new row below it
@@ -1011,7 +1012,7 @@ function App() {
       // Rule A: Dropped outside any existing Section/Cell
       if (over.id === 'empty-canvas') {
         // Create new Section: new Row + new Cell + new Resource
-        const newRow = createNewRow();
+        const newRow = createNewRow(theme, themeId);
         newRow.cells[0].resources = [newBlock];
         setRows([newRow]);
         setSelectedBlockId(newBlock.id);
@@ -1165,7 +1166,7 @@ function App() {
             })
           );
         } else {
-        const newRow = createNewRow();
+        const newRow = createNewRow(theme, themeId);
         newRow.cells[0].resources = [newBlock];
         setRows((prev) => (prev.length > 0 ? [...prev, newRow] : [newRow]));
       }

@@ -249,6 +249,30 @@ export interface ThemeSpecificRowProps {
     spread: number;
   } | null;
   bgBlur?: number;
+  styleId?: string | null; // Applied style ID: null = default theme style, string = curated/custom style ID, undefined = no style (individual properties)
+}
+
+/**
+ * Row Style System
+ * Styles are predefined combinations of row properties (Fill, Radius, Border, Shadows, BG Blur)
+ */
+
+export type CuratedStyleId = 'standard' | 'flat' | 'outline' | 'sharp' | 'blocky' | 'glass' | 'rounded' | 'soft-cloud' | 'capsule';
+
+export interface RowStyle {
+  id: string; // Unique identifier
+  name: string; // Display name
+  isGlobal?: boolean; // If true, available to all themes; if false, theme-specific
+  themeId?: string; // Theme ID if theme-specific
+  properties: Partial<ThemeSpecificRowProps>; // Style properties
+}
+
+export interface CuratedStyleDefinition {
+  id: CuratedStyleId;
+  name: string;
+  description: string;
+  // Properties are computed using theme colors, so we store a function or template
+  getProperties: (themeColors: { accent: string; surface: string; border: string }) => Partial<ThemeSpecificRowProps>;
 }
 
 /**

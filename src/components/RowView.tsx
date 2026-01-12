@@ -5,6 +5,7 @@ import { CellView } from './CellView';
 import { RowToolbar } from './RowToolbar';
 import { EmptyStateRow } from './EmptyStateRow';
 import { useThemeSwitcher, useTheme } from '../theme/ThemeProvider';
+import { curatedStyles } from '../styles/curatedStyles';
 
 // Helper function to convert hex color to rgba with opacity
 function hexToRgba(hex: string, opacity: number = 1): string {
@@ -55,6 +56,40 @@ interface RowViewProps {
 function getRowThemeProps(row: Row, themeId: string, theme: any): ThemeSpecificRowProps {
   // Try to get theme-specific props (works for 'plain', 'neon', and any custom theme ID)
   const themeProps = row.props?.themes?.[themeId];
+  
+  // Check if row should use default theme style
+  // - styleId === null means explicitly using default style
+  // - no themeProps at all means row should inherit default style from theme
+  const shouldUseDefaultStyle = themeProps?.styleId === null || (!themeProps && theme?.defaultRowStyle);
+  
+  // If row should use default style, apply it
+  if (shouldUseDefaultStyle && theme?.defaultRowStyle) {
+    const defaultStyle = theme.defaultRowStyle;
+    let defaultStyleProperties: Partial<ThemeSpecificRowProps> = {};
+    
+    if (defaultStyle.type === 'curated' && defaultStyle.curatedId) {
+      // Get curated style properties
+      const curatedStyle = curatedStyles.find(s => s.id === defaultStyle.curatedId);
+      if (curatedStyle) {
+        defaultStyleProperties = curatedStyle.getProperties({
+          accent: theme.colors.accent || '#326CF6',
+          surface: theme.colors.surface || '#ffffff',
+          border: theme.colors.border || '#e0e0e0',
+        });
+      }
+    } else if (defaultStyle.type === 'custom' && defaultStyle.customProperties) {
+      defaultStyleProperties = defaultStyle.customProperties;
+    }
+    
+    // Merge default style properties with any existing theme props
+    // Always include styleId: null to mark this as default style
+    return {
+      ...defaultStyleProperties,
+      ...themeProps, // Allow theme-specific props to override default style
+      styleId: null, // Ensure styleId is set to null to indicate default style
+    };
+  }
+  
   // Get theme defaults - use fallback only if rowBackground doesn't exist at all
   const defaultBackground = theme?.rowBackground ? {
     backgroundColor: theme.rowBackground.backgroundColor,
@@ -64,11 +99,16 @@ function getRowThemeProps(row: Row, themeId: string, theme: any): ThemeSpecificR
   } : { backgroundColor: '#ffffff', backgroundColorOpacity: 1, backgroundImage: undefined, backgroundImageOpacity: 1 };
   
   // If theme-specific props exist, merge with theme defaults for missing background properties
+  // BUT: If a style is applied (styleId is not undefined), don't apply white fallback for backgroundColor
+  // Styles may intentionally not define backgroundColor (transparent)
   if (themeProps) {
+    const hasStyle = themeProps.styleId !== undefined; // null = default style, string = custom style, undefined = no style
+    
     return {
       ...themeProps,
       // Use theme defaults if background properties are not set in theme-specific props
-      backgroundColor: themeProps.backgroundColor ?? defaultBackground.backgroundColor,
+      // BUT: If a style is applied and doesn't define backgroundColor, leave it undefined (transparent)
+      backgroundColor: themeProps.backgroundColor ?? (hasStyle ? undefined : defaultBackground.backgroundColor),
       backgroundColorOpacity: themeProps.backgroundColorOpacity ?? defaultBackground.backgroundColorOpacity ?? 1,
       backgroundImage: themeProps.backgroundImage ?? defaultBackground.backgroundImage,
       backgroundImageOpacity: themeProps.backgroundImageOpacity ?? defaultBackground.backgroundImageOpacity ?? 1,
