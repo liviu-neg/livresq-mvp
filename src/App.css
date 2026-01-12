@@ -6261,6 +6261,29 @@ body {
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
 }
 
+.ui-properties-panel .ui-pill-select-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: var(--ui-row-label-color);
+  margin-right: 8px;
+}
+
+.ui-properties-panel .ui-pill-select-icon-in-swatch {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  color: #ffffff; /* White icon for both selected and unselected states */
+}
+
+/* When swatch is selected (primary blue background), icon should be white */
+.ui-properties-panel .ui-pill-select-thumb.swatch-selected .ui-pill-select-icon-in-swatch {
+  color: #ffffff;
+}
+
 .ui-properties-panel .ui-pill-select-text {
   font-size: var(--ui-value-text-size);
   font-weight: 500;
@@ -6584,4 +6607,182 @@ body {
 
 .effects-menu-item:active {
   background: #eeeeee;
+}
+
+/* Style Popover */
+.style-popover-content {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.style-popover-tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid #EAEAEA;
+}
+
+.style-popover-tab {
+  flex: 1;
+  padding: 8px 12px;
+  border: none;
+  background: transparent;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 500;
+  color: #6B6B6B;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: all 0.2s;
+}
+
+.style-popover-tab:hover {
+  color: #111111;
+}
+
+.style-popover-tab.active {
+  color: #111111;
+  border-bottom-color: #326CF6;
+}
+
+.style-popover-tab-content {
+  min-height: 200px;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.style-popover-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.style-popover-item {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid #EAEAEA;
+  border-radius: 8px;
+  background: #FFFFFF;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: left;
+}
+
+.style-popover-item:hover {
+  border-color: #326CF6;
+  background: #F8F9FF;
+}
+
+.style-popover-item.active {
+  border-color: #326CF6;
+  background: #F8F9FF;
+}
+
+.style-popover-item-preview {
+  width: 100%;
+  height: 164px;
+  flex-shrink: 0;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.style-popover-item-info {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.style-popover-item-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: #111111;
+}
+
+.style-popover-item-description {
+  font-size: 12px;
+  font-weight: 400;
+  color: #6B6B6B;
+}
+
+.style-popover-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+.style-popover-grid-item {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid #EAEAEA;
+  border-radius: 8px;
+  background: #FFFFFF;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.style-popover-grid-item:hover {
+  border-color: #326CF6;
+  background: #F8F9FF;
+}
+
+.style-popover-grid-item.active {
+  border-color: #326CF6;
+  background: #F8F9FF;
+}
+
+.style-popover-grid-preview {
+  width: 100%;
+  height: 64px;
+  border-radius: 4px;
+  overflow: hidden;
+  background: #F5F5F5;
+}
+
+.style-popover-grid-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.style-popover-grid-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #111111;
+}
+
+.style-popover-grid-description {
+  font-size: 11px;
+  font-weight: 400;
+  color: #6B6B6B;
+  line-height: 1.3;
+}
+
+.style-popover-create-button {
+  width: 100%;
+  padding: 12px;
+  border: 1px dashed #CBCBCB;
+  border-radius: 8px;
+  background: #FFFFFF;
+  font-size: 13px;
+  font-weight: 500;
+  color: #6B6B6B;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: center;
+}
+
+.style-popover-create-button:hover {
+  border-color: #326CF6;
+  color: #326CF6;
+  background: #F8F9FF;
+}
+
+.style-preview-box {
+  width: 100%;
+  height: 100%;
 }

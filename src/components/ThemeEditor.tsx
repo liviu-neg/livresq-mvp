@@ -1,7 +1,17 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useTheme, useThemeSwitcher } from '../theme/ThemeProvider';
 import type { Theme } from '../theme/tokens';
 import { plainTheme, neonTheme } from '../theme/tokens';
+import type { ThemeSpecificRowProps, CuratedStyleId } from '../types';
+import { curatedStyles } from '../styles/curatedStyles';
+import { FillPopover } from './FillPopover';
+import { BorderPopover } from './BorderPopover';
+import { ShadowPopover, type Shadow } from './ShadowPopover';
+import { ColorPickerPopover } from './ColorPickerPopover';
+import { NumberPillInput } from './ui/NumberPillInput';
+import { NumberSliderInput } from './ui/NumberSliderInput';
+import { IconButtonGroup } from './ui/IconButtonGroup';
+import { PillSelect } from './ui/PillSelect';
 
 // Palette icon for theme editor button
 const PaletteIcon = () => (
@@ -83,8 +93,13 @@ export function ThemeEditor({ isOpen, onClose, onThemeUpdate, customThemes }: Th
     resourceBackgroundImage: undefined,
     resourceBackgroundImageOpacity: 1,
   });
+  
+  // Step 2: Default Row Style
+  const [defaultRowStyleType, setDefaultRowStyleType] = useState<'curated' | 'custom'>('curated');
+  const [selectedCuratedStyle, setSelectedCuratedStyle] = useState<CuratedStyleId | null>(null);
+  const [customStyleProperties, setCustomStyleProperties] = useState<Partial<ThemeSpecificRowProps>>({});
 
-  // Load theme data when editing
+  // Load theme data when editing - only load when first opening or when editingThemeId changes
   useEffect(() => {
     if (editingThemeId && step === 'step1') {
       // Check if custom theme exists first (for 'plain' and 'neon', custom versions override built-in)
@@ -124,7 +139,37 @@ export function ThemeEditor({ isOpen, onClose, onThemeUpdate, customThemes }: Th
         }
       }
     }
-  }, [editingThemeId, step, isNewTheme, customThemes]);
+  }, [editingThemeId, isNewTheme, customThemes]); // Remove 'step' from dependencies to prevent resetting colorConfig when navigating steps
+
+  // Load default row style for step2 - only when entering step2
+  useEffect(() => {
+    if (editingThemeId && step === 'step2') {
+      // Check if custom theme exists first (for 'plain' and 'neon', custom versions override built-in)
+      let theme: Theme | undefined;
+      if (editingThemeId === 'plain' || editingThemeId === 'neon') {
+        // Use custom version if it exists, otherwise fall back to built-in
+        theme = customThemes[editingThemeId] || (editingThemeId === 'plain' ? plainTheme : neonTheme);
+      } else {
+        // For other themes, use custom theme
+        theme = customThemes[editingThemeId];
+      }
+      
+      // Load default row style for step2
+      if (theme?.defaultRowStyle) {
+        setDefaultRowStyleType(theme.defaultRowStyle.type);
+        if (theme.defaultRowStyle.type === 'curated' && theme.defaultRowStyle.curatedId) {
+          setSelectedCuratedStyle(theme.defaultRowStyle.curatedId as CuratedStyleId);
+        } else if (theme.defaultRowStyle.type === 'custom' && theme.defaultRowStyle.customProperties) {
+          setCustomStyleProperties(theme.defaultRowStyle.customProperties);
+        }
+      } else {
+        // Reset to defaults if no default row style
+        setDefaultRowStyleType('curated');
+        setSelectedCuratedStyle(null);
+        setCustomStyleProperties({});
+      }
+    }
+  }, [editingThemeId, step, customThemes]);
 
   if (!isOpen) return null;
 
@@ -286,6 +331,13 @@ export function ThemeEditor({ isOpen, onClose, onThemeUpdate, customThemes }: Th
         backgroundImage: colorConfig.resourceBackgroundImage,
         backgroundImageOpacity: colorConfig.resourceBackgroundImage ? (colorConfig.resourceBackgroundImageOpacity ?? 1) : undefined,
       },
+      defaultRowStyle: (defaultRowStyleType === 'curated' && selectedCuratedStyle) || (defaultRowStyleType === 'custom' && Object.keys(customStyleProperties).length > 0)
+        ? {
+            type: defaultRowStyleType,
+            curatedId: defaultRowStyleType === 'curated' ? selectedCuratedStyle || undefined : undefined,
+            customProperties: defaultRowStyleType === 'custom' ? customStyleProperties : undefined,
+          }
+        : undefined,
     };
 
     // Update custom themes
@@ -1085,8 +1137,11 @@ export function ThemeEditor({ isOpen, onClose, onThemeUpdate, customThemes }: Th
               )}
 
               <div className="theme-editor-actions">
-                <button className="theme-editor-button-primary" onClick={handleSaveTheme}>
-                  {showSaveDialog && saveAsNew ? 'Create Theme' : isNewTheme ? 'Create Theme' : 'Save Changes'}
+                <button 
+                  className="theme-editor-button-secondary" 
+                  onClick={() => setStep('step2')}
+                >
+                  Next: Design →
                 </button>
               </div>
             </div>
@@ -1344,6 +1399,967 @@ export function ThemeEditor({ isOpen, onClose, onThemeUpdate, customThemes }: Th
     );
   }
 
+  // Step 2: Design (Default Row Style)
+  if (step === 'step2') {
+    const themeColors = {
+      accent: colorConfig.primaryColor,
+      surface: colorConfig.pageBackgroundColor,
+      border: '#e0e0e0',
+    };
+
+    return (
+      <div className="theme-editor-overlay" onClick={onClose}>
+        <div className="theme-editor-container" onClick={(e) => e.stopPropagation()}>
+          <div className="theme-editor-header">
+            <button className="theme-editor-exit" onClick={onClose}>
+              ← Exit
+            </button>
+            <div className="theme-editor-title">
+              <PaletteIcon />
+              <h2>Design</h2>
+            </div>
+          </div>
+
+          <div className="theme-editor-content" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
+            {/* Left Side: Configuration */}
+            <div style={{ gridColumn: '1' }}>
+              <div className="theme-config-section">
+                <h3 style={{ marginBottom: '16px', fontSize: '16px', fontWeight: 600 }}>Default Row Style</h3>
+                
+                {/* Tabs */}
+                <div style={{ display: 'flex', gap: '0', borderBottom: '1px solid #EAEAEA', marginBottom: '24px' }}>
+                  <button
+                    type="button"
+                    onClick={() => setDefaultRowStyleType('curated')}
+                    style={{
+                      padding: '8px 16px',
+                      border: 'none',
+                      background: 'transparent',
+                      borderBottom: defaultRowStyleType === 'curated' ? '2px solid #326CF6' : '2px solid transparent',
+                      color: defaultRowStyleType === 'curated' ? '#111111' : '#6B6B6B',
+                      cursor: 'pointer',
+                      fontSize: '14px',
+                      fontWeight: 500,
+                    }}
+                  >
+                    Curated
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setDefaultRowStyleType('custom')}
+                    style={{
+                      padding: '8px 16px',
+                      border: 'none',
+                      background: 'transparent',
+                      borderBottom: defaultRowStyleType === 'custom' ? '2px solid #326CF6' : '2px solid transparent',
+                      color: defaultRowStyleType === 'custom' ? '#111111' : '#6B6B6B',
+                      cursor: 'pointer',
+                      fontSize: '14px',
+                      fontWeight: 500,
+                    }}
+                  >
+                    Customize
+                  </button>
+                </div>
+
+                {/* Curated Tab */}
+                {defaultRowStyleType === 'curated' && (
+                  <div>
+                    <p style={{ fontSize: '13px', color: '#6B6B6B', marginBottom: '16px' }}>
+                      Select a curated style to use as the default for this theme.
+                    </p>
+                    <div style={{ 
+                      display: 'grid', 
+                      gridTemplateColumns: 'repeat(3, 1fr)', 
+                      gap: '12px',
+                      maxHeight: '400px',
+                      overflowY: 'auto',
+                    }}>
+                      {curatedStyles.map((style) => {
+                        const properties = style.getProperties(themeColors);
+                        const isSelected = selectedCuratedStyle === style.id;
+                        return (
+                          <button
+                            key={style.id}
+                            type="button"
+                            onClick={() => setSelectedCuratedStyle(style.id as CuratedStyleId)}
+                            style={{
+                              display: 'flex',
+                              flexDirection: 'column',
+                              gap: '8px',
+                              padding: '12px',
+                              border: isSelected ? '1px solid #326CF6' : '1px solid #EAEAEA',
+                              borderRadius: '8px',
+                              background: isSelected ? '#F8F9FF' : '#FFFFFF',
+                              cursor: 'pointer',
+                              textAlign: 'left',
+                            }}
+                          >
+                            <div style={{
+                              width: '100%',
+                              height: '64px',
+                              borderRadius: '4px',
+                              overflow: 'hidden',
+                              background: '#F5F5F5',
+                            }}>
+                              {/* Style Preview */}
+                              <div style={{
+                                width: '100%',
+                                height: '100%',
+                                backgroundColor: themeColors.surface,
+                                borderRadius: properties.borderRadius?.mode === 'uniform' 
+                                  ? `${properties.borderRadius.uniform ?? 0}px` 
+                                  : '0px',
+                                border: properties.border?.width?.mode === 'uniform' && (properties.border.width?.uniform ?? 0) > 0
+                                  ? `${properties.border.width.uniform}px solid ${properties.border.color || themeColors.border}`
+                                  : 'none',
+                                boxShadow: properties.shadow ? (() => {
+                                  const s = properties.shadow;
+                                  const rgba = (() => {
+                                    const hex = s.color.replace('#', '');
+                                    const r = parseInt(hex.substring(0, 2), 16);
+                                    const g = parseInt(hex.substring(2, 4), 16);
+                                    const b = parseInt(hex.substring(4, 6), 16);
+                                    return `rgba(${r}, ${g}, ${b}, ${s.opacity})`;
+                                  })();
+                                  const inset = s.position === 'inside' ? 'inset ' : '';
+                                  return `${inset}${s.x}px ${s.y}px ${s.blur}px ${s.spread}px ${rgba}`;
+                                })() : undefined,
+                              }} />
+                            </div>
+                            <div>
+                              <div style={{ fontSize: '13px', fontWeight: 600, color: '#111111' }}>
+                                {style.name}
+                              </div>
+                              <div style={{ fontSize: '11px', fontWeight: 400, color: '#6B6B6B', lineHeight: '1.3' }}>
+                                {style.description}
+                              </div>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Customize Tab */}
+                {defaultRowStyleType === 'custom' && (
+                  <CustomizeTab
+                    customStyleProperties={customStyleProperties}
+                    setCustomStyleProperties={setCustomStyleProperties}
+                    themeColors={themeColors}
+                  />
+                )}
+              </div>
+
+              <div className="theme-editor-actions">
+                <button 
+                  className="theme-editor-button-secondary" 
+                  onClick={() => setStep('step1')}
+                >
+                  ← Back
+                </button>
+                <button 
+                  className="theme-editor-button-primary" 
+                  onClick={handleSaveTheme}
+                >
+                  {showSaveDialog && saveAsNew ? 'Create Theme' : isNewTheme ? 'Create Theme' : 'Save Changes'}
+                </button>
+              </div>
+            </div>
+
+            {/* Right Side: Preview - Same as Step 1 but with default row style applied */}
+            <div className="theme-editor-preview" style={{ gridColumn: '2' }}>
+              <div className="theme-preview-header">
+                <div className="theme-preview-tabs">
+                  <button className="theme-preview-tab active">Test page</button>
+                  <button className="theme-preview-tab">Current page</button>
+                </div>
+                <button className="theme-preview-close" onClick={onClose}>×</button>
+              </div>
+              <div 
+                className="theme-preview-content" 
+                style={{ 
+                  backgroundColor: hexToRgba(colorConfig.pageBackgroundColor, colorConfig.pageBackgroundColorOpacity ?? 1),
+                  position: 'relative',
+                }}
+              >
+                {colorConfig.pageBackgroundImage && (
+                  <div 
+                    style={{
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      backgroundImage: `url(${colorConfig.pageBackgroundImage})`,
+                      backgroundSize: 'cover',
+                      backgroundPosition: 'center',
+                      opacity: colorConfig.pageBackgroundImageOpacity ?? 1,
+                      zIndex: 0,
+                    }}
+                  />
+                )}
+                <div 
+                  className="theme-preview-card-preview" 
+                  style={{ 
+                    position: 'relative',
+                    zIndex: 1,
+                  }}
+                >
+                  {/* Get default row style properties */}
+                  {(() => {
+                    let rowStyleProps: Partial<ThemeSpecificRowProps> = {};
+                    if (defaultRowStyleType === 'curated' && selectedCuratedStyle) {
+                      const style = curatedStyles.find(s => s.id === selectedCuratedStyle);
+                      if (style) {
+                        rowStyleProps = style.getProperties(themeColors);
+                      }
+                    } else if (defaultRowStyleType === 'custom') {
+                      rowStyleProps = customStyleProperties || {};
+                    }
+
+                    // Helper to convert shadow to CSS
+                    const getBoxShadow = (shadow: typeof rowStyleProps.shadow): string => {
+                      if (!shadow) return '';
+                      const { x, y, blur, spread, color, opacity } = shadow;
+                      const rgbaColor = (() => {
+                        const hex = color.replace('#', '');
+                        const r = parseInt(hex.substring(0, 2), 16);
+                        const g = parseInt(hex.substring(2, 4), 16);
+                        const b = parseInt(hex.substring(4, 6), 16);
+                        return `rgba(${r}, ${g}, ${b}, ${opacity})`;
+                      })();
+                      const inset = shadow.position === 'inside' ? 'inset ' : '';
+                      return `${inset}${x}px ${y}px ${blur}px ${spread}px ${rgbaColor}`;
+                    };
+
+                    // Get border CSS
+                    const getBorder = (): string => {
+                      const border = rowStyleProps.border;
+                      if (!border) return 'none';
+                      const borderWidth = border.width?.mode === 'uniform' ? (border.width?.uniform ?? 0) : 0;
+                      if (borderWidth > 0) {
+                        return `${borderWidth}px solid ${border.color || themeColors.border}`;
+                      }
+                      return 'none';
+                    };
+
+                    // Get border radius
+                    const getBorderRadius = (): string => {
+                      const borderRadius = rowStyleProps.borderRadius;
+                      if (borderRadius?.mode === 'uniform') {
+                        return `${borderRadius.uniform ?? 0}px`;
+                      }
+                      return '8px'; // Default
+                    };
+
+                    return (
+                      <>
+                        {/* Row background color layer (base layer) - use default style or row background color */}
+                        {(rowStyleProps.backgroundColor || colorConfig.rowBackgroundColor) && (
+                          <div
+                            style={{
+                              position: 'absolute',
+                              top: 0,
+                              left: 0,
+                              right: 0,
+                              bottom: 0,
+                              backgroundColor: hexToRgba(
+                                rowStyleProps.backgroundColor || colorConfig.rowBackgroundColor || '#ffffff',
+                                rowStyleProps.backgroundColorOpacity ?? colorConfig.rowBackgroundColorOpacity ?? 1
+                              ),
+                              zIndex: 0,
+                              borderRadius: getBorderRadius(),
+                              pointerEvents: 'none',
+                            }}
+                          />
+                        )}
+                        {/* Row background image layer (above color) */}
+                        {(rowStyleProps.backgroundImage || colorConfig.rowBackgroundImage) && (
+                          <div
+                            style={{
+                              position: 'absolute',
+                              top: 0,
+                              left: 0,
+                              right: 0,
+                              bottom: 0,
+                              backgroundImage: `url(${rowStyleProps.backgroundImage || colorConfig.rowBackgroundImage})`,
+                              backgroundSize: 'cover',
+                              backgroundPosition: 'center',
+                              opacity: rowStyleProps.backgroundImageOpacity ?? colorConfig.rowBackgroundImageOpacity ?? 1,
+                              zIndex: 1,
+                              borderRadius: getBorderRadius(),
+                              pointerEvents: 'none',
+                            }}
+                          />
+                        )}
+                        {/* Row container with style properties applied */}
+                        <div 
+                          style={{ 
+                            position: 'relative', 
+                            zIndex: 2,
+                            padding: '12px',
+                            borderRadius: getBorderRadius(),
+                            border: getBorder(),
+                            boxShadow: rowStyleProps.shadow ? getBoxShadow(rowStyleProps.shadow) : undefined,
+                            backdropFilter: rowStyleProps.bgBlur ? `blur(${rowStyleProps.bgBlur}px)` : undefined,
+                            WebkitBackdropFilter: rowStyleProps.bgBlur ? `blur(${rowStyleProps.bgBlur}px)` : undefined,
+                          }}
+                        >
+                          {/* Cell view container - simulates .cell-view */}
+                          <div style={{ position: 'relative' }}>
+                            {/* Cell background color layer (if cell background is set) */}
+                            {colorConfig.cellBackgroundColor && (
+                              <div
+                                style={{
+                                  position: 'absolute',
+                                  top: 0,
+                                  left: 0,
+                                  right: 0,
+                                  bottom: 0,
+                                  backgroundColor: hexToRgba(colorConfig.cellBackgroundColor, colorConfig.cellBackgroundColorOpacity ?? 1),
+                                  zIndex: 0,
+                                  borderRadius: '4px',
+                                  pointerEvents: 'none',
+                                }}
+                              />
+                            )}
+                            {/* Cell background image layer */}
+                            {colorConfig.cellBackgroundImage && (
+                              <div
+                                style={{
+                                  position: 'absolute',
+                                  top: 0,
+                                  left: 0,
+                                  right: 0,
+                                  bottom: 0,
+                                  backgroundImage: `url(${colorConfig.cellBackgroundImage})`,
+                                  backgroundSize: 'cover',
+                                  backgroundPosition: 'center',
+                                  opacity: colorConfig.cellBackgroundImageOpacity ?? 1,
+                                  zIndex: 1,
+                                  borderRadius: '4px',
+                                  pointerEvents: 'none',
+                                }}
+                              />
+                            )}
+                            {/* Cell resources container - simulates .cell-resources with padding */}
+                            <div style={{ position: 'relative', zIndex: 2, padding: '16px' }}>
+                              {/* Resource background for heading */}
+                              <div style={{ position: 'relative', marginBottom: '8px' }}>
+                                {colorConfig.resourceBackgroundColor && (
+                                  <div
+                                    style={{
+                                      position: 'absolute',
+                                      top: 0,
+                                      left: 0,
+                                      right: 0,
+                                      bottom: 0,
+                                      backgroundColor: hexToRgba(colorConfig.resourceBackgroundColor, colorConfig.resourceBackgroundColorOpacity ?? 1),
+                                      zIndex: 0,
+                                      borderRadius: '4px',
+                                    }}
+                                  />
+                                )}
+                                {colorConfig.resourceBackgroundImage && (
+                                  <div
+                                    style={{
+                                      position: 'absolute',
+                                      top: 0,
+                                      left: 0,
+                                      right: 0,
+                                      bottom: 0,
+                                      backgroundImage: `url(${colorConfig.resourceBackgroundImage})`,
+                                      backgroundSize: 'cover',
+                                      backgroundPosition: 'center',
+                                      opacity: colorConfig.resourceBackgroundImageOpacity ?? 1,
+                                      zIndex: 1,
+                                      borderRadius: '4px',
+                                    }}
+                                  />
+                                )}
+                                <h3 style={{ color: colorConfig.headingColor, position: 'relative', zIndex: 2, padding: colorConfig.resourceBackgroundColor || colorConfig.resourceBackgroundImage ? '8px' : '0' }}>This is a theme preview.</h3>
+                              </div>
+                              {/* Resource background for paragraph */}
+                              <div style={{ position: 'relative', marginBottom: '16px' }}>
+                                {colorConfig.resourceBackgroundColor && (
+                                  <div
+                                    style={{
+                                      position: 'absolute',
+                                      top: 0,
+                                      left: 0,
+                                      right: 0,
+                                      bottom: 0,
+                                      backgroundColor: hexToRgba(colorConfig.resourceBackgroundColor, colorConfig.resourceBackgroundColorOpacity ?? 1),
+                                      zIndex: 0,
+                                      borderRadius: '4px',
+                                    }}
+                                  />
+                                )}
+                                {colorConfig.resourceBackgroundImage && (
+                                  <div
+                                    style={{
+                                      position: 'absolute',
+                                      top: 0,
+                                      left: 0,
+                                      right: 0,
+                                      bottom: 0,
+                                      backgroundImage: `url(${colorConfig.resourceBackgroundImage})`,
+                                      backgroundSize: 'cover',
+                                      backgroundPosition: 'center',
+                                      opacity: colorConfig.resourceBackgroundImageOpacity ?? 1,
+                                      zIndex: 1,
+                                      borderRadius: '4px',
+                                    }}
+                                  />
+                                )}
+                                <p style={{ color: colorConfig.paragraphColor, position: 'relative', zIndex: 2, padding: colorConfig.resourceBackgroundColor || colorConfig.resourceBackgroundImage ? '8px' : '0' }}>
+                                  Here's an example of body text. You can change its font and the color. Your accent color will be used for links. It will also be used for layouts and buttons.
+                                </p>
+                              </div>
+                              {/* Resource background for button */}
+                              <div style={{ display: 'flex', gap: '8px', marginTop: '16px', position: 'relative' }}>
+                                {colorConfig.resourceBackgroundColor && (
+                                  <div
+                                    style={{
+                                      position: 'absolute',
+                                      top: 0,
+                                      left: 0,
+                                      right: 0,
+                                      bottom: 0,
+                                      backgroundColor: hexToRgba(colorConfig.resourceBackgroundColor, colorConfig.resourceBackgroundColorOpacity ?? 1),
+                                      zIndex: 0,
+                                      borderRadius: '4px',
+                                    }}
+                                  />
+                                )}
+                                {colorConfig.resourceBackgroundImage && (
+                                  <div
+                                    style={{
+                                      position: 'absolute',
+                                      top: 0,
+                                      left: 0,
+                                      right: 0,
+                                      bottom: 0,
+                                      backgroundImage: `url(${colorConfig.resourceBackgroundImage})`,
+                                      backgroundSize: 'cover',
+                                      backgroundPosition: 'center',
+                                      opacity: colorConfig.resourceBackgroundImageOpacity ?? 1,
+                                      zIndex: 1,
+                                      borderRadius: '4px',
+                                    }}
+                                  />
+                                )}
+                                <button
+                                  style={{
+                                    backgroundColor: colorConfig.primaryColor,
+                                    color: '#ffffff',
+                                    border: 'none',
+                                    borderRadius: '4px',
+                                    padding: '8px 16px',
+                                    cursor: 'pointer',
+                                    position: 'relative',
+                                    zIndex: 2,
+                                  }}
+                                >
+                                  Primary button
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </>
+                    );
+                  })()}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return null;
+}
+
+// Customize Tab Component - Full property editor for default row style
+interface CustomizeTabProps {
+  customStyleProperties: Partial<ThemeSpecificRowProps>;
+  setCustomStyleProperties: (props: Partial<ThemeSpecificRowProps>) => void;
+  themeColors: { accent: string; surface: string; border: string };
+}
+
+function CustomizeTab({ customStyleProperties = {}, setCustomStyleProperties, themeColors }: CustomizeTabProps) {
+  // Ensure customStyleProperties is always an object
+  const safeCustomStyleProperties = customStyleProperties || {};
+  
+  // State for popovers
+  const [fillPopoverOpen, setFillPopoverOpen] = useState(false);
+  const [fillColorPickerOpen, setFillColorPickerOpen] = useState(false);
+  const [borderPopoverOpen, setBorderPopoverOpen] = useState(false);
+  const [borderColorPickerOpen, setBorderColorPickerOpen] = useState(false);
+  const [shadowPopoverOpen, setShadowPopoverOpen] = useState(false);
+  const [shadowColorPickerOpen, setShadowColorPickerOpen] = useState(false);
+  
+  const fillPopoverAnchorRef = useRef<HTMLDivElement>(null);
+  const borderPopoverAnchorRef = useRef<HTMLDivElement>(null);
+  const shadowPopoverAnchorRef = useRef<HTMLDivElement>(null);
+  const borderInitializedRef = useRef(false);
+  const shadowInitializedRef = useRef(false);
+
+  // Extract current values
+  const backgroundColor = safeCustomStyleProperties.backgroundColor;
+  const backgroundColorOpacity = safeCustomStyleProperties.backgroundColorOpacity ?? 1;
+  const backgroundImage = safeCustomStyleProperties.backgroundImage;
+  const backgroundImageOpacity = safeCustomStyleProperties.backgroundImageOpacity ?? 1;
+  const hasExplicitBackground = backgroundColor !== undefined || backgroundImage !== undefined;
+
+  const borderRadius = safeCustomStyleProperties.borderRadius || { mode: 'uniform' as const, uniform: 0 };
+  const borderRadiusMode = borderRadius?.mode || 'uniform';
+  const uniformBorderRadius = borderRadius?.uniform ?? 0;
+
+  const border = safeCustomStyleProperties.border || { color: undefined, width: { mode: 'uniform' as const, uniform: 0 }, style: 'solid' as const };
+  const borderWidth = border?.width || { mode: 'uniform' as const, uniform: 0 };
+  const borderWidthMode = borderWidth?.mode || 'uniform';
+  const uniformBorderWidth = borderWidth?.uniform ?? 0;
+  const hasVisibleBorder = uniformBorderWidth > 0;
+  const borderColor = border?.color || themeColors?.border || '#e0e0e0';
+  const borderStyle = border?.style || 'solid';
+
+  const shadow = safeCustomStyleProperties.shadow ?? null;
+  const hasShadow = shadow !== null;
+
+  const bgBlur = safeCustomStyleProperties.bgBlur ?? 0;
+
+  // Handlers
+  const handleUpdateProperties = (updates: Partial<ThemeSpecificRowProps>) => {
+    setCustomStyleProperties({ ...safeCustomStyleProperties, ...updates });
+  };
+
+  const handleBackgroundColorChange = (color: string) => {
+    handleUpdateProperties({ backgroundColor: color });
+  };
+
+  const handleBackgroundColorOpacityChange = (opacity: number) => {
+    handleUpdateProperties({ backgroundColorOpacity: opacity });
+  };
+
+  const handleBackgroundImageChange = (url: string | undefined) => {
+    handleUpdateProperties({ backgroundImage: url });
+  };
+
+  const handleBackgroundImageOpacityChange = (opacity: number) => {
+    handleUpdateProperties({ backgroundImageOpacity: opacity });
+  };
+
+  const handleClearBackground = () => {
+    handleUpdateProperties({
+      backgroundColor: undefined,
+      backgroundColorOpacity: undefined,
+      backgroundImage: undefined,
+      backgroundImageOpacity: undefined,
+    });
+  };
+
+  const handleBorderRadiusModeChange = (mode: 'uniform' | 'individual') => {
+    handleUpdateProperties({
+      borderRadius: {
+        ...borderRadius,
+        mode,
+        uniform: mode === 'uniform' ? uniformBorderRadius : borderRadius.uniform,
+      },
+    });
+  };
+
+  const handleUniformBorderRadiusChange = (value: number) => {
+    handleUpdateProperties({
+      borderRadius: {
+        uniform: value,
+        mode: 'uniform',
+      },
+    });
+  };
+
+  const handleBorderColorChange = (color: string) => {
+    handleUpdateProperties({
+      border: {
+        ...border,
+        color,
+        width: borderWidth || { mode: 'uniform', uniform: 1 },
+        style: borderStyle || 'solid',
+      },
+    });
+  };
+
+  const handleBorderWidthChange = (width: { mode: 'uniform' | 'individual'; uniform?: number; top?: number; right?: number; bottom?: number; left?: number }) => {
+    handleUpdateProperties({
+      border: {
+        ...border,
+        width,
+        color: border?.color || themeColors?.accent || '#326CF6',
+        style: borderStyle || 'solid',
+      },
+    });
+  };
+
+  const handleBorderStyleChange = (style: 'solid' | 'dashed' | 'dotted' | 'double') => {
+    handleUpdateProperties({
+      border: {
+        ...border,
+        style,
+      },
+    });
+  };
+
+  const handleResetBorder = () => {
+    handleUpdateProperties({
+      border: {
+        color: undefined,
+        width: { mode: 'uniform', uniform: 0 },
+        style: 'solid',
+      },
+    });
+  };
+
+  const handleShadowChange = (newShadow: Shadow | null) => {
+    handleUpdateProperties({ shadow: newShadow });
+  };
+
+  const handleResetShadow = () => {
+    handleUpdateProperties({ shadow: null });
+  };
+
+  const handleBgBlurChange = (value: number) => {
+    handleUpdateProperties({ bgBlur: value });
+  };
+
+  const handleResetBgBlur = () => {
+    handleUpdateProperties({ bgBlur: 0 });
+  };
+
+  // Icons
+  const linkIcon = (
+    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 10 10" style={{ width: '14px', height: '14px' }}>
+      <path d="M2.75.75a2 2 0 0 0-2 2v4.5a2 2 0 0 0 2 2h4.5a2 2 0 0 0 2-2v-4.5a2 2 0 0 0-2-2Z" fill="transparent" strokeWidth="1.5" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round"></path>
+    </svg>
+  );
+  const unlinkIcon = (
+    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 10 10" style={{ width: '14px', height: '14px' }}>
+      <path d="M 0.75 3.5 L 0.75 2.75 C 0.75 1.645 1.645 0.75 2.75 0.75 L 3.5 0.75" fill="transparent" strokeWidth="1.5" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" opacity="1"></path>
+      <path d="M 9.25 3.5 L 9.25 2.75 C 9.25 1.645 8.355 0.75 7.25 0.75 L 6.5 0.75" fill="transparent" strokeWidth="1.5" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" opacity="1"></path>
+      <path d="M 9.25 6.5 L 9.25 7.25 C 9.25 8.355 8.355 9.25 7.25 9.25 L 6.5 9.25" fill="transparent" strokeWidth="1.5" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" opacity="1"></path>
+      <path d="M 0.75 6.5 L 0.75 7.25 C 0.75 8.355 1.645 9.25 2.75 9.25 L 3.5 9.25" fill="transparent" strokeWidth="1.5" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" opacity="1"></path>
+    </svg>
+  );
+
+  // Safety check
+  if (!setCustomStyleProperties || !themeColors) {
+    return <div>Loading...</div>;
+  }
+
+  return (
+    <div>
+      <p style={{ fontSize: '13px', color: '#6B6B6B', marginBottom: '16px' }}>
+        Define a custom default style for this theme.
+      </p>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        {/* Fill */}
+        <div>
+          <label style={{ display: 'block', fontSize: '14px', fontWeight: 500, color: '#6B6B6B', marginBottom: '8px' }}>
+            Fill
+          </label>
+          <div
+            ref={fillPopoverAnchorRef}
+            onClick={() => {
+              setBorderPopoverOpen(false);
+              setShadowPopoverOpen(false);
+              setFillPopoverOpen(true);
+            }}
+            style={{ width: '100%' }}
+          >
+            <PillSelect
+              thumbnail={backgroundImage}
+              swatchColor={backgroundColor}
+              text={backgroundImage ? 'Image' : backgroundColor ? backgroundColor.toUpperCase() : 'Add...'}
+              onClick={() => {}}
+              onClear={(e) => {
+                e.stopPropagation();
+                handleClearBackground();
+                setFillPopoverOpen(false);
+              }}
+              showClear={hasExplicitBackground}
+            />
+          </div>
+        </div>
+
+        {/* Radius */}
+        <div>
+          <label style={{ display: 'block', fontSize: '14px', fontWeight: 500, color: '#6B6B6B', marginBottom: '8px' }}>
+            Radius
+          </label>
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center', width: '100%' }}>
+            <NumberPillInput
+              value={uniformBorderRadius}
+              onChange={handleUniformBorderRadiusChange}
+              min={0}
+            />
+            <IconButtonGroup
+              buttons={[
+                { value: 'uniform', icon: linkIcon, label: 'Uniform radius' },
+                { value: 'individual', icon: unlinkIcon, label: 'Individual radius' },
+              ]}
+              activeValue={borderRadiusMode}
+              onButtonClick={(value) => handleBorderRadiusModeChange(value as 'uniform' | 'individual')}
+            />
+          </div>
+        </div>
+
+        {/* Border */}
+        <div>
+          <label style={{ display: 'block', fontSize: '14px', fontWeight: 500, color: '#6B6B6B', marginBottom: '8px' }}>
+            Border
+          </label>
+          <div
+            ref={borderPopoverAnchorRef}
+            onClick={() => {
+              setFillPopoverOpen(false);
+              setShadowPopoverOpen(false);
+              if (!hasVisibleBorder && !borderInitializedRef.current) {
+                borderInitializedRef.current = true;
+                handleUpdateProperties({
+                  border: {
+                    color: themeColors.accent,
+                    width: { mode: 'uniform', uniform: 2 },
+                    style: 'solid',
+                  },
+                });
+              }
+              setBorderPopoverOpen(true);
+            }}
+            style={{ width: '100%' }}
+          >
+            <PillSelect
+              swatchColor={hasVisibleBorder || borderPopoverOpen ? (borderColor || themeColors.accent) : '#CBCBCB'}
+              text={hasVisibleBorder || borderPopoverOpen ? (borderStyle || 'solid') : 'Add...'}
+              onClick={() => {}}
+              onClear={(e) => {
+                e.stopPropagation();
+                handleResetBorder();
+                setBorderPopoverOpen(false);
+              }}
+              showClear={hasVisibleBorder || borderPopoverOpen}
+            />
+          </div>
+        </div>
+
+        {/* Shadow */}
+        <div>
+          <label style={{ display: 'block', fontSize: '14px', fontWeight: 500, color: '#6B6B6B', marginBottom: '8px' }}>
+            Shadow
+          </label>
+          <div
+            ref={shadowPopoverAnchorRef}
+            onClick={() => {
+              setFillPopoverOpen(false);
+              setBorderPopoverOpen(false);
+              if (!hasShadow && !shadowInitializedRef.current) {
+                shadowInitializedRef.current = true;
+                handleShadowChange({
+                  type: 'box',
+                  position: 'outside',
+                  color: '#000000',
+                  opacity: 0.25,
+                  x: 0,
+                  y: 4,
+                  blur: 8,
+                  spread: 0,
+                });
+              }
+              setShadowPopoverOpen(true);
+            }}
+            style={{ width: '100%' }}
+          >
+            <PillSelect
+              swatchColor={hasShadow ? (shadow?.color || '#000000') : '#CBCBCB'}
+              text={hasShadow ? 'Shadow' : 'Add...'}
+              onClick={() => {}}
+              onClear={(e) => {
+                e.stopPropagation();
+                handleResetShadow();
+              }}
+              showClear={hasShadow}
+            />
+          </div>
+        </div>
+
+        {/* BG Blur */}
+        <div>
+          <label style={{ display: 'block', fontSize: '14px', fontWeight: 500, color: '#6B6B6B', marginBottom: '8px' }}>
+            BG Blur
+          </label>
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center', width: '100%' }}>
+            <NumberSliderInput
+              value={bgBlur}
+              onChange={handleBgBlurChange}
+              min={0}
+              max={100}
+              step={1}
+            />
+            {bgBlur > 0 && (
+              <button
+                type="button"
+                onClick={handleResetBgBlur}
+                style={{
+                  width: '16px',
+                  height: '16px',
+                  border: 'none',
+                  background: 'transparent',
+                  cursor: 'pointer',
+                  padding: 0,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#6B6B6B',
+                }}
+                aria-label="Remove BG Blur"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="8" height="8.5" viewBox="0 0 8 8.5">
+                  <g fill="transparent" strokeWidth="1.5" stroke="currentColor" strokeLinecap="round">
+                    <path d="m1.5 6.75 5-5M6.5 6.75l-5-5"></path>
+                  </g>
+                </svg>
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Popovers */}
+      <FillPopover
+        isOpen={fillPopoverOpen}
+        onClose={() => setFillPopoverOpen(false)}
+        anchorElement={fillPopoverAnchorRef.current}
+        fillType={backgroundImage ? 'image' : backgroundColor ? 'color' : 'color'}
+        imageUrl={backgroundImage}
+        imageType="Fill"
+        color={backgroundColor}
+        opacity={backgroundColorOpacity}
+        onImageUrlChange={handleBackgroundImageChange}
+        onImageTypeChange={() => {}}
+        onImageDescriptionChange={() => {}}
+        onColorChange={handleBackgroundColorChange}
+        onOpacityChange={handleBackgroundColorOpacityChange}
+      />
+
+      {fillPopoverOpen && (
+        <ColorPickerPopover
+          isOpen={fillColorPickerOpen && fillPopoverOpen}
+          onClose={() => {
+            setFillColorPickerOpen(false);
+            setFillPopoverOpen(true);
+          }}
+          anchorElement={fillPopoverAnchorRef.current}
+          color={backgroundColor || '#326CF6'}
+          opacity={backgroundColorOpacity}
+          onColorChange={handleBackgroundColorChange}
+          onOpacityChange={handleBackgroundColorOpacityChange}
+          showBackButton={true}
+          onBack={() => {
+            setFillColorPickerOpen(false);
+            setFillPopoverOpen(true);
+          }}
+          title="Fill"
+        />
+      )}
+
+      <BorderPopover
+        isOpen={borderPopoverOpen}
+        onClose={() => {
+          setBorderPopoverOpen(false);
+          // Do not reset border when closing
+        }}
+        anchorElement={borderPopoverAnchorRef.current}
+        color={borderColor || themeColors?.accent || '#326CF6'}
+        width={borderWidth || { mode: 'uniform' as const, uniform: 0 }}
+        style={(borderStyle || 'solid') as 'solid' | 'dashed' | 'dotted' | 'double'}
+        onColorChange={handleBorderColorChange}
+        onWidthChange={handleBorderWidthChange}
+        onStyleChange={handleBorderStyleChange}
+        onOpenColorPicker={() => {
+          setBorderPopoverOpen(false);
+          setBorderColorPickerOpen(true);
+        }}
+      />
+
+      {borderPopoverOpen && (
+        <ColorPickerPopover
+          isOpen={borderColorPickerOpen && borderPopoverOpen}
+          onClose={() => {
+            setBorderColorPickerOpen(false);
+            setBorderPopoverOpen(true);
+          }}
+          anchorElement={borderPopoverAnchorRef.current}
+          color={borderColor || '#326CF6'}
+          opacity={1}
+          onColorChange={handleBorderColorChange}
+          onOpacityChange={() => {}}
+          showBackButton={true}
+          onBack={() => {
+            setBorderColorPickerOpen(false);
+            setBorderPopoverOpen(true);
+          }}
+          title="Border"
+          hideImageTab={true}
+        />
+      )}
+
+      {hasShadow && (
+        <ShadowPopover
+          isOpen={shadowPopoverOpen && hasShadow}
+          onClose={() => setShadowPopoverOpen(false)}
+          anchorElement={shadowPopoverAnchorRef.current}
+          shadow={shadow}
+          onShadowChange={handleShadowChange}
+          onOpenColorPicker={() => {
+            setShadowPopoverOpen(false);
+            setShadowColorPickerOpen(true);
+          }}
+        />
+      )}
+
+      {hasShadow && shadowPopoverOpen && (
+        <ColorPickerPopover
+          isOpen={shadowColorPickerOpen && shadowPopoverOpen && hasShadow}
+          onClose={() => {
+            setShadowColorPickerOpen(false);
+            setShadowPopoverOpen(true);
+          }}
+          anchorElement={shadowPopoverAnchorRef.current}
+          color={shadow?.color || '#000000'}
+          opacity={shadow?.opacity || 0.25}
+          onColorChange={(color) => {
+            if (shadow) {
+              handleShadowChange({ ...shadow, color });
+            }
+          }}
+          onOpacityChange={(opacity) => {
+            if (shadow) {
+              handleShadowChange({ ...shadow, opacity });
+            }
+          }}
+          showBackButton={true}
+          onBack={() => {
+            setShadowColorPickerOpen(false);
+            setShadowPopoverOpen(true);
+          }}
+          title="Shadow"
+          hideImageTab={true}
+        />
+      )}
+    </div>
+  );
 }
 

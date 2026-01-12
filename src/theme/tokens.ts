@@ -147,6 +147,11 @@ export interface Theme {
   rowBorderRadius?: BorderRadiusDefaults; // Default row border radius for this theme
   pageBackground?: PageBackgroundDefaults; // Default page background for this theme
   resourceBackground?: ResourceBackgroundDefaults; // Default resource (block) background for this theme
+  defaultRowStyle?: {
+    type: 'curated' | 'custom';
+    curatedId?: string; // CuratedStyleId if type is 'curated'
+    customProperties?: Partial<import('../types').ThemeSpecificRowProps>; // Custom properties if type is 'custom'
+  };
 }
 
 /**

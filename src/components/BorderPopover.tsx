@@ -34,7 +34,7 @@ export function BorderPopover({
   onOpenColorPicker,
 }: BorderPopoverProps) {
   const [localColor, setLocalColor] = useState(color || '#326CF6');
-  const [localWidth, setLocalWidth] = useState(width);
+  const [localWidth, setLocalWidth] = useState(width || { mode: 'uniform' as const, uniform: 0 });
   const [localStyle, setLocalStyle] = useState(style || 'solid');
 
   // Sync local state with props only when popover first opens (to avoid flickering)

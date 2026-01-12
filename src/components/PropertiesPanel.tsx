@@ -17,6 +17,8 @@ import { ShadowPopover, type Shadow } from './ShadowPopover';
 import { NumberSliderInput } from './ui/NumberSliderInput';
 import { EffectsMenu } from './ui/EffectsMenu';
 import { SegmentedTextControl } from './ui/SegmentedTextControl';
+import { StylePopover } from './StylePopover';
+import { curatedStyles } from '../styles/curatedStyles';
 
 interface PropertiesPanelProps {
   selectedBlock: Block | null;
@@ -98,13 +100,49 @@ function getCellThemeProps(cell: Cell, themeId: ThemeId, theme: any): ThemeSpeci
   return legacyProps;
 }
 
-// Helper function to get theme-specific row properties with fallback to legacy props
-function getRowThemeProps(row: Row, themeId: ThemeId): ThemeSpecificRowProps {
+// Helper function to get theme-specific row properties with fallback to legacy props and theme defaults
+function getRowThemeProps(row: Row, themeId: ThemeId, theme: any): ThemeSpecificRowProps {
+  // Try to get theme-specific props (works for 'plain', 'neon', and any custom theme ID)
   const themeProps = row.props?.themes?.[themeId];
-  // If theme-specific props exist, use them; otherwise fall back to legacy props
+  
+  // Check if row should use default theme style
+  // - styleId === null means explicitly using default style
+  // - no themeProps at all means row should inherit default style from theme
+  const shouldUseDefaultStyle = themeProps?.styleId === null || (!themeProps && theme?.defaultRowStyle);
+  
+  // If row should use default style, apply it
+  if (shouldUseDefaultStyle && theme?.defaultRowStyle) {
+    const defaultStyle = theme.defaultRowStyle;
+    let defaultStyleProperties: Partial<ThemeSpecificRowProps> = {};
+    
+    if (defaultStyle.type === 'curated' && defaultStyle.curatedId) {
+      // Get curated style properties
+      const curatedStyle = curatedStyles.find(s => s.id === defaultStyle.curatedId);
+      if (curatedStyle) {
+        defaultStyleProperties = curatedStyle.getProperties({
+          accent: theme.colors.accent || '#326CF6',
+          surface: theme.colors.surface || '#ffffff',
+          border: theme.colors.border || '#e0e0e0',
+        });
+      }
+    } else if (defaultStyle.type === 'custom' && defaultStyle.customProperties) {
+      defaultStyleProperties = defaultStyle.customProperties;
+    }
+    
+    // Merge default style properties with any existing theme props
+    // Always include styleId: null to mark this as default style
+    return {
+      ...defaultStyleProperties,
+      ...themeProps, // Allow theme-specific props to override default style
+      styleId: null, // Ensure styleId is set to null to indicate default style
+    };
+  }
+  
+  // If theme-specific props exist, use them
   if (themeProps) {
     return themeProps;
   }
+  
   // Fallback to legacy props for backward compatibility
   return {
     verticalAlign: row.props?.verticalAlign,
@@ -169,6 +207,15 @@ export function PropertiesPanel({
   const [cellShadowColorPickerOpen, setCellShadowColorPickerOpen] = useState(false);
   const cellShadowPopoverAnchorRef = useRef<HTMLDivElement>(null);
   const cellShadowInitializedRef = useRef(false);
+  
+  // Style popover state (must be at top level)
+  const [rowStylePopoverAnchor, setRowStylePopoverAnchor] = useState<HTMLElement | null>(null);
+  const [rowStylePopoverOpen, setRowStylePopoverOpen] = useState(false);
+  const rowStylePopoverAnchorRef = useRef<HTMLDivElement>(null);
+  
+  const [cellStylePopoverAnchor, setCellStylePopoverAnchor] = useState<HTMLElement | null>(null);
+  const [cellStylePopoverOpen, setCellStylePopoverOpen] = useState(false);
+  const cellStylePopoverAnchorRef = useRef<HTMLDivElement>(null);
   
   // Compute active effects from props (for persistence) - use useMemo to avoid infinite loops
   const computedRowActiveEffects = useMemo(() => {
@@ -508,8 +555,8 @@ export function PropertiesPanel({
     const defaultBorder = theme.rowBorder || { color: undefined, width: { mode: 'uniform', uniform: 0 }, style: 'solid' };
     const defaultBorderRadius = theme.rowBorderRadius || { mode: 'uniform', uniform: 0 };
     
-    // Get theme-specific properties
-    const themeProps = getRowThemeProps(selectedRow, themeId);
+    // Get theme-specific properties (pass theme to apply default style if needed)
+    const themeProps = getRowThemeProps(selectedRow, themeId, theme);
     const rowThemeProps = selectedRow.props?.themes?.[themeId];
     
     const verticalAlign = themeProps.verticalAlign || 'top';
@@ -557,12 +604,22 @@ export function PropertiesPanel({
     const shadow = themeProps.shadow ?? null;
     const bgBlur = themeProps.bgBlur ?? 0;
     const hasShadow = shadow !== null;
+    
+    // Style
+    const styleId = themeProps.styleId; // null = default, string = style ID, undefined = no style (individual properties)
+    const hasStyle = styleId !== undefined; // true if a style is applied (default or custom)
+    const isDefaultStyle = styleId === null; // true if default style is applied
+    const isCustomStyle = styleId !== null && styleId !== undefined; // true if curated/custom style is applied
 
     // Helper to update theme-specific row properties
     const handleUpdateRowThemeProps = (updates: Partial<ThemeSpecificRowProps>) => {
       if (!onUpdateRow || !selectedRow || !isMountedRef.current) return;
       try {
         const currentThemeProps = selectedRow.props?.themes?.[themeId] || {};
+        // Preserve styleId from computed themeProps (which includes default style detection)
+        // This ensures that when updating properties like verticalAlign, padding, etc.,
+        // the styleId is not lost (especially important for default styles where styleId: null)
+        const preservedStyleId = themeProps.styleId !== undefined ? themeProps.styleId : currentThemeProps.styleId;
         onUpdateRow({
           ...selectedRow,
           props: {
@@ -572,6 +629,8 @@ export function PropertiesPanel({
               [themeId]: {
                 ...currentThemeProps,
                 ...updates,
+                // Preserve styleId if it exists in computed themeProps or current props
+                ...(preservedStyleId !== undefined ? { styleId: preservedStyleId } : {}),
               },
             },
           },
@@ -830,6 +889,73 @@ export function PropertiesPanel({
     
     // Calculate available effects (must be after all handlers and before return)
     const availableEffects = ['Shadows', 'BG Blur'].filter(effect => !rowActiveEffects.has(effect));
+    
+    // Style handlers
+    const handleStyleSelect = (selectedStyleId: string | null) => {
+      // selectedStyleId: null = default, string = curated/custom style ID
+      if (selectedStyleId === null) {
+        // Apply default style - we'll need to get default style properties from theme
+        // For now, just set styleId to null
+        handleUpdateRowThemeProps({
+          styleId: null,
+        });
+      } else {
+        // Apply curated or custom style
+        // Get style properties and apply them
+        const curatedStyle = curatedStyles.find(s => s.id === selectedStyleId);
+        if (curatedStyle) {
+          const styleProperties = curatedStyle.getProperties({
+            accent: themePrimaryColor,
+            surface: theme.colors.surface || '#ffffff',
+            border: theme.colors.border || '#e0e0e0',
+          });
+          handleUpdateRowThemeProps({
+            styleId: selectedStyleId,
+            ...styleProperties,
+          });
+        } else {
+          // Custom style - would need to look up from availableStyles
+          // For now, just set the styleId
+          handleUpdateRowThemeProps({
+            styleId: selectedStyleId,
+          });
+        }
+      }
+    };
+    
+    const handleClearStyle = () => {
+      // Clear style - remove styleId but keep all current property values
+      // This breaks apart the style to show individual properties
+      // We need to save the current computed properties (which may come from default style) to the row
+      if (!onUpdateRow || !selectedRow || !isMountedRef.current) return;
+      try {
+        // Get the current computed properties (from themeProps, which includes default style)
+        // Exclude styleId from the properties to save
+        const { styleId, ...propertiesToSave } = themeProps;
+        
+        // Save these properties to the row and remove styleId
+        onUpdateRow({
+          ...selectedRow,
+          props: {
+            ...selectedRow.props,
+            themes: {
+              ...selectedRow.props?.themes,
+              [themeId]: {
+                ...propertiesToSave,
+                styleId: undefined, // Remove style binding, show individual properties
+              },
+            },
+          },
+        });
+      } catch (error) {
+        console.error('Error clearing style:', error);
+      }
+    };
+    
+    // Get available styles (curated + custom)
+    const availableStyles: Array<{ id: string; name: string; isGlobal?: boolean; themeId?: string; properties: Partial<ThemeSpecificRowProps> }> = [];
+    // TODO: Load custom styles from theme or global storage
+    // For now, only curated styles are available
 
     const handleBorderRadiusModeChange = (mode: 'uniform' | 'individual') => {
       handleUpdateRowThemeProps({
@@ -910,6 +1036,51 @@ export function PropertiesPanel({
             showAddButton={availableEffects.length > 0}
             onAddEffect={handleAddEffect}
           >
+            <PropertyRow label="Style">
+              <div
+                ref={rowStylePopoverAnchorRef}
+                onClick={() => {
+                  const anchor = rowStylePopoverAnchorRef.current;
+                  if (anchor) {
+                    // Close other popovers first
+                    setRowFillPopoverOpen(false);
+                    setRowBorderPopoverOpen(false);
+                    setRowColorPickerOpen(false);
+                    setRowShadowPopoverOpen(false);
+                    setRowStylePopoverAnchor(anchor);
+                    setRowStylePopoverOpen(true);
+                  }
+                }}
+                style={{ width: '100%', flex: 1 }}
+              >
+                <PillSelect
+                  thumbnail={undefined}
+                  swatchColor={hasStyle ? '#326CF6' : '#CBCBCB'}
+                  text={isDefaultStyle ? 'Default' : isCustomStyle ? (curatedStyles.find(s => s.id === styleId)?.name || 'Style') : 'Select...'}
+                  onClick={() => {}}
+                  onClear={(e) => {
+                    e.stopPropagation();
+                    handleClearStyle();
+                    setRowStylePopoverOpen(false);
+                  }}
+                  showClear={hasStyle}
+                  icon={
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 512 512"
+                      width="16"
+                      height="16"
+                    >
+                      <path fill="currentColor" d="M464 258.2c0 2.7-1 5.2-4.2 8c-3.8 3.1-10.1 5.8-17.8 5.8H344c-53 0-96 43-96 96c0 6.8 .7 13.4 2.1 19.8c3.3 15.7 10.2 31.1 14.4 40.6l0 0c.7 1.6 1.4 3 1.9 4.3c5 11.5 5.6 15.4 5.6 17.1c0 5.3-1.9 9.5-3.8 11.8c-.9 1.1-1.6 1.6-2 1.8c-.3 .2-.8 .3-1.6 .4c-2.9 .1-5.7 .2-8.6 .2C141.1 464 48 370.9 48 256S141.1 48 256 48s208 93.1 208 208c0 .7 0 1.4 0 2.2zm48 .5c0-.9 0-1.8 0-2.7C512 114.6 397.4 0 256 0S0 114.6 0 256S114.6 512 256 512c3.5 0 7.1-.1 10.6-.2c31.8-1.3 53.4-30.1 53.4-62c0-14.5-6.1-28.3-12.1-42c-4.3-9.8-8.7-19.7-10.8-29.9c-.7-3.2-1-6.5-1-9.9c0-26.5 21.5-48 48-48h97.9c36.5 0 69.7-24.8 70.1-61.3zM160 256a32 32 0 1 0 -64 0 32 32 0 1 0 64 0zm0-64a32 32 0 1 0 0-64 32 32 0 1 0 0 64zm128-64a32 32 0 1 0 -64 0 32 32 0 1 0 64 0zm64 64a32 32 0 1 0 0-64 32 32 0 1 0 0 64z"></path>
+                </svg>
+                  }
+                />
+            </div>
+            </PropertyRow>
+            
+            {/* Only show individual properties when no style is applied (styleId is undefined) */}
+            {styleId === undefined && (
+              <>
             <PropertyRow label="Fill">
                 <div
                   ref={rowFillPopoverAnchorRef}
@@ -921,6 +1092,7 @@ export function PropertiesPanel({
                       setRowColorPickerOpen(false);
                       setRowShadowPopoverOpen(false);
                       setRowShadowColorPickerOpen(false);
+                      setRowStylePopoverOpen(false);
                       setRowFillPopoverAnchor(anchor);
                       setRowFillPopoverOpen(true);
                     }
@@ -938,8 +1110,8 @@ export function PropertiesPanel({
                         setRowFillPopoverOpen(false);
                       }}
                   showClear={hasExplicitBackground}
-                />
-                      </div>
+                      />
+                    </div>
             </PropertyRow>
 
             <PropertyRow label="Radius">
@@ -956,16 +1128,16 @@ export function PropertiesPanel({
                   ]}
                   activeValue={borderRadiusMode}
                   onButtonClick={(value) => handleBorderRadiusModeChange(value as 'uniform' | 'individual')}
-              />
-            </div>
+                      />
+                    </div>
             </PropertyRow>
 
             <PropertyRow label="Border">
               <div
                 ref={rowBorderPopoverAnchorRef}
-                onClick={() => {
+                  onClick={() => {
                   const anchor = rowBorderPopoverAnchorRef.current;
-                  if (anchor) {
+                    if (anchor) {
                     // Close other popovers first
                     setRowFillPopoverOpen(false);
                     setRowColorPickerOpen(false);
@@ -998,7 +1170,7 @@ export function PropertiesPanel({
                   }}
                   showClear={hasVisibleBorder || rowBorderPopoverOpen}
                 />
-                </div>
+                      </div>
             </PropertyRow>
             
             {rowActiveEffects.has('Shadows') && (
@@ -1070,6 +1242,8 @@ export function PropertiesPanel({
                     </button>
                 </div>
               </PropertyRow>
+            )}
+              </>
             )}
           </PanelSection>
           
@@ -1239,6 +1413,37 @@ export function PropertiesPanel({
                   hideImageTab={true}
                 />
               )}
+
+              <StylePopover
+                isOpen={rowStylePopoverOpen}
+                onClose={() => setRowStylePopoverOpen(false)}
+                anchorElement={rowStylePopoverAnchor}
+                currentStyle={styleId ?? null}
+                themeId={themeId}
+                themeColors={{
+                  accent: themePrimaryColor,
+                  surface: theme.colors.surface || '#ffffff',
+                  border: theme.colors.border || '#e0e0e0',
+                }}
+                availableStyles={availableStyles}
+                onSelectStyle={handleStyleSelect}
+                pageBackground={(() => {
+                  const defaultPageBackground = theme.pageBackground || { backgroundColor: '#ffffff', backgroundColorOpacity: 1, backgroundImage: undefined, backgroundImageOpacity: 1 };
+                  const themePageProps = pageProps?.themes?.[themeId] || {};
+                  return {
+                    backgroundColor: themePageProps.backgroundColor ?? defaultPageBackground.backgroundColor,
+                    backgroundColorOpacity: themePageProps.backgroundColorOpacity ?? defaultPageBackground.backgroundColorOpacity ?? 1,
+                    backgroundImage: themePageProps.backgroundImage ?? defaultPageBackground.backgroundImage,
+                    backgroundImageOpacity: themePageProps.backgroundImageOpacity ?? defaultPageBackground.backgroundImageOpacity ?? 1,
+                  };
+                })()}
+                theme={theme}
+                textColors={{
+                  headingColor: theme.colors.text || '#000000',
+                  paragraphColor: theme.colors.mutedText || '#272525',
+                  primaryColor: themePrimaryColor,
+                }}
+              />
               
               <EffectsMenu
                 isOpen={rowStyleEffectsMenuOpen}
@@ -1314,6 +1519,7 @@ export function PropertiesPanel({
       if (!onUpdateCell || !selectedCell || !isMountedRef.current) return;
       try {
         const currentThemeProps = selectedCell.props?.themes?.[themeId] || {};
+        // Note: Cells don't have styleId, so we don't need to preserve it here
         onUpdateCell({
           ...selectedCell,
           props: {
