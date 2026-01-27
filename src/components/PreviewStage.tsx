@@ -8,17 +8,41 @@ import { QuizBlockView } from './QuizBlockView';
 import { ColumnsBlockView } from './ColumnsBlockView';
 import { RowView } from './RowView';
 import { isBlock } from '../utils/sections';
+import { useTheme } from '../theme/ThemeProvider';
+import { useThemeSwitcher } from '../theme/ThemeProvider';
 
 interface PreviewStageProps {
   blocks?: Block[]; // For backward compatibility
   rows?: Row[]; // New: Use rows for proper structure
   deviceType: DeviceType;
   deviceConfig: typeof deviceConfigs[DeviceType];
+  pageProps?: {
+    themes?: {
+      [key: string]: {
+        backgroundColor?: string;
+        backgroundColorOpacity?: number;
+        backgroundImage?: string;
+        backgroundImageOpacity?: number;
+        maxRowWidth?: number | null;
+      } | undefined;
+    };
+  };
 }
 
-export function PreviewStage({ blocks, rows, deviceType, deviceConfig }: PreviewStageProps) {
+export function PreviewStage({ blocks, rows, deviceType, deviceConfig, pageProps }: PreviewStageProps) {
   const stageRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(1);
+  const { themeId } = useThemeSwitcher();
+  const theme = useTheme();
+  
+  // Get page background from pageProps or theme defaults
+  const defaultPageBackground = theme.pageBackground || { backgroundColor: '#ffffff', backgroundColorOpacity: 1, backgroundImage: undefined, backgroundImageOpacity: 1 };
+  const themePageProps = pageProps?.themes?.[themeId] || {};
+  const backgroundColor = themePageProps.backgroundColor ?? defaultPageBackground.backgroundColor;
+  const backgroundColorOpacity = themePageProps.backgroundColorOpacity ?? defaultPageBackground.backgroundColorOpacity ?? 1;
+  const backgroundImage = themePageProps.backgroundImage ?? defaultPageBackground.backgroundImage;
+  const backgroundImageOpacity = themePageProps.backgroundImageOpacity ?? defaultPageBackground.backgroundImageOpacity ?? 1;
+  const backgroundImageType = themePageProps.backgroundImageType ?? defaultPageBackground.backgroundImageType ?? 'fill';
 
   // Calculate scale to fit device viewport in stage
   useEffect(() => {
@@ -57,9 +81,44 @@ export function PreviewStage({ blocks, rows, deviceType, deviceConfig }: Preview
           transformOrigin: 'top center',
         }}
       >
-        <div className="preview-content-wrapper" style={{ width: `${deviceConfig.width}px` }}>
+        <div className="preview-content-wrapper" style={{ width: `${deviceConfig.width}px`, position: 'relative' }}>
+          {/* Page background color layer */}
+          {backgroundColor && (
+            <div
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                backgroundColor: backgroundColor || 'transparent',
+                opacity: backgroundColorOpacity,
+                zIndex: 0,
+                pointerEvents: 'none',
+              }}
+            />
+          )}
+          {/* Page background image layer */}
+          {backgroundImage && (
+            <div
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+            backgroundImage: `url(${backgroundImage})`,
+            backgroundSize: backgroundImageType === 'fit' ? 'contain' : backgroundImageType === 'stretch' ? '100% 100%' : 'cover',
+            backgroundPosition: 'center',
+            backgroundRepeat: 'no-repeat',
+            opacity: backgroundImageOpacity,
+                zIndex: 1,
+                pointerEvents: 'none',
+              }}
+            />
+          )}
           {rows && rows.length > 0 ? (
-            <div className="preview-lesson-content">
+            <div className="preview-lesson-content" style={{ position: 'relative', zIndex: 2 }}>
               {rows.map((row) => (
                 <RowView
                   key={row.id}
@@ -182,7 +241,7 @@ export function PreviewStage({ blocks, rows, deviceType, deviceConfig }: Preview
               ))}
             </div>
           ) : blocks && blocks.length > 0 ? (
-            <div className="preview-lesson-content">
+            <div className="preview-lesson-content" style={{ position: 'relative', zIndex: 2 }}>
               {blocks.map((block) => {
                 switch (block.type) {
                   case 'text':

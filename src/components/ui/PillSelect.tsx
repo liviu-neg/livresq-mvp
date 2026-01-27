@@ -3,6 +3,7 @@ import React from 'react';
 interface PillSelectProps {
   thumbnail?: string;
   swatchColor?: string;
+  swatchOpacity?: number; // Opacity for the color swatch (0-1)
   text: string;
   onClick?: () => void;
   onClear?: (e: React.MouseEvent) => void;
@@ -10,11 +11,39 @@ interface PillSelectProps {
   icon?: React.ReactNode; // Optional icon to display before text
 }
 
-export function PillSelect({ thumbnail, swatchColor, text, onClick, onClear, showClear = false, icon }: PillSelectProps) {
+// Helper to convert hex to rgba
+function hexToRgba(hex: string, opacity: number = 1): string {
+  hex = hex.replace('#', '');
+  const r = parseInt(hex.substring(0, 2), 16);
+  const g = parseInt(hex.substring(2, 4), 16);
+  const b = parseInt(hex.substring(4, 6), 16);
+  return `rgba(${r}, ${g}, ${b}, ${opacity})`;
+}
+
+export function PillSelect({ thumbnail, swatchColor, swatchOpacity = 1, text, onClick, onClear, showClear = false, icon }: PillSelectProps) {
   // If icon is provided with swatchColor, show icon inside swatch
   const showIconInSwatch = icon && swatchColor && !thumbnail;
   // Check if swatch is in selected state (primary blue)
   const isSelected = swatchColor === '#326CF6';
+  
+  // Create rgba color with opacity
+  const swatchStyle = swatchColor ? {
+    width: '100%',
+    height: '100%',
+    backgroundColor: hexToRgba(swatchColor, swatchOpacity),
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    // Add checkerboard pattern background if opacity < 1
+    backgroundImage: swatchOpacity < 1 ? `
+      linear-gradient(45deg, #ccc 25%, transparent 25%),
+      linear-gradient(-45deg, #ccc 25%, transparent 25%),
+      linear-gradient(45deg, transparent 75%, #ccc 75%),
+      linear-gradient(-45deg, transparent 75%, #ccc 75%)
+    ` : undefined,
+    backgroundSize: swatchOpacity < 1 ? '8px 8px' : undefined,
+    backgroundPosition: swatchOpacity < 1 ? '0 0, 0 4px, 4px -4px, -4px 0px' : undefined,
+  } : {};
   
   return (
     <button type="button" className="ui-pill-select" onClick={onClick}>
@@ -23,7 +52,7 @@ export function PillSelect({ thumbnail, swatchColor, text, onClick, onClear, sho
           {thumbnail ? (
             <img src={thumbnail} alt="" />
           ) : swatchColor ? (
-            <div style={{ width: '100%', height: '100%', backgroundColor: swatchColor, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div style={swatchStyle}>
               {showIconInSwatch && (
                 <div className="ui-pill-select-icon-in-swatch">{icon}</div>
               )}

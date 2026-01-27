@@ -4032,6 +4032,7 @@ body {
   margin-bottom: var(--spacing-lg);
   position: relative;
   z-index: 2; /* Ensure rows are above page background (z-index 0-1) for proper hover detection */
+  background: transparent; /* Ensure row-view background is transparent */
 }
 
 /* Ensure custom border from inline styles takes precedence over default transparent border */
@@ -4643,7 +4644,7 @@ body {
 .theme-editor-container.theme-editor-step1 {
   max-width: 1400px;
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: auto 1fr;
   grid-template-rows: auto 1fr;
   height: 90vh;
 }
@@ -4787,6 +4788,16 @@ body {
   padding: 32px;
   overflow-y: auto;
   border-right: 1px solid #e5e5e5;
+  width: 500px;
+  max-width: 500px;
+  min-width: 500px;
+  flex-shrink: 0;
+}
+
+.theme-editor-config-panel.ui-properties-panel {
+  width: 500px;
+  max-width: 500px;
+  min-width: 500px;
 }
 
 .theme-editor-config-panel h3 {
@@ -4917,6 +4928,8 @@ body {
   flex-direction: column;
   background: #f5f5f5;
   overflow: hidden;
+  min-width: 0; /* Allow flex item to shrink below content size */
+  flex: 1; /* Take all remaining space */
 }
 
 .theme-preview-header {
@@ -5214,46 +5227,61 @@ body {
 /* Fill Popover */
 .fill-popover-tabs {
   display: flex;
-  gap: 0;
-  border-bottom: 1px solid #e6e6e6;
-  margin: -16px -16px 16px -16px;
-  padding: 0 16px;
+  height: 32px;
+  background: #EEEEEE;
+  border-radius: 8px;
+  padding: 2px;
+  gap: 2px;
+  width: 100%;
   min-width: 0;
-  overflow: visible;
+  box-sizing: border-box;
   flex-shrink: 0;
 }
 
 .fill-popover-tabs-sticky {
   position: sticky;
   top: 0;
-  background: white;
   z-index: 1;
+  background: #E6E6E6;
+  border-radius: 8px;
+  box-sizing: border-box;
+}
+
+.fill-popover-tabs-sticky .fill-popover-tabs {
+  margin: 0;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .fill-popover-tab {
-  background: none;
-  border: none;
-  padding: 12px 16px;
-  font-size: 13px;
-  color: #666;
-  cursor: pointer;
-  border-bottom: 2px solid transparent;
-  transition: all 0.2s;
-  position: relative;
-  top: 1px;
   flex: 1;
-  min-width: 0;
+  height: 28px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  transition: all 0.2s ease;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+  color: #6B6B6B;
   white-space: nowrap;
+  min-width: 0;
 }
 
 .fill-popover-tab:hover {
-  color: #1a1a1a;
+  color: #111111;
 }
 
 .fill-popover-tab.active {
-  color: #326CF6;
-  border-bottom-color: #326CF6;
-  font-weight: 500;
+  background: #FFFFFF;
+  box-shadow: 0px 2px 6px rgba(0, 0, 0, 0.18);
+  color: #111111;
+  font-weight: 600;
 }
 
 .fill-popover-image-content {
@@ -6107,6 +6135,12 @@ body {
 }
 
 /* Segmented Icon Control (Align) */
+.ui-properties-panel .ui-property-row-value:has(.ui-segmented-control) {
+  background: #E6E6E6;
+  border-radius: 8px;
+  padding: 2px;
+}
+
 .ui-properties-panel .ui-segmented-control {
   display: flex;
   height: var(--ui-control-height);
@@ -6655,6 +6689,18 @@ body {
   display: flex;
   flex-direction: column;
   gap: 8px;
+}
+
+/* When used in Theme Editor, show 2 per line */
+.theme-editor-config-panel .style-popover-list {
+  display: flex;
+  flex-wrap: wrap;
+  flex-direction: row;
+  gap: 8px;
+}
+
+.theme-editor-config-panel .style-popover-item {
+  width: calc(50% - 4px);
 }
 
 .style-popover-item {

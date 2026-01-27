@@ -432,7 +432,7 @@ function ResourceBackgroundWrapper({ children, blockId }: { children: React.Reac
             right: 0,
             bottom: 0,
             backgroundImage: `url(${resourceBackground.backgroundImage})`,
-            backgroundSize: 'cover',
+            backgroundSize: resourceBackground.backgroundImageType === 'fit' ? 'contain' : resourceBackground.backgroundImageType === 'stretch' ? '100% 100%' : 'cover',
             backgroundPosition: 'center',
             backgroundRepeat: 'no-repeat',
             opacity: resourceBackground.backgroundImageOpacity ?? 1,
@@ -471,12 +471,13 @@ function PageBackground({ pageProps }: {
 }) {
   const { themeId } = useThemeSwitcher();
   const theme = useTheme();
-  const defaultPageBackground = theme.pageBackground || { backgroundColor: '#ffffff', backgroundColorOpacity: 1, backgroundImage: undefined, backgroundImageOpacity: 1 };
+  const defaultPageBackground = theme.pageBackground || { backgroundColor: '#ffffff', backgroundColorOpacity: 1, backgroundImage: undefined, backgroundImageOpacity: 1, backgroundImageType: 'fill' };
   const themePageProps = pageProps?.themes?.[themeId] || {};
   const backgroundColor = themePageProps.backgroundColor ?? defaultPageBackground.backgroundColor;
   const backgroundColorOpacity = themePageProps.backgroundColorOpacity ?? defaultPageBackground.backgroundColorOpacity ?? 1;
   const backgroundImage = themePageProps.backgroundImage ?? defaultPageBackground.backgroundImage;
   const backgroundImageOpacity = themePageProps.backgroundImageOpacity ?? defaultPageBackground.backgroundImageOpacity ?? 1;
+  const backgroundImageType = themePageProps.backgroundImageType ?? defaultPageBackground.backgroundImageType ?? 'fill';
 
   return (
     <>
@@ -505,7 +506,7 @@ function PageBackground({ pageProps }: {
             right: 0,
             bottom: 0,
             backgroundImage: `url(${backgroundImage})`,
-            backgroundSize: 'cover',
+            backgroundSize: backgroundImageType === 'fit' ? 'contain' : backgroundImageType === 'stretch' ? '100% 100%' : 'cover',
             backgroundPosition: 'center',
             backgroundRepeat: 'no-repeat',
             opacity: backgroundImageOpacity,

@@ -1,7 +1,8 @@
-import { useState, useEffect, useRef } from 'react';
-import { useTheme, useThemeSwitcher } from '../theme/ThemeProvider';
-import type { Theme } from '../theme/tokens';
-import { plainTheme, neonTheme } from '../theme/tokens';
+import { useState, useEffect, useLayoutEffect, useRef, useMemo, createContext, useContext, ReactNode } from 'react';
+import { useTheme, useThemeSwitcher, ThemeProvider } from '../theme/ThemeProvider';
+import type { Theme, ThemeId } from '../theme/tokens';
+import { plainTheme, neonTheme, themeToCSSVariables } from '../theme/tokens';
+import { getBackgroundSize } from '../utils/backgroundImage';
 import type { ThemeSpecificRowProps, CuratedStyleId } from '../types';
 import { curatedStyles } from '../styles/curatedStyles';
 import { FillPopover } from './FillPopover';
@@ -12,6 +13,15 @@ import { NumberPillInput } from './ui/NumberPillInput';
 import { NumberSliderInput } from './ui/NumberSliderInput';
 import { IconButtonGroup } from './ui/IconButtonGroup';
 import { PillSelect } from './ui/PillSelect';
+import { PanelSection } from './ui/PanelSection';
+import { PropertyRow } from './ui/PropertyRow';
+import { RowView } from './RowView';
+import { TextBlockView } from './TextBlockView';
+import { ImageBlockView } from './ImageBlockView';
+import { QuizBlockView } from './QuizBlockView';
+import { ColumnsBlockView } from './ColumnsBlockView';
+import { ButtonBlockView } from './ButtonBlockView';
+import type { Row, Block } from '../types';
 
 // Palette icon for theme editor button
 const PaletteIcon = () => (
@@ -25,6 +35,8 @@ interface ThemeEditorProps {
   onClose: () => void;
   onThemeUpdate: (themes: Record<string, Theme>) => void;
   customThemes: Record<string, Theme>;
+  rows?: import('../types').Row[];
+  blocks?: import('../types').Block[];
 }
 
 type EditorStep = 'selection' | 'step1' | 'step2';
@@ -37,18 +49,22 @@ interface ThemeColorConfig {
   pageBackgroundColorOpacity?: number; // 0-1
   pageBackgroundImage?: string;
   pageBackgroundImageOpacity?: number; // 0-1
+  pageBackgroundImageType?: 'fill' | 'fit' | 'stretch';
   rowBackgroundColor?: string;
   rowBackgroundColorOpacity?: number; // 0-1
   rowBackgroundImage?: string;
   rowBackgroundImageOpacity?: number; // 0-1
+  rowBackgroundImageType?: 'fill' | 'fit' | 'stretch';
   cellBackgroundColor?: string; // Optional, default transparent
   cellBackgroundColorOpacity?: number; // 0-1
   cellBackgroundImage?: string; // Optional, default transparent
   cellBackgroundImageOpacity?: number; // 0-1
+  cellBackgroundImageType?: 'fill' | 'fit' | 'stretch';
   resourceBackgroundColor?: string; // Optional, default transparent
   resourceBackgroundColorOpacity?: number; // 0-1
   resourceBackgroundImage?: string; // Optional, default transparent
   resourceBackgroundImageOpacity?: number; // 0-1
+  resourceBackgroundImageType?: 'fill' | 'fit' | 'stretch';
 }
 
 // Helper function to convert hex color to rgba with opacity
@@ -64,7 +80,9 @@ function hexToRgba(hex: string, opacity: number = 1): string {
   return `rgba(${r}, ${g}, ${b}, ${opacity})`;
 }
 
-export function ThemeEditor({ isOpen, onClose, onThemeUpdate, customThemes }: ThemeEditorProps) {
+
+
+export function ThemeEditor({ isOpen, onClose, onThemeUpdate, customThemes, rows = [], blocks = [] }: ThemeEditorProps) {
   const [step, setStep] = useState<EditorStep>('selection');
   const [editingThemeId, setEditingThemeId] = useState<string | null>(null);
   const [isNewTheme, setIsNewTheme] = useState(false);
@@ -72,6 +90,10 @@ export function ThemeEditor({ isOpen, onClose, onThemeUpdate, customThemes }: Th
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [saveAsNew, setSaveAsNew] = useState(false);
   const [newThemeName, setNewThemeName] = useState('');
+  const [previewTab, setPreviewTab] = useState<'test' | 'current'>('test');
+  
+  // Get theme context at top level (must be called unconditionally)
+  const themeSwitcher = useThemeSwitcher();
   const [colorConfig, setColorConfig] = useState<ThemeColorConfig>({
     primaryColor: '#326CF6',
     headingColor: '#000000',
@@ -80,24 +102,47 @@ export function ThemeEditor({ isOpen, onClose, onThemeUpdate, customThemes }: Th
     pageBackgroundColorOpacity: 1,
     pageBackgroundImage: undefined,
     pageBackgroundImageOpacity: 1,
+    pageBackgroundImageType: 'fill',
     rowBackgroundColor: '#ffffff',
     rowBackgroundColorOpacity: 1,
     rowBackgroundImage: undefined,
     rowBackgroundImageOpacity: 1,
+    rowBackgroundImageType: 'fill',
     cellBackgroundColor: undefined,
     cellBackgroundColorOpacity: 1,
     cellBackgroundImage: undefined,
     cellBackgroundImageOpacity: 1,
+    cellBackgroundImageType: 'fill',
     resourceBackgroundColor: undefined,
     resourceBackgroundColorOpacity: 1,
     resourceBackgroundImage: undefined,
     resourceBackgroundImageOpacity: 1,
+    resourceBackgroundImageType: 'fill',
   });
-  
+
   // Step 2: Default Row Style
   const [defaultRowStyleType, setDefaultRowStyleType] = useState<'curated' | 'custom'>('curated');
   const [selectedCuratedStyle, setSelectedCuratedStyle] = useState<CuratedStyleId | null>(null);
   const [customStyleProperties, setCustomStyleProperties] = useState<Partial<ThemeSpecificRowProps>>({});
+  
+  // Step 1: Popover state
+  const [primaryColorPopoverOpen, setPrimaryColorPopoverOpen] = useState(false);
+  const [headingColorPopoverOpen, setHeadingColorPopoverOpen] = useState(false);
+  const [paragraphColorPopoverOpen, setParagraphColorPopoverOpen] = useState(false);
+  const [pageFillPopoverOpen, setPageFillPopoverOpen] = useState(false);
+  const [rowFillPopoverOpen, setRowFillPopoverOpen] = useState(false);
+  const [cellFillPopoverOpen, setCellFillPopoverOpen] = useState(false);
+  const [resourceFillPopoverOpen, setResourceFillPopoverOpen] = useState(false);
+  const [colorPickerOpen, setColorPickerOpen] = useState(false);
+  const [activeColorPicker, setActiveColorPicker] = useState<string | null>(null);
+  
+  const primaryColorPopoverAnchorRef = useRef<HTMLDivElement>(null);
+  const headingColorPopoverAnchorRef = useRef<HTMLDivElement>(null);
+  const paragraphColorPopoverAnchorRef = useRef<HTMLDivElement>(null);
+  const pageFillPopoverAnchorRef = useRef<HTMLDivElement>(null);
+  const rowFillPopoverAnchorRef = useRef<HTMLDivElement>(null);
+  const cellFillPopoverAnchorRef = useRef<HTMLDivElement>(null);
+  const resourceFillPopoverAnchorRef = useRef<HTMLDivElement>(null);
 
   // Load theme data when editing - only load when first opening or when editingThemeId changes
   useEffect(() => {
@@ -121,18 +166,22 @@ export function ThemeEditor({ isOpen, onClose, onThemeUpdate, customThemes }: Th
           pageBackgroundColorOpacity: theme.pageBackground?.backgroundColorOpacity ?? 1,
           pageBackgroundImage: theme.pageBackground?.backgroundImage,
           pageBackgroundImageOpacity: theme.pageBackground?.backgroundImageOpacity ?? 1,
+          pageBackgroundImageType: theme.pageBackground?.backgroundImageType ?? 'fill',
           rowBackgroundColor: theme.rowBackground?.backgroundColor,
           rowBackgroundColorOpacity: theme.rowBackground?.backgroundColorOpacity ?? 1,
           rowBackgroundImage: theme.rowBackground?.backgroundImage,
           rowBackgroundImageOpacity: theme.rowBackground?.backgroundImageOpacity ?? 1,
+          rowBackgroundImageType: theme.rowBackground?.backgroundImageType ?? 'fill',
           cellBackgroundColor: theme.cellBackground?.backgroundColor,
           cellBackgroundColorOpacity: theme.cellBackground?.backgroundColorOpacity ?? 1,
           cellBackgroundImage: theme.cellBackground?.backgroundImage,
           cellBackgroundImageOpacity: theme.cellBackground?.backgroundImageOpacity ?? 1,
+          cellBackgroundImageType: theme.cellBackground?.backgroundImageType ?? 'fill',
           resourceBackgroundColor: theme.resourceBackground?.backgroundColor,
           resourceBackgroundColorOpacity: theme.resourceBackground?.backgroundColorOpacity ?? 1,
           resourceBackgroundImage: theme.resourceBackground?.backgroundImage,
           resourceBackgroundImageOpacity: theme.resourceBackground?.backgroundImageOpacity ?? 1,
+          resourceBackgroundImageType: theme.resourceBackground?.backgroundImageType ?? 'fill',
         });
         if (!isNewTheme) {
           setThemeName(theme.name || editingThemeId);
@@ -166,10 +215,116 @@ export function ThemeEditor({ isOpen, onClose, onThemeUpdate, customThemes }: Th
         // Reset to defaults if no default row style
         setDefaultRowStyleType('curated');
         setSelectedCuratedStyle(null);
-        setCustomStyleProperties({});
+        // Initialize customStyleProperties with row background color from Step 1
+        setCustomStyleProperties({
+          backgroundColor: colorConfig.rowBackgroundColor,
+          backgroundColorOpacity: colorConfig.rowBackgroundColorOpacity ?? 1,
+          backgroundImage: colorConfig.rowBackgroundImage,
+          backgroundImageOpacity: colorConfig.rowBackgroundImageOpacity ?? 1,
+        });
       }
     }
   }, [editingThemeId, step, customThemes]);
+
+  // Step 2: Design (Default Row Style) - hooks must be declared before any early returns
+  const originalThemeIdRef = useRef<string | null>(null);
+  const [previewThemeReady, setPreviewThemeReady] = useState(false);
+  
+  // Get theme switcher at top level (hooks must be called unconditionally)
+  const { updateCustomThemes, setThemeId: setContextThemeId, customThemes: contextCustomThemes, themeId: currentThemeId } = themeSwitcher;
+  
+  // Create preview theme from current colorConfig (must be at top level for useMemo)
+  const previewTheme: Theme = useMemo(() => ({
+    name: editingThemeId || 'Preview',
+    colors: {
+      bg: colorConfig.pageBackgroundColor,
+      surface: colorConfig.pageBackgroundColor,
+      text: colorConfig.headingColor,
+      mutedText: colorConfig.paragraphColor,
+      border: '#e0e0e0',
+      focusRing: colorConfig.primaryColor,
+      accent: colorConfig.primaryColor,
+    },
+    typography: plainTheme.typography,
+    spacing: plainTheme.spacing,
+    radius: plainTheme.radius,
+    shadow: plainTheme.shadow,
+    cellPadding: plainTheme.cellPadding,
+    cellBackground: {
+      backgroundColor: colorConfig.cellBackgroundColor,
+      backgroundColorOpacity: colorConfig.cellBackgroundColor ? (colorConfig.cellBackgroundColorOpacity ?? 1) : undefined,
+      backgroundImage: colorConfig.cellBackgroundImage,
+      backgroundImageOpacity: colorConfig.cellBackgroundImage ? (colorConfig.cellBackgroundImageOpacity ?? 1) : undefined,
+      backgroundImageType: colorConfig.cellBackgroundImageType ?? 'fill',
+    },
+    rowPadding: plainTheme.rowPadding,
+    rowBackground: {
+      backgroundColor: colorConfig.rowBackgroundColor,
+      backgroundColorOpacity: colorConfig.rowBackgroundColorOpacity ?? 1,
+      backgroundImage: colorConfig.rowBackgroundImage,
+      backgroundImageOpacity: colorConfig.rowBackgroundImage ? (colorConfig.rowBackgroundImageOpacity ?? 1) : undefined,
+      backgroundImageType: colorConfig.rowBackgroundImageType ?? 'fill',
+    },
+    cellBorder: plainTheme.cellBorder,
+    cellBorderRadius: plainTheme.cellBorderRadius,
+    rowBorder: plainTheme.rowBorder,
+    rowBorderRadius: plainTheme.rowBorderRadius,
+    pageBackground: {
+      backgroundColor: colorConfig.pageBackgroundColor,
+      backgroundColorOpacity: colorConfig.pageBackgroundColorOpacity ?? 1,
+      backgroundImage: colorConfig.pageBackgroundImage,
+      backgroundImageOpacity: colorConfig.pageBackgroundImage ? (colorConfig.pageBackgroundImageOpacity ?? 1) : undefined,
+      backgroundImageType: colorConfig.pageBackgroundImageType ?? 'fill',
+    },
+    resourceBackground: {
+      backgroundColor: colorConfig.resourceBackgroundColor,
+      backgroundColorOpacity: colorConfig.resourceBackgroundColor ? (colorConfig.resourceBackgroundColorOpacity ?? 1) : undefined,
+      backgroundImage: colorConfig.resourceBackgroundImage,
+      backgroundImageOpacity: colorConfig.resourceBackgroundImage ? (colorConfig.resourceBackgroundImageOpacity ?? 1) : undefined,
+      backgroundImageType: colorConfig.resourceBackgroundImageType ?? 'fill',
+    },
+    defaultRowStyle: (defaultRowStyleType === 'curated' && selectedCuratedStyle) || (defaultRowStyleType === 'custom' && Object.keys(customStyleProperties).length > 0)
+      ? {
+          type: defaultRowStyleType,
+          curatedId: defaultRowStyleType === 'curated' ? selectedCuratedStyle || undefined : undefined,
+          customProperties: defaultRowStyleType === 'custom' ? customStyleProperties : undefined,
+        }
+      : undefined,
+  }), [colorConfig, defaultRowStyleType, selectedCuratedStyle, customStyleProperties, editingThemeId]);
+
+  // Update customThemes with preview theme and set themeId when previewing current page
+  // Use useLayoutEffect to set theme synchronously before browser paints
+  useLayoutEffect(() => {
+    const previewThemeId = '__preview__';
+    
+    if (previewTab === 'current' && step === 'step2') {
+      // Store original themeId if not already stored
+      if (originalThemeIdRef.current === null) {
+        originalThemeIdRef.current = currentThemeId;
+      }
+      
+      // Add preview theme to customThemes
+      updateCustomThemes((prevThemes) => ({
+        ...prevThemes,
+        [previewThemeId]: previewTheme,
+      }));
+      
+      // Set theme to preview theme immediately (synchronously)
+      setContextThemeId(previewThemeId);
+      setPreviewThemeReady(true);
+    } else {
+      // When switching away from current page or step, restore original theme
+      if (originalThemeIdRef.current !== null) {
+        updateCustomThemes((prevThemes) => {
+          const { [previewThemeId]: _, ...rest } = prevThemes;
+          return rest;
+        });
+        setContextThemeId(originalThemeIdRef.current);
+        originalThemeIdRef.current = null;
+        setPreviewThemeReady(false);
+      }
+    }
+  }, [previewTab, previewTheme, step, updateCustomThemes, setContextThemeId, currentThemeId]);
 
   if (!isOpen) return null;
 
@@ -307,6 +462,7 @@ export function ThemeEditor({ isOpen, onClose, onThemeUpdate, customThemes }: Th
         backgroundColorOpacity: colorConfig.cellBackgroundColor ? (colorConfig.cellBackgroundColorOpacity ?? 1) : undefined,
         backgroundImage: colorConfig.cellBackgroundImage,
         backgroundImageOpacity: colorConfig.cellBackgroundImage ? (colorConfig.cellBackgroundImageOpacity ?? 1) : undefined,
+        backgroundImageType: colorConfig.cellBackgroundImageType ?? 'fill',
       },
       rowPadding: plainTheme.rowPadding, // Use default row padding for now
       rowBackground: {
@@ -324,12 +480,14 @@ export function ThemeEditor({ isOpen, onClose, onThemeUpdate, customThemes }: Th
         backgroundColorOpacity: colorConfig.pageBackgroundColorOpacity ?? 1,
         backgroundImage: colorConfig.pageBackgroundImage,
         backgroundImageOpacity: colorConfig.pageBackgroundImage ? (colorConfig.pageBackgroundImageOpacity ?? 1) : undefined,
+        backgroundImageType: colorConfig.pageBackgroundImageType ?? 'fill',
       },
       resourceBackground: {
         backgroundColor: colorConfig.resourceBackgroundColor,
         backgroundColorOpacity: colorConfig.resourceBackgroundColor ? (colorConfig.resourceBackgroundColorOpacity ?? 1) : undefined,
         backgroundImage: colorConfig.resourceBackgroundImage,
         backgroundImageOpacity: colorConfig.resourceBackgroundImage ? (colorConfig.resourceBackgroundImageOpacity ?? 1) : undefined,
+        backgroundImageType: colorConfig.resourceBackgroundImageType ?? 'fill',
       },
       defaultRowStyle: (defaultRowStyleType === 'curated' && selectedCuratedStyle) || (defaultRowStyleType === 'custom' && Object.keys(customStyleProperties).length > 0)
         ? {
@@ -340,14 +498,18 @@ export function ThemeEditor({ isOpen, onClose, onThemeUpdate, customThemes }: Th
         : undefined,
     };
 
-    // Update custom themes
+    // Update custom themes - ensure we preserve all existing themes
     const updatedThemes = {
-      ...customThemes,
-      [finalThemeId]: newTheme,
+      ...customThemes, // Preserve all existing themes
+      [finalThemeId]: newTheme, // Add or update the current theme
     };
 
-    // Save themes
+    // Save themes - this will trigger the save in ThemeProvider
     onThemeUpdate(updatedThemes);
+    
+    // Log for debugging
+    console.log(`Saved theme "${finalThemeName}" with ID "${finalThemeId}"`);
+    console.log(`Total themes after save: ${Object.keys(updatedThemes).length}`);
 
     // Reset state and close
     setStep('selection');
@@ -412,7 +574,7 @@ export function ThemeEditor({ isOpen, onClose, onThemeUpdate, customThemes }: Th
                           right: 0,
                           bottom: 0,
                           backgroundImage: `url(${plainTheme.pageBackground.backgroundImage})`,
-                          backgroundSize: 'cover',
+                          backgroundSize: getBackgroundSize(plainTheme.pageBackground.backgroundImageType),
                           backgroundPosition: 'center',
                           backgroundRepeat: 'no-repeat',
                           opacity: plainTheme.pageBackground.backgroundImageOpacity ?? 1,
@@ -466,7 +628,7 @@ export function ThemeEditor({ isOpen, onClose, onThemeUpdate, customThemes }: Th
                           right: 0,
                           bottom: 0,
                           backgroundImage: `url(${neonTheme.pageBackground.backgroundImage})`,
-                          backgroundSize: 'cover',
+                          backgroundSize: getBackgroundSize(neonTheme.pageBackground.backgroundImageType),
                           backgroundPosition: 'center',
                           backgroundRepeat: 'no-repeat',
                           opacity: neonTheme.pageBackground.backgroundImageOpacity ?? 1,
@@ -499,9 +661,15 @@ export function ThemeEditor({ isOpen, onClose, onThemeUpdate, customThemes }: Th
 
               {/* Custom Themes - Show ALL custom themes, including those that override 'plain' and 'neon' */}
               {Object.entries(customThemes)
+                .filter(([id, theme]) => {
+                  // Exclude preview theme, but include all others
+                  return id !== '__preview__' && theme && typeof theme === 'object' && theme.name;
+                })
                 .sort(([idA, themeA], [idB, themeB]) => {
                   // Sort by name for better organization
-                  return themeA.name.localeCompare(themeB.name);
+                  const nameA = themeA?.name || '';
+                  const nameB = themeB?.name || '';
+                  return nameA.localeCompare(nameB);
                 })
                 .map(([id, theme]) => (
                   <div key={id} className="theme-preview-card" onClick={() => handleEditTheme(id)}>
@@ -525,7 +693,7 @@ export function ThemeEditor({ isOpen, onClose, onThemeUpdate, customThemes }: Th
                             right: 0,
                             bottom: 0,
                             backgroundImage: `url(${theme.pageBackground.backgroundImage})`,
-                            backgroundSize: 'cover',
+                            backgroundSize: getBackgroundSize(theme.pageBackground.backgroundImageType),
                             backgroundPosition: 'center',
                             backgroundRepeat: 'no-repeat',
                             opacity: theme.pageBackground.backgroundImageOpacity ?? 1,
@@ -664,477 +832,395 @@ export function ThemeEditor({ isOpen, onClose, onThemeUpdate, customThemes }: Th
             <div></div>
           </div>
           <div className="theme-editor-step-content" style={{ gridColumn: '1' }}>
-            <div className="theme-editor-config-panel">
-              <h3>Theme Color</h3>
+            <div className="theme-editor-config-panel ui-properties-panel">
               
               {/* Theme Palette - Primary Color */}
-              <div className="theme-config-section">
-                <div className="theme-config-section-header">
-                  <label>Theme palette</label>
-                  <span className="theme-config-info">ℹ️</span>
-                </div>
-                <div className="theme-config-group">
-                  <label>Primary color</label>
-                  <div className="color-input-wrapper">
-                    <input
-                      type="color"
-                      value={colorConfig.primaryColor}
-                      onChange={(e) => setColorConfig({ ...colorConfig, primaryColor: e.target.value })}
-                      className="theme-color-input"
-                    />
-                    <input
-                      type="text"
-                      value={colorConfig.primaryColor}
-                      onChange={(e) => setColorConfig({ ...colorConfig, primaryColor: e.target.value })}
-                      className="theme-color-text-input"
+              <PanelSection title="Theme palette">
+                <PropertyRow label="Primary">
+                  <div
+                    ref={primaryColorPopoverAnchorRef}
+                    onClick={() => {
+                      setHeadingColorPopoverOpen(false);
+                      setParagraphColorPopoverOpen(false);
+                      setPageFillPopoverOpen(false);
+                      setRowFillPopoverOpen(false);
+                      setCellFillPopoverOpen(false);
+                      setResourceFillPopoverOpen(false);
+                      setColorPickerOpen(false);
+                      setActiveColorPicker('primary');
+                      setPrimaryColorPopoverOpen(true);
+                    }}
+                    style={{ width: '100%', flex: 1 }}
+                  >
+                    <PillSelect
+                      swatchColor={colorConfig.primaryColor}
+                      text={colorConfig.primaryColor.toUpperCase()}
+                      onClick={() => {}}
+                      showClear={false}
                     />
                   </div>
-                </div>
-              </div>
+                </PropertyRow>
+              </PanelSection>
 
               {/* Font Color */}
-              <div className="theme-config-section">
-                <div className="theme-config-section-header">
-                  <label>Font color</label>
-                </div>
-                <div className="theme-config-group">
-                  <label>Heading</label>
-                  <div className="color-input-wrapper">
-                    <input
-                      type="color"
-                      value={colorConfig.headingColor}
-                      onChange={(e) => setColorConfig({ ...colorConfig, headingColor: e.target.value })}
-                      className="theme-color-input"
-                    />
-                    <input
-                      type="text"
-                      value={colorConfig.headingColor}
-                      onChange={(e) => setColorConfig({ ...colorConfig, headingColor: e.target.value })}
-                      className="theme-color-text-input"
-                    />
-                  </div>
-                </div>
-                <div className="theme-config-group">
-                  <label>Paragraph</label>
-                  <div className="color-input-wrapper">
-                    <input
-                      type="color"
-                      value={colorConfig.paragraphColor}
-                      onChange={(e) => setColorConfig({ ...colorConfig, paragraphColor: e.target.value })}
-                      className="theme-color-input"
-                    />
-                    <input
-                      type="text"
-                      value={colorConfig.paragraphColor}
-                      onChange={(e) => setColorConfig({ ...colorConfig, paragraphColor: e.target.value })}
-                      className="theme-color-text-input"
+              <PanelSection title="Font color">
+                <PropertyRow label="Heading">
+                  <div
+                    ref={headingColorPopoverAnchorRef}
+                    onClick={() => {
+                      setPrimaryColorPopoverOpen(false);
+                      setParagraphColorPopoverOpen(false);
+                      setPageFillPopoverOpen(false);
+                      setRowFillPopoverOpen(false);
+                      setCellFillPopoverOpen(false);
+                      setResourceFillPopoverOpen(false);
+                      setColorPickerOpen(false);
+                      setActiveColorPicker('heading');
+                      setHeadingColorPopoverOpen(true);
+                    }}
+                    style={{ width: '100%', flex: 1 }}
+                  >
+                    <PillSelect
+                      swatchColor={colorConfig.headingColor}
+                      text={colorConfig.headingColor.toUpperCase()}
+                      onClick={() => {}}
+                      showClear={false}
                     />
                   </div>
-                </div>
-              </div>
+                </PropertyRow>
+                <PropertyRow label="Paragraph">
+                  <div
+                    ref={paragraphColorPopoverAnchorRef}
+                    onClick={() => {
+                      setPrimaryColorPopoverOpen(false);
+                      setHeadingColorPopoverOpen(false);
+                      setPageFillPopoverOpen(false);
+                      setRowFillPopoverOpen(false);
+                      setCellFillPopoverOpen(false);
+                      setResourceFillPopoverOpen(false);
+                      setColorPickerOpen(false);
+                      setActiveColorPicker('paragraph');
+                      setParagraphColorPopoverOpen(true);
+                    }}
+                    style={{ width: '100%', flex: 1 }}
+                  >
+                    <PillSelect
+                      swatchColor={colorConfig.paragraphColor}
+                      text={colorConfig.paragraphColor.toUpperCase()}
+                      onClick={() => {}}
+                      showClear={false}
+                    />
+                  </div>
+                </PropertyRow>
+              </PanelSection>
 
               {/* Page Background */}
-              <div className="theme-config-section">
-                <div className="theme-config-section-header">
-                  <label>Page background</label>
+              <PanelSection title="Page background">
+                <PropertyRow label="Fill">
+                  <div
+                    ref={pageFillPopoverAnchorRef}
+                    onClick={() => {
+                      setPrimaryColorPopoverOpen(false);
+                      setHeadingColorPopoverOpen(false);
+                      setParagraphColorPopoverOpen(false);
+                      setRowFillPopoverOpen(false);
+                      setCellFillPopoverOpen(false);
+                      setResourceFillPopoverOpen(false);
+                      setColorPickerOpen(false);
+                      setPageFillPopoverOpen(true);
+                    }}
+                    style={{ width: '100%', flex: 1 }}
+                  >
+                    <PillSelect
+                      thumbnail={colorConfig.pageBackgroundImage}
+                      swatchColor={colorConfig.pageBackgroundColor}
+                      swatchOpacity={colorConfig.pageBackgroundColorOpacity ?? 1}
+                      text={colorConfig.pageBackgroundImage ? 'Image' : colorConfig.pageBackgroundColor ? colorConfig.pageBackgroundColor.toUpperCase() : 'Add...'}
+                      onClick={() => {}}
+                      onClear={(e) => {
+                        e.stopPropagation();
+                        setColorConfig({
+                          ...colorConfig,
+                          pageBackgroundColor: '#ffffff',
+                          pageBackgroundColorOpacity: 1,
+                          pageBackgroundImage: undefined,
+                          pageBackgroundImageOpacity: 1,
+                        });
+                        setPageFillPopoverOpen(false);
+                      }}
+                      showClear={!!colorConfig.pageBackgroundColor || !!colorConfig.pageBackgroundImage}
+                    />
                 </div>
-                <div className="theme-config-group">
-                  <label>Background color</label>
-                  <div className="color-input-wrapper">
-                    <input
-                      type="color"
-                      value={colorConfig.pageBackgroundColor}
-                      onChange={(e) => setColorConfig({ ...colorConfig, pageBackgroundColor: e.target.value })}
-                      className="theme-color-input"
-                    />
-                    <input
-                      type="text"
-                      value={colorConfig.pageBackgroundColor}
-                      onChange={(e) => setColorConfig({ ...colorConfig, pageBackgroundColor: e.target.value })}
-                      className="theme-color-text-input"
-                    />
-                  </div>
-                  <div className="opacity-input-wrapper" style={{ marginTop: '8px' }}>
-                    <label style={{ fontSize: '12px', color: '#666', marginRight: '8px' }}>Opacity:</label>
-                    <input
-                      type="range"
-                      min="0"
-                      max="1"
-                      step="0.01"
-                      value={colorConfig.pageBackgroundColorOpacity ?? 1}
-                      onChange={(e) => setColorConfig({ ...colorConfig, pageBackgroundColorOpacity: parseFloat(e.target.value) })}
-                      className="theme-opacity-slider"
-                    />
-                    <input
-                      type="number"
-                      min="0"
-                      max="1"
-                      step="0.01"
-                      value={colorConfig.pageBackgroundColorOpacity ?? 1}
-                      onChange={(e) => setColorConfig({ ...colorConfig, pageBackgroundColorOpacity: parseFloat(e.target.value) || 1 })}
-                      className="theme-opacity-input"
-                    />
-                  </div>
-                </div>
-                <div className="theme-config-group">
-                  <label>Background image</label>
-                  <input
-                    type="text"
-                    value={colorConfig.pageBackgroundImage || ''}
-                    onChange={(e) => setColorConfig({ ...colorConfig, pageBackgroundImage: e.target.value || undefined })}
-                    className="theme-text-input"
-                    placeholder="https://example.com/image.jpg"
-                  />
-                  {colorConfig.pageBackgroundImage && (
-                    <div className="opacity-input-wrapper" style={{ marginTop: '8px' }}>
-                      <label style={{ fontSize: '12px', color: '#666', marginRight: '8px' }}>Opacity:</label>
-                      <input
-                        type="range"
-                        min="0"
-                        max="1"
-                        step="0.01"
-                        value={colorConfig.pageBackgroundImageOpacity ?? 1}
-                        onChange={(e) => setColorConfig({ ...colorConfig, pageBackgroundImageOpacity: parseFloat(e.target.value) })}
-                        className="theme-opacity-slider"
-                      />
-                      <input
-                        type="number"
-                        min="0"
-                        max="1"
-                        step="0.01"
-                        value={colorConfig.pageBackgroundImageOpacity ?? 1}
-                        onChange={(e) => setColorConfig({ ...colorConfig, pageBackgroundImageOpacity: parseFloat(e.target.value) || 1 })}
-                        className="theme-opacity-input"
-                      />
-                    </div>
-                  )}
-                </div>
-              </div>
+                </PropertyRow>
+              </PanelSection>
 
               {/* Card/Content/Section (Row) Background */}
-              <div className="theme-config-section">
-                <div className="theme-config-section-header">
-                  <label>Card/Content/Section</label>
-                </div>
-                <div className="theme-config-group">
-                  <label>Background color</label>
-                  <div className="color-input-wrapper">
-                    <input
-                      type="color"
-                      value={colorConfig.rowBackgroundColor || '#ffffff'}
-                      onChange={(e) => setColorConfig({ ...colorConfig, rowBackgroundColor: e.target.value })}
-                      className="theme-color-input"
-                      disabled={!colorConfig.rowBackgroundColor}
-                    />
-                    <input
-                      type="text"
-                      value={colorConfig.rowBackgroundColor || ''}
-                      onChange={(e) => setColorConfig({ ...colorConfig, rowBackgroundColor: e.target.value || undefined })}
-                      className="theme-color-text-input"
-                      placeholder="Transparent"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setColorConfig({ ...colorConfig, rowBackgroundColor: undefined })}
-                      className="transparent-button"
-                      title="Set to transparent"
-                      style={{
-                        padding: '6px 12px',
-                        fontSize: '12px',
-                        border: '1px solid #e0e0e0',
-                        borderRadius: '6px',
-                        background: !colorConfig.rowBackgroundColor ? '#f0f0f0' : 'transparent',
-                        color: !colorConfig.rowBackgroundColor ? '#666' : '#333',
-                        cursor: 'pointer',
-                        whiteSpace: 'nowrap',
+              <PanelSection title="Card/Content/Section">
+                <PropertyRow label="Fill">
+                  <div
+                    ref={rowFillPopoverAnchorRef}
+                    onClick={() => {
+                      setPrimaryColorPopoverOpen(false);
+                      setHeadingColorPopoverOpen(false);
+                      setParagraphColorPopoverOpen(false);
+                      setPageFillPopoverOpen(false);
+                      setCellFillPopoverOpen(false);
+                      setResourceFillPopoverOpen(false);
+                      setColorPickerOpen(false);
+                      setRowFillPopoverOpen(true);
+                    }}
+                    style={{ width: '100%', flex: 1 }}
+                  >
+                    <PillSelect
+                      thumbnail={colorConfig.rowBackgroundImage}
+                      swatchColor={colorConfig.rowBackgroundColor}
+                      swatchOpacity={colorConfig.rowBackgroundColorOpacity ?? 1}
+                      text={colorConfig.rowBackgroundImage ? 'Image' : colorConfig.rowBackgroundColor ? colorConfig.rowBackgroundColor.toUpperCase() : 'Add...'}
+                      onClick={() => {}}
+                      onClear={(e) => {
+                        e.stopPropagation();
+                        setColorConfig({
+                          ...colorConfig,
+                          rowBackgroundColor: undefined,
+                          rowBackgroundColorOpacity: 1,
+                          rowBackgroundImage: undefined,
+                          rowBackgroundImageOpacity: 1,
+                        });
+                        setRowFillPopoverOpen(false);
                       }}
-                    >
-                      {colorConfig.rowBackgroundColor ? 'Set transparent' : 'Transparent'}
-                    </button>
-                  </div>
-                  <div className="opacity-input-wrapper" style={{ marginTop: '8px' }}>
-                    <label style={{ fontSize: '12px', color: '#666', marginRight: '8px' }}>Opacity:</label>
-                    <input
-                      type="range"
-                      min="0"
-                      max="1"
-                      step="0.01"
-                      value={colorConfig.rowBackgroundColorOpacity ?? 1}
-                      onChange={(e) => setColorConfig({ ...colorConfig, rowBackgroundColorOpacity: parseFloat(e.target.value) })}
-                      className="theme-opacity-slider"
-                    />
-                    <input
-                      type="number"
-                      min="0"
-                      max="1"
-                      step="0.01"
-                      value={colorConfig.rowBackgroundColorOpacity ?? 1}
-                      onChange={(e) => setColorConfig({ ...colorConfig, rowBackgroundColorOpacity: parseFloat(e.target.value) || 1 })}
-                      className="theme-opacity-input"
+                      showClear={!!colorConfig.rowBackgroundColor || !!colorConfig.rowBackgroundImage}
                     />
                   </div>
-                </div>
-                <div className="theme-config-group">
-                  <label>Background image</label>
-                  <input
-                    type="text"
-                    value={colorConfig.rowBackgroundImage || ''}
-                    onChange={(e) => setColorConfig({ ...colorConfig, rowBackgroundImage: e.target.value || undefined })}
-                    className="theme-text-input"
-                    placeholder="https://example.com/image.jpg"
-                  />
-                  {colorConfig.rowBackgroundImage && (
-                    <div className="opacity-input-wrapper" style={{ marginTop: '8px' }}>
-                      <label style={{ fontSize: '12px', color: '#666', marginRight: '8px' }}>Opacity:</label>
-                      <input
-                        type="range"
-                        min="0"
-                        max="1"
-                        step="0.01"
-                        value={colorConfig.rowBackgroundImageOpacity ?? 1}
-                        onChange={(e) => setColorConfig({ ...colorConfig, rowBackgroundImageOpacity: parseFloat(e.target.value) })}
-                        className="theme-opacity-slider"
-                      />
-                      <input
-                        type="number"
-                        min="0"
-                        max="1"
-                        step="0.01"
-                        value={colorConfig.rowBackgroundImageOpacity ?? 1}
-                        onChange={(e) => setColorConfig({ ...colorConfig, rowBackgroundImageOpacity: parseFloat(e.target.value) || 1 })}
-                        className="theme-opacity-input"
-                      />
-                    </div>
-                  )}
-                </div>
-              </div>
+                </PropertyRow>
+              </PanelSection>
 
               {/* Cells and Resources (Optional) */}
-              <div className="theme-config-section">
-                <div className="theme-config-section-header">
-                  <label>Cells and Resources (Optional)</label>
-                  <span className="theme-config-note">Default: transparent</span>
-                </div>
-                <div className="theme-config-group">
-                  <label>Cell background color</label>
-                  <div className="color-input-wrapper">
-                    <input
-                      type="color"
-                      value={colorConfig.cellBackgroundColor || '#ffffff'}
-                      onChange={(e) => setColorConfig({ ...colorConfig, cellBackgroundColor: e.target.value || undefined })}
-                      className="theme-color-input"
-                      disabled={!colorConfig.cellBackgroundColor}
-                    />
-                    <input
-                      type="text"
-                      value={colorConfig.cellBackgroundColor || ''}
-                      onChange={(e) => setColorConfig({ ...colorConfig, cellBackgroundColor: e.target.value || undefined })}
-                      className="theme-color-text-input"
-                      placeholder="Transparent (default)"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setColorConfig({ ...colorConfig, cellBackgroundColor: undefined })}
-                      className="transparent-button"
-                      title="Set to transparent"
-                      style={{
-                        padding: '6px 12px',
-                        fontSize: '12px',
-                        border: '1px solid #e0e0e0',
-                        borderRadius: '6px',
-                        background: !colorConfig.cellBackgroundColor ? '#f0f0f0' : 'transparent',
-                        color: !colorConfig.cellBackgroundColor ? '#666' : '#333',
-                        cursor: 'pointer',
-                        whiteSpace: 'nowrap',
+              <PanelSection title="Cells and Resources">
+                <PropertyRow label="Cell Fill">
+                  <div
+                    ref={cellFillPopoverAnchorRef}
+                    onClick={() => {
+                      setPrimaryColorPopoverOpen(false);
+                      setHeadingColorPopoverOpen(false);
+                      setParagraphColorPopoverOpen(false);
+                      setPageFillPopoverOpen(false);
+                      setRowFillPopoverOpen(false);
+                      setResourceFillPopoverOpen(false);
+                      setColorPickerOpen(false);
+                      setCellFillPopoverOpen(true);
+                    }}
+                    style={{ width: '100%', flex: 1 }}
+                  >
+                    <PillSelect
+                      thumbnail={colorConfig.cellBackgroundImage}
+                      swatchColor={colorConfig.cellBackgroundColor}
+                      swatchOpacity={colorConfig.cellBackgroundColorOpacity ?? 1}
+                      text={colorConfig.cellBackgroundImage ? 'Image' : colorConfig.cellBackgroundColor ? colorConfig.cellBackgroundColor.toUpperCase() : 'Add...'}
+                      onClick={() => {}}
+                      onClear={(e) => {
+                        e.stopPropagation();
+                        setColorConfig({
+                          ...colorConfig,
+                          cellBackgroundColor: undefined,
+                          cellBackgroundColorOpacity: 1,
+                          cellBackgroundImage: undefined,
+                          cellBackgroundImageOpacity: 1,
+                        });
+                        setCellFillPopoverOpen(false);
                       }}
-                    >
-                      {colorConfig.cellBackgroundColor ? 'Set transparent' : 'Transparent'}
-                    </button>
+                      showClear={!!colorConfig.cellBackgroundColor || !!colorConfig.cellBackgroundImage}
+                    />
                   </div>
-                  {colorConfig.cellBackgroundColor && (
-                    <div className="opacity-input-wrapper" style={{ marginTop: '8px' }}>
-                      <label style={{ fontSize: '12px', color: '#666', marginRight: '8px' }}>Opacity:</label>
-                      <input
-                        type="range"
-                        min="0"
-                        max="1"
-                        step="0.01"
-                        value={colorConfig.cellBackgroundColorOpacity ?? 1}
-                        onChange={(e) => setColorConfig({ ...colorConfig, cellBackgroundColorOpacity: parseFloat(e.target.value) })}
-                        className="theme-opacity-slider"
-                      />
-                      <input
-                        type="number"
-                        min="0"
-                        max="1"
-                        step="0.01"
-                        value={colorConfig.cellBackgroundColorOpacity ?? 1}
-                        onChange={(e) => setColorConfig({ ...colorConfig, cellBackgroundColorOpacity: parseFloat(e.target.value) || 1 })}
-                        className="theme-opacity-input"
-                      />
-                    </div>
-                  )}
-                </div>
-                <div className="theme-config-group">
-                  <label>Cell background image</label>
-                  <input
-                    type="text"
-                    value={colorConfig.cellBackgroundImage || ''}
-                    onChange={(e) => setColorConfig({ ...colorConfig, cellBackgroundImage: e.target.value || undefined })}
-                    className="theme-text-input"
-                    placeholder="https://example.com/image.jpg"
-                  />
-                  {colorConfig.cellBackgroundImage && (
-                    <div className="opacity-input-wrapper" style={{ marginTop: '8px' }}>
-                      <label style={{ fontSize: '12px', color: '#666', marginRight: '8px' }}>Opacity:</label>
-                      <input
-                        type="range"
-                        min="0"
-                        max="1"
-                        step="0.01"
-                        value={colorConfig.cellBackgroundImageOpacity ?? 1}
-                        onChange={(e) => setColorConfig({ ...colorConfig, cellBackgroundImageOpacity: parseFloat(e.target.value) })}
-                        className="theme-opacity-slider"
-                      />
-                      <input
-                        type="number"
-                        min="0"
-                        max="1"
-                        step="0.01"
-                        value={colorConfig.cellBackgroundImageOpacity ?? 1}
-                        onChange={(e) => setColorConfig({ ...colorConfig, cellBackgroundImageOpacity: parseFloat(e.target.value) || 1 })}
-                        className="theme-opacity-input"
-                      />
-                    </div>
-                  )}
-                </div>
-                <div className="theme-config-group">
-                  <label>Resource background color</label>
-                  <div className="color-input-wrapper">
-                    <input
-                      type="color"
-                      value={colorConfig.resourceBackgroundColor || '#ffffff'}
-                      onChange={(e) => setColorConfig({ ...colorConfig, resourceBackgroundColor: e.target.value || undefined })}
-                      className="theme-color-input"
-                      disabled={!colorConfig.resourceBackgroundColor}
-                    />
-                    <input
-                      type="text"
-                      value={colorConfig.resourceBackgroundColor || ''}
-                      onChange={(e) => setColorConfig({ ...colorConfig, resourceBackgroundColor: e.target.value || undefined })}
-                      className="theme-color-text-input"
-                      placeholder="Transparent (default)"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setColorConfig({ ...colorConfig, resourceBackgroundColor: undefined })}
-                      className="transparent-button"
-                      title="Set to transparent"
-                      style={{
-                        padding: '6px 12px',
-                        fontSize: '12px',
-                        border: '1px solid #e0e0e0',
-                        borderRadius: '6px',
-                        background: !colorConfig.resourceBackgroundColor ? '#f0f0f0' : 'transparent',
-                        color: !colorConfig.resourceBackgroundColor ? '#666' : '#333',
-                        cursor: 'pointer',
-                        whiteSpace: 'nowrap',
+                </PropertyRow>
+                <PropertyRow label="Resource Fill">
+                  <div
+                    ref={resourceFillPopoverAnchorRef}
+                    onClick={() => {
+                      setPrimaryColorPopoverOpen(false);
+                      setHeadingColorPopoverOpen(false);
+                      setParagraphColorPopoverOpen(false);
+                      setPageFillPopoverOpen(false);
+                      setRowFillPopoverOpen(false);
+                      setCellFillPopoverOpen(false);
+                      setColorPickerOpen(false);
+                      setResourceFillPopoverOpen(true);
+                    }}
+                    style={{ width: '100%', flex: 1 }}
+                  >
+                    <PillSelect
+                      thumbnail={colorConfig.resourceBackgroundImage}
+                      swatchColor={colorConfig.resourceBackgroundColor}
+                      swatchOpacity={colorConfig.resourceBackgroundColorOpacity ?? 1}
+                      text={colorConfig.resourceBackgroundImage ? 'Image' : colorConfig.resourceBackgroundColor ? colorConfig.resourceBackgroundColor.toUpperCase() : 'Add...'}
+                      onClick={() => {}}
+                      onClear={(e) => {
+                        e.stopPropagation();
+                        setColorConfig({
+                          ...colorConfig,
+                          resourceBackgroundColor: undefined,
+                          resourceBackgroundColorOpacity: 1,
+                          resourceBackgroundImage: undefined,
+                          resourceBackgroundImageOpacity: 1,
+                        });
+                        setResourceFillPopoverOpen(false);
                       }}
-                    >
-                      {colorConfig.resourceBackgroundColor ? 'Set transparent' : 'Transparent'}
-                    </button>
+                      showClear={!!colorConfig.resourceBackgroundColor || !!colorConfig.resourceBackgroundImage}
+                    />
                   </div>
-                  {colorConfig.resourceBackgroundColor && (
-                    <div className="opacity-input-wrapper" style={{ marginTop: '8px' }}>
-                      <label style={{ fontSize: '12px', color: '#666', marginRight: '8px' }}>Opacity:</label>
-                      <input
-                        type="range"
-                        min="0"
-                        max="1"
-                        step="0.01"
-                        value={colorConfig.resourceBackgroundColorOpacity ?? 1}
-                        onChange={(e) => setColorConfig({ ...colorConfig, resourceBackgroundColorOpacity: parseFloat(e.target.value) })}
-                        className="theme-opacity-slider"
-                      />
-                      <input
-                        type="number"
-                        min="0"
-                        max="1"
-                        step="0.01"
-                        value={colorConfig.resourceBackgroundColorOpacity ?? 1}
-                        onChange={(e) => setColorConfig({ ...colorConfig, resourceBackgroundColorOpacity: parseFloat(e.target.value) || 1 })}
-                        className="theme-opacity-input"
-                      />
-                    </div>
-                  )}
-                </div>
-                <div className="theme-config-group">
-                  <label>Resource background image</label>
-                  <input
-                    type="text"
-                    value={colorConfig.resourceBackgroundImage || ''}
-                    onChange={(e) => setColorConfig({ ...colorConfig, resourceBackgroundImage: e.target.value || undefined })}
-                    className="theme-text-input"
-                    placeholder="https://example.com/image.jpg"
-                  />
-                  {colorConfig.resourceBackgroundImage && (
-                    <div className="opacity-input-wrapper" style={{ marginTop: '8px' }}>
-                      <label style={{ fontSize: '12px', color: '#666', marginRight: '8px' }}>Opacity:</label>
-                      <input
-                        type="range"
-                        min="0"
-                        max="1"
-                        step="0.01"
-                        value={colorConfig.resourceBackgroundImageOpacity ?? 1}
-                        onChange={(e) => setColorConfig({ ...colorConfig, resourceBackgroundImageOpacity: parseFloat(e.target.value) })}
-                        className="theme-opacity-slider"
-                      />
-                      <input
-                        type="number"
-                        min="0"
-                        max="1"
-                        step="0.01"
-                        value={colorConfig.resourceBackgroundImageOpacity ?? 1}
-                        onChange={(e) => setColorConfig({ ...colorConfig, resourceBackgroundImageOpacity: parseFloat(e.target.value) || 1 })}
-                        className="theme-opacity-input"
-                      />
-                    </div>
-                  )}
-                </div>
-              </div>
+                </PropertyRow>
+              </PanelSection>
 
               {/* Theme Name (for new themes and editing existing themes) */}
-                <div className="theme-config-section">
-                  <div className="theme-config-group">
-                    <label>Theme name</label>
-                    <input
-                      type="text"
-                      value={themeName}
-                      onChange={(e) => setThemeName(e.target.value)}
-                    className="theme-text-input"
+              <PanelSection title="Theme">
+                <PropertyRow label="Name">
+                  <input
+                    type="text"
+                    value={themeName}
+                    onChange={(e) => setThemeName(e.target.value)}
+                    className="ui-number-pill"
                     placeholder={isNewTheme ? "Enter theme name" : "Theme name"}
                     required={isNewTheme}
+                    style={{ width: '100%', flex: 1 }}
                   />
-                </div>
-              </div>
+                </PropertyRow>
+              </PanelSection>
 
               {/* Theme Name (when saving Plain/Neon as new) */}
               {showSaveDialog && saveAsNew && (
-                <div className="theme-config-section">
-                  <div className="theme-config-group">
-                    <label>Theme name</label>
-                    <input
+                <PanelSection title="Theme">
+                  <PropertyRow label="Name">
+                      <input
                       type="text"
                       value={newThemeName}
                       onChange={(e) => setNewThemeName(e.target.value)}
-                      className="theme-text-input"
+                      className="ui-number-pill"
                       placeholder="Enter theme name"
                       required
                       autoFocus
+                      style={{ width: '100%', flex: 1 }}
                     />
-                  </div>
-                </div>
+                  </PropertyRow>
+                </PanelSection>
               )}
+
+              {/* Popovers */}
+              {primaryColorPopoverOpen && (
+                <ColorPickerPopover
+                  isOpen={primaryColorPopoverOpen && !colorPickerOpen}
+                  onClose={() => setPrimaryColorPopoverOpen(false)}
+                  anchorElement={primaryColorPopoverAnchorRef.current}
+                  color={colorConfig.primaryColor}
+                  opacity={1}
+                  onColorChange={(color) => setColorConfig({ ...colorConfig, primaryColor: color })}
+                  onOpacityChange={() => {}}
+                  hideImageTab={true}
+                  hideThemeColors={true}
+                />
+              )}
+
+              {headingColorPopoverOpen && (
+                <ColorPickerPopover
+                  isOpen={headingColorPopoverOpen && !colorPickerOpen}
+                  onClose={() => setHeadingColorPopoverOpen(false)}
+                  anchorElement={headingColorPopoverAnchorRef.current}
+                  color={colorConfig.headingColor}
+                  opacity={1}
+                  onColorChange={(color) => setColorConfig({ ...colorConfig, headingColor: color })}
+                  onOpacityChange={() => {}}
+                  hideImageTab={true}
+                  hideThemeColors={true}
+                />
+              )}
+
+              {paragraphColorPopoverOpen && (
+                <ColorPickerPopover
+                  isOpen={paragraphColorPopoverOpen && !colorPickerOpen}
+                  onClose={() => setParagraphColorPopoverOpen(false)}
+                  anchorElement={paragraphColorPopoverAnchorRef.current}
+                  color={colorConfig.paragraphColor}
+                  opacity={1}
+                  onColorChange={(color) => setColorConfig({ ...colorConfig, paragraphColor: color })}
+                  onOpacityChange={() => {}}
+                  hideImageTab={true}
+                  hideThemeColors={true}
+                />
+              )}
+
+              <FillPopover
+                isOpen={pageFillPopoverOpen}
+                onClose={() => setPageFillPopoverOpen(false)}
+                anchorElement={pageFillPopoverAnchorRef.current}
+                fillType={colorConfig.pageBackgroundImage ? 'image' : colorConfig.pageBackgroundColor ? 'color' : 'color'}
+                imageUrl={colorConfig.pageBackgroundImage}
+                imageType={colorConfig.pageBackgroundImageType === 'fill' ? 'Fill' : colorConfig.pageBackgroundImageType === 'fit' ? 'Fit' : 'Stretch'}
+                color={colorConfig.pageBackgroundColor}
+                opacity={colorConfig.pageBackgroundColorOpacity ?? 1}
+                onImageUrlChange={(url) => setColorConfig({ ...colorConfig, pageBackgroundImage: url })}
+                onImageTypeChange={(type) => {
+                  const imageType = type === 'Fill' ? 'fill' : type === 'Fit' ? 'fit' : type === 'Stretch' ? 'stretch' : 'fill';
+                  setColorConfig({ ...colorConfig, pageBackgroundImageType: imageType as 'fill' | 'fit' | 'stretch' });
+                }}
+                onImageDescriptionChange={() => {}}
+                onColorChange={(color) => setColorConfig({ ...colorConfig, pageBackgroundColor: color })}
+                onOpacityChange={(opacity) => setColorConfig({ ...colorConfig, pageBackgroundColorOpacity: opacity })}
+              />
+
+              <FillPopover
+                isOpen={rowFillPopoverOpen}
+                onClose={() => setRowFillPopoverOpen(false)}
+                anchorElement={rowFillPopoverAnchorRef.current}
+                fillType={colorConfig.rowBackgroundImage ? 'image' : colorConfig.rowBackgroundColor ? 'color' : 'color'}
+                imageUrl={colorConfig.rowBackgroundImage}
+                imageType={colorConfig.rowBackgroundImageType === 'fill' ? 'Fill' : colorConfig.rowBackgroundImageType === 'fit' ? 'Fit' : 'Stretch'}
+                color={colorConfig.rowBackgroundColor}
+                opacity={colorConfig.rowBackgroundColorOpacity ?? 1}
+                onImageUrlChange={(url) => setColorConfig({ ...colorConfig, rowBackgroundImage: url })}
+                onImageTypeChange={(type) => {
+                  const imageType = type === 'Fill' ? 'fill' : type === 'Fit' ? 'fit' : type === 'Stretch' ? 'stretch' : 'fill';
+                  setColorConfig({ ...colorConfig, rowBackgroundImageType: imageType as 'fill' | 'fit' | 'stretch' });
+                }}
+                onImageDescriptionChange={() => {}}
+                onColorChange={(color) => setColorConfig({ ...colorConfig, rowBackgroundColor: color })}
+                onOpacityChange={(opacity) => setColorConfig({ ...colorConfig, rowBackgroundColorOpacity: opacity })}
+              />
+
+              <FillPopover
+                isOpen={cellFillPopoverOpen}
+                onClose={() => setCellFillPopoverOpen(false)}
+                anchorElement={cellFillPopoverAnchorRef.current}
+                fillType={colorConfig.cellBackgroundImage ? 'image' : colorConfig.cellBackgroundColor ? 'color' : 'color'}
+                imageUrl={colorConfig.cellBackgroundImage}
+                imageType={colorConfig.cellBackgroundImageType === 'fill' ? 'Fill' : colorConfig.cellBackgroundImageType === 'fit' ? 'Fit' : 'Stretch'}
+                color={colorConfig.cellBackgroundColor}
+                opacity={colorConfig.cellBackgroundColorOpacity ?? 1}
+                onImageUrlChange={(url) => setColorConfig({ ...colorConfig, cellBackgroundImage: url })}
+                onImageTypeChange={(type) => {
+                  const imageType = type === 'Fill' ? 'fill' : type === 'Fit' ? 'fit' : type === 'Stretch' ? 'stretch' : 'fill';
+                  setColorConfig({ ...colorConfig, cellBackgroundImageType: imageType as 'fill' | 'fit' | 'stretch' });
+                }}
+                onImageDescriptionChange={() => {}}
+                onColorChange={(color) => setColorConfig({ ...colorConfig, cellBackgroundColor: color })}
+                onOpacityChange={(opacity) => setColorConfig({ ...colorConfig, cellBackgroundColorOpacity: opacity })}
+              />
+
+              <FillPopover
+                isOpen={resourceFillPopoverOpen}
+                onClose={() => setResourceFillPopoverOpen(false)}
+                anchorElement={resourceFillPopoverAnchorRef.current}
+                fillType={colorConfig.resourceBackgroundImage ? 'image' : colorConfig.resourceBackgroundColor ? 'color' : 'color'}
+                imageUrl={colorConfig.resourceBackgroundImage}
+                imageType={colorConfig.resourceBackgroundImageType === 'fill' ? 'Fill' : colorConfig.resourceBackgroundImageType === 'fit' ? 'Fit' : 'Stretch'}
+                color={colorConfig.resourceBackgroundColor}
+                opacity={colorConfig.resourceBackgroundColorOpacity ?? 1}
+                onImageUrlChange={(url) => setColorConfig({ ...colorConfig, resourceBackgroundImage: url })}
+                onImageTypeChange={(type) => {
+                  const imageType = type === 'Fill' ? 'fill' : type === 'Fit' ? 'fit' : type === 'Stretch' ? 'stretch' : 'fill';
+                  setColorConfig({ ...colorConfig, resourceBackgroundImageType: imageType as 'fill' | 'fit' | 'stretch' });
+                }}
+                onImageDescriptionChange={() => {}}
+                onColorChange={(color) => setColorConfig({ ...colorConfig, resourceBackgroundColor: color })}
+                onOpacityChange={(opacity) => setColorConfig({ ...colorConfig, resourceBackgroundColorOpacity: opacity })}
+              />
 
               <div className="theme-editor-actions">
                 <button 
@@ -1143,15 +1229,25 @@ export function ThemeEditor({ isOpen, onClose, onThemeUpdate, customThemes }: Th
                 >
                   Next: Design →
                 </button>
+                </div>
               </div>
-            </div>
 
             {/* Right Side Preview */}
             <div className="theme-editor-preview" style={{ gridColumn: '2' }}>
               <div className="theme-preview-header">
                 <div className="theme-preview-tabs">
-                  <button className="theme-preview-tab active">Test page</button>
-                  <button className="theme-preview-tab">Current page</button>
+                  <button 
+                    className={`theme-preview-tab ${previewTab === 'test' ? 'active' : ''}`}
+                    onClick={() => setPreviewTab('test')}
+                  >
+                    Test page
+                  </button>
+                  <button 
+                    className={`theme-preview-tab ${previewTab === 'current' ? 'active' : ''}`}
+                    onClick={() => setPreviewTab('current')}
+                  >
+                    Current page
+                  </button>
                 </div>
                 <button className="theme-preview-close" onClick={onClose}>×</button>
               </div>
@@ -1171,16 +1267,17 @@ export function ThemeEditor({ isOpen, onClose, onThemeUpdate, customThemes }: Th
                       right: 0,
                       bottom: 0,
                       backgroundImage: `url(${colorConfig.pageBackgroundImage})`,
-                      backgroundSize: 'cover',
+                      backgroundSize: getBackgroundSize(colorConfig.pageBackgroundImageType),
                       backgroundPosition: 'center',
                       opacity: colorConfig.pageBackgroundImageOpacity ?? 1,
                       zIndex: 0,
                     }}
                   />
                 )}
+                {previewTab === 'test' ? (
                 <div 
                   className="theme-preview-card-preview" 
-                  style={{ 
+                      style={{
                     position: 'relative',
                     zIndex: 1,
                   }}
@@ -1211,7 +1308,7 @@ export function ThemeEditor({ isOpen, onClose, onThemeUpdate, customThemes }: Th
                         right: 0,
                         bottom: 0,
                         backgroundImage: `url(${colorConfig.rowBackgroundImage})`,
-                        backgroundSize: 'cover',
+                        backgroundSize: getBackgroundSize(colorConfig.rowBackgroundImageType),
                         backgroundPosition: 'center',
                         opacity: colorConfig.rowBackgroundImageOpacity ?? 1,
                         zIndex: 1,
@@ -1247,7 +1344,7 @@ export function ThemeEditor({ isOpen, onClose, onThemeUpdate, customThemes }: Th
                         />
                       )}
                       {/* Cell background image layer */}
-                      {colorConfig.cellBackgroundImage && (
+                  {colorConfig.cellBackgroundImage && (
                         <div
                           style={{
                             position: 'absolute',
@@ -1256,7 +1353,7 @@ export function ThemeEditor({ isOpen, onClose, onThemeUpdate, customThemes }: Th
                             right: 0,
                             bottom: 0,
                             backgroundImage: `url(${colorConfig.cellBackgroundImage})`,
-                            backgroundSize: 'cover',
+                            backgroundSize: getBackgroundSize(colorConfig.cellBackgroundImageType),
                             backgroundPosition: 'center',
                             opacity: colorConfig.cellBackgroundImageOpacity ?? 1,
                             zIndex: 1,
@@ -1292,7 +1389,7 @@ export function ThemeEditor({ isOpen, onClose, onThemeUpdate, customThemes }: Th
                             right: 0,
                             bottom: 0,
                             backgroundImage: `url(${colorConfig.resourceBackgroundImage})`,
-                            backgroundSize: 'cover',
+                            backgroundSize: getBackgroundSize(colorConfig.resourceBackgroundImageType),
                             backgroundPosition: 'center',
                             opacity: colorConfig.resourceBackgroundImageOpacity ?? 1,
                             zIndex: 1,
@@ -1327,7 +1424,7 @@ export function ThemeEditor({ isOpen, onClose, onThemeUpdate, customThemes }: Th
                             right: 0,
                             bottom: 0,
                             backgroundImage: `url(${colorConfig.resourceBackgroundImage})`,
-                            backgroundSize: 'cover',
+                            backgroundSize: getBackgroundSize(colorConfig.resourceBackgroundImageType),
                             backgroundPosition: 'center',
                             opacity: colorConfig.resourceBackgroundImageOpacity ?? 1,
                             zIndex: 1,
@@ -1338,7 +1435,7 @@ export function ThemeEditor({ isOpen, onClose, onThemeUpdate, customThemes }: Th
                       <p style={{ color: colorConfig.paragraphColor, position: 'relative', zIndex: 2, padding: colorConfig.resourceBackgroundColor || colorConfig.resourceBackgroundImage ? '8px' : '0' }}>
                     Here's an example of body text. You can change its font and the color. Your accent color will be used for links. It will also be used for layouts and buttons.
                   </p>
-                    </div>
+                </div>
                     {/* Resource background for button */}
                     <div style={{ display: 'flex', gap: '8px', marginTop: '16px', position: 'relative' }}>
                       {colorConfig.resourceBackgroundColor && (
@@ -1364,7 +1461,7 @@ export function ThemeEditor({ isOpen, onClose, onThemeUpdate, customThemes }: Th
                             right: 0,
                             bottom: 0,
                             backgroundImage: `url(${colorConfig.resourceBackgroundImage})`,
-                            backgroundSize: 'cover',
+                            backgroundSize: getBackgroundSize(colorConfig.resourceBackgroundImageType),
                             backgroundPosition: 'center',
                             opacity: colorConfig.resourceBackgroundImageOpacity ?? 1,
                             zIndex: 1,
@@ -1386,11 +1483,106 @@ export function ThemeEditor({ isOpen, onClose, onThemeUpdate, customThemes }: Th
                     >
                       Primary button
                     </button>
-                    </div>
-                      </div>
-                    </div>
                   </div>
+                    </div>
                 </div>
+                    </div>
+                </div>
+                ) : (
+                  // Current page - render actual canvas content
+                  <div style={{ position: 'relative', zIndex: 1, padding: '16px', overflowY: 'auto', height: '100%' }}>
+                    {rows && rows.length > 0 ? (
+                      rows.map((row) => (
+                        <RowView
+                          key={row.id}
+                          row={row}
+                          themeId={editingThemeId || 'plain'}
+                          onUpdateRow={() => {}}
+                          onUpdateCell={() => {}}
+                          onUpdateBlock={() => {}}
+                          onDeleteRow={() => {}}
+                          onDeleteCell={() => {}}
+                          onDeleteBlock={() => {}}
+                          selectedBlockId={null}
+                          selectedRowId={null}
+                          selectedCellId={null}
+                          renderResource={(resource) => {
+                            // Render blocks using the same logic as PreviewStage
+                            if (resource.type === 'text' || resource.type === 'header') {
+                              return (
+                                <TextBlockView
+                                  key={resource.id}
+                                  block={resource}
+                                  isSelected={false}
+                                  isEditing={false}
+                                  isPreview={true}
+                                  onUpdate={() => {}}
+                                />
+                              );
+                            }
+                            if (resource.type === 'image') {
+                              return (
+                                <ImageBlockView
+                                  key={resource.id}
+                                  block={resource}
+                                  isSelected={false}
+                                  isPreview={true}
+                                  onUpdate={() => {}}
+                                />
+                              );
+                            }
+                            if (resource.type === 'quiz') {
+                              return (
+                                <QuizBlockView
+                                  key={resource.id}
+                                  block={resource}
+                                  isSelected={false}
+                                  isEditing={false}
+                                  isPreview={true}
+                                  onUpdate={() => {}}
+                                />
+                              );
+                            }
+                            if (resource.type === 'columns') {
+                              return (
+                                <ColumnsBlockView
+                                  key={resource.id}
+                                  block={resource}
+                                  isSelected={false}
+                                  isPreview={true}
+                                  onUpdate={() => {}}
+                                  allBlocks={[]}
+                                  showStructureStrokes={false}
+                                />
+                              );
+                            }
+                            if (resource.type === 'button') {
+                              return (
+                                <ButtonBlockView
+                                  key={resource.id}
+                                  block={resource}
+                                  isSelected={false}
+                                  isPreview={true}
+                                  onUpdate={() => {}}
+                                  allBlocks={[]}
+                                  showStructureStrokes={false}
+                                />
+                              );
+                            }
+                            return null;
+                          }}
+                          activeId={undefined}
+                          allBlocks={[]}
+                          showStructureStrokes={false}
+                        />
+                      ))
+                    ) : (
+                      <div style={{ padding: '32px', textAlign: 'center', color: '#6B6B6B' }}>
+                        No content on the page yet. Add some content to see it here.
+                    </div>
+                  )}
+                </div>
+                )}
               </div>
             </div>
           </div>
@@ -1399,7 +1591,6 @@ export function ThemeEditor({ isOpen, onClose, onThemeUpdate, customThemes }: Th
     );
   }
 
-  // Step 2: Design (Default Row Style)
   if (step === 'step2') {
     const themeColors = {
       accent: colorConfig.primaryColor,
@@ -1409,21 +1600,21 @@ export function ThemeEditor({ isOpen, onClose, onThemeUpdate, customThemes }: Th
 
     return (
       <div className="theme-editor-overlay" onClick={onClose}>
-        <div className="theme-editor-container" onClick={(e) => e.stopPropagation()}>
-          <div className="theme-editor-header">
+        <div className="theme-editor-container theme-editor-step1" onClick={(e) => e.stopPropagation()}>
+          <div className="theme-editor-header" style={{ gridColumn: '1 / -1' }}>
             <button className="theme-editor-exit" onClick={onClose}>
               ← Exit
             </button>
             <div className="theme-editor-title">
               <PaletteIcon />
               <h2>Design</h2>
-            </div>
-          </div>
+                </div>
+            <div></div>
+              </div>
 
-          <div className="theme-editor-content" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
-            {/* Left Side: Configuration */}
-            <div style={{ gridColumn: '1' }}>
-              <div className="theme-config-section">
+          <div className="theme-editor-step-content" style={{ gridColumn: '1' }}>
+            <div className="theme-editor-config-panel ui-properties-panel">
+                <div className="theme-config-section">
                 <h3 style={{ marginBottom: '16px', fontSize: '16px', fontWeight: 600 }}>Default Row Style</h3>
                 
                 {/* Tabs */}
@@ -1446,7 +1637,18 @@ export function ThemeEditor({ isOpen, onClose, onThemeUpdate, customThemes }: Th
                   </button>
                   <button
                     type="button"
-                    onClick={() => setDefaultRowStyleType('custom')}
+                    onClick={() => {
+                      setDefaultRowStyleType('custom');
+                      // Initialize customStyleProperties with row background from Step 1 if empty
+                      if (Object.keys(customStyleProperties).length === 0 || (!customStyleProperties.backgroundColor && !customStyleProperties.backgroundImage)) {
+                        setCustomStyleProperties({
+                          backgroundColor: colorConfig.rowBackgroundColor,
+                          backgroundColorOpacity: colorConfig.rowBackgroundColorOpacity ?? 1,
+                          backgroundImage: colorConfig.rowBackgroundImage,
+                          backgroundImageOpacity: colorConfig.rowBackgroundImageOpacity ?? 1,
+                        });
+                      }
+                    }}
                     style={{
                       padding: '8px 16px',
                       border: 'none',
@@ -1468,10 +1670,10 @@ export function ThemeEditor({ isOpen, onClose, onThemeUpdate, customThemes }: Th
                     <p style={{ fontSize: '13px', color: '#6B6B6B', marginBottom: '16px' }}>
                       Select a curated style to use as the default for this theme.
                     </p>
-                    <div style={{ 
-                      display: 'grid', 
-                      gridTemplateColumns: 'repeat(3, 1fr)', 
-                      gap: '12px',
+                    <div className="style-popover-list" style={{ 
+                      display: 'flex',
+                      flexWrap: 'wrap',
+                      gap: '8px',
                       maxHeight: '400px',
                       overflowY: 'auto',
                     }}>
@@ -1483,64 +1685,38 @@ export function ThemeEditor({ isOpen, onClose, onThemeUpdate, customThemes }: Th
                             key={style.id}
                             type="button"
                             onClick={() => setSelectedCuratedStyle(style.id as CuratedStyleId)}
+                            className={`style-popover-item ${isSelected ? 'active' : ''}`}
                             style={{
-                              display: 'flex',
-                              flexDirection: 'column',
-                              gap: '8px',
-                              padding: '12px',
-                              border: isSelected ? '1px solid #326CF6' : '1px solid #EAEAEA',
-                              borderRadius: '8px',
-                              background: isSelected ? '#F8F9FF' : '#FFFFFF',
-                              cursor: 'pointer',
-                              textAlign: 'left',
+                              width: 'calc(50% - 4px)',
                             }}
                           >
-                            <div style={{
-                              width: '100%',
-                              height: '64px',
-                              borderRadius: '4px',
-                              overflow: 'hidden',
-                              background: '#F5F5F5',
-                            }}>
-                              {/* Style Preview */}
-                              <div style={{
-                                width: '100%',
-                                height: '100%',
-                                backgroundColor: themeColors.surface,
-                                borderRadius: properties.borderRadius?.mode === 'uniform' 
-                                  ? `${properties.borderRadius.uniform ?? 0}px` 
-                                  : '0px',
-                                border: properties.border?.width?.mode === 'uniform' && (properties.border.width?.uniform ?? 0) > 0
-                                  ? `${properties.border.width.uniform}px solid ${properties.border.color || themeColors.border}`
-                                  : 'none',
-                                boxShadow: properties.shadow ? (() => {
-                                  const s = properties.shadow;
-                                  const rgba = (() => {
-                                    const hex = s.color.replace('#', '');
-                                    const r = parseInt(hex.substring(0, 2), 16);
-                                    const g = parseInt(hex.substring(2, 4), 16);
-                                    const b = parseInt(hex.substring(4, 6), 16);
-                                    return `rgba(${r}, ${g}, ${b}, ${s.opacity})`;
-                                  })();
-                                  const inset = s.position === 'inside' ? 'inset ' : '';
-                                  return `${inset}${s.x}px ${s.y}px ${s.blur}px ${s.spread}px ${rgba}`;
-                                })() : undefined,
-                              }} />
+                            <div className="style-popover-item-preview">
+                              <StylePreviewInline 
+                                properties={properties}
+                                themeColors={themeColors}
+                                pageBackground={{
+                                  backgroundColor: colorConfig.pageBackgroundColor || '#ffffff',
+                                  backgroundColorOpacity: colorConfig.pageBackgroundColorOpacity ?? 1,
+                                  backgroundImage: colorConfig.pageBackgroundImage,
+                                  backgroundImageOpacity: colorConfig.pageBackgroundImageOpacity ?? 1,
+                                }}
+                                textColors={{
+                                  headingColor: colorConfig.headingColor || '#000000',
+                                  paragraphColor: colorConfig.paragraphColor || '#272525',
+                                  primaryColor: colorConfig.primaryColor || themeColors.accent,
+                                }}
+                              />
                             </div>
-                            <div>
-                              <div style={{ fontSize: '13px', fontWeight: 600, color: '#111111' }}>
-                                {style.name}
-                              </div>
-                              <div style={{ fontSize: '11px', fontWeight: 400, color: '#6B6B6B', lineHeight: '1.3' }}>
-                                {style.description}
-                              </div>
+                            <div className="style-popover-item-info">
+                              <div className="style-popover-item-name">{style.name}</div>
+                              <div className="style-popover-item-description">{style.description}</div>
                             </div>
                           </button>
                         );
                       })}
-                    </div>
                   </div>
-                )}
+                </div>
+              )}
 
                 {/* Customize Tab */}
                 {defaultRowStyleType === 'custom' && (
@@ -1548,6 +1724,7 @@ export function ThemeEditor({ isOpen, onClose, onThemeUpdate, customThemes }: Th
                     customStyleProperties={customStyleProperties}
                     setCustomStyleProperties={setCustomStyleProperties}
                     themeColors={themeColors}
+                    colorConfig={colorConfig}
                   />
                 )}
               </div>
@@ -1566,14 +1743,25 @@ export function ThemeEditor({ isOpen, onClose, onThemeUpdate, customThemes }: Th
                   {showSaveDialog && saveAsNew ? 'Create Theme' : isNewTheme ? 'Create Theme' : 'Save Changes'}
                 </button>
               </div>
+              </div>
             </div>
 
             {/* Right Side: Preview - Same as Step 1 but with default row style applied */}
             <div className="theme-editor-preview" style={{ gridColumn: '2' }}>
               <div className="theme-preview-header">
                 <div className="theme-preview-tabs">
-                  <button className="theme-preview-tab active">Test page</button>
-                  <button className="theme-preview-tab">Current page</button>
+                  <button 
+                    className={`theme-preview-tab ${previewTab === 'test' ? 'active' : ''}`}
+                    onClick={() => setPreviewTab('test')}
+                  >
+                    Test page
+                  </button>
+                  <button 
+                    className={`theme-preview-tab ${previewTab === 'current' ? 'active' : ''}`}
+                    onClick={() => setPreviewTab('current')}
+                  >
+                    Current page
+                  </button>
                 </div>
                 <button className="theme-preview-close" onClick={onClose}>×</button>
               </div>
@@ -1593,13 +1781,14 @@ export function ThemeEditor({ isOpen, onClose, onThemeUpdate, customThemes }: Th
                       right: 0,
                       bottom: 0,
                       backgroundImage: `url(${colorConfig.pageBackgroundImage})`,
-                      backgroundSize: 'cover',
+                      backgroundSize: getBackgroundSize(colorConfig.pageBackgroundImageType),
                       backgroundPosition: 'center',
                       opacity: colorConfig.pageBackgroundImageOpacity ?? 1,
                       zIndex: 0,
                     }}
                   />
                 )}
+                {previewTab === 'test' ? (
                 <div 
                   className="theme-preview-card-preview" 
                   style={{ 
@@ -1658,226 +1847,328 @@ export function ThemeEditor({ isOpen, onClose, onThemeUpdate, customThemes }: Th
                       <>
                         {/* Row background color layer (base layer) - use default style or row background color */}
                         {(rowStyleProps.backgroundColor || colorConfig.rowBackgroundColor) && (
-                          <div
-                            style={{
-                              position: 'absolute',
-                              top: 0,
-                              left: 0,
-                              right: 0,
-                              bottom: 0,
+                    <div
+                      style={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
                               backgroundColor: hexToRgba(
                                 rowStyleProps.backgroundColor || colorConfig.rowBackgroundColor || '#ffffff',
                                 rowStyleProps.backgroundColorOpacity ?? colorConfig.rowBackgroundColorOpacity ?? 1
                               ),
-                              zIndex: 0,
+                        zIndex: 0,
                               borderRadius: getBorderRadius(),
-                              pointerEvents: 'none',
-                            }}
-                          />
-                        )}
-                        {/* Row background image layer (above color) */}
+                        pointerEvents: 'none',
+                      }}
+                    />
+                  )}
+                  {/* Row background image layer (above color) */}
                         {(rowStyleProps.backgroundImage || colorConfig.rowBackgroundImage) && (
-                          <div
-                            style={{
-                              position: 'absolute',
-                              top: 0,
-                              left: 0,
-                              right: 0,
-                              bottom: 0,
+                    <div
+                      style={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
                               backgroundImage: `url(${rowStyleProps.backgroundImage || colorConfig.rowBackgroundImage})`,
-                              backgroundSize: 'cover',
-                              backgroundPosition: 'center',
+                        backgroundSize: getBackgroundSize(rowStyleProps.backgroundImageType || colorConfig.rowBackgroundImageType),
+                        backgroundPosition: 'center',
                               opacity: rowStyleProps.backgroundImageOpacity ?? colorConfig.rowBackgroundImageOpacity ?? 1,
-                              zIndex: 1,
+                        zIndex: 1,
                               borderRadius: getBorderRadius(),
-                              pointerEvents: 'none',
-                            }}
-                          />
-                        )}
+                        pointerEvents: 'none',
+                      }}
+                    />
+                  )}
                         {/* Row container with style properties applied */}
-                        <div 
-                          style={{ 
-                            position: 'relative', 
-                            zIndex: 2,
+                  <div 
+                    style={{ 
+                      position: 'relative', 
+                      zIndex: 2,
                             padding: '12px',
                             borderRadius: getBorderRadius(),
                             border: getBorder(),
                             boxShadow: rowStyleProps.shadow ? getBoxShadow(rowStyleProps.shadow) : undefined,
                             backdropFilter: rowStyleProps.bgBlur ? `blur(${rowStyleProps.bgBlur}px)` : undefined,
                             WebkitBackdropFilter: rowStyleProps.bgBlur ? `blur(${rowStyleProps.bgBlur}px)` : undefined,
+                    }}
+                  >
+                    {/* Cell view container - simulates .cell-view */}
+                    <div style={{ position: 'relative' }}>
+                      {/* Cell background color layer (if cell background is set) */}
+                      {colorConfig.cellBackgroundColor && (
+                        <div
+                          style={{
+                            position: 'absolute',
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+                            backgroundColor: hexToRgba(colorConfig.cellBackgroundColor, colorConfig.cellBackgroundColorOpacity ?? 1),
+                            zIndex: 0,
+                            borderRadius: '4px',
+                            pointerEvents: 'none',
                           }}
-                        >
-                          {/* Cell view container - simulates .cell-view */}
-                          <div style={{ position: 'relative' }}>
-                            {/* Cell background color layer (if cell background is set) */}
-                            {colorConfig.cellBackgroundColor && (
-                              <div
-                                style={{
-                                  position: 'absolute',
-                                  top: 0,
-                                  left: 0,
-                                  right: 0,
-                                  bottom: 0,
-                                  backgroundColor: hexToRgba(colorConfig.cellBackgroundColor, colorConfig.cellBackgroundColorOpacity ?? 1),
-                                  zIndex: 0,
-                                  borderRadius: '4px',
-                                  pointerEvents: 'none',
-                                }}
-                              />
-                            )}
-                            {/* Cell background image layer */}
-                            {colorConfig.cellBackgroundImage && (
-                              <div
-                                style={{
-                                  position: 'absolute',
-                                  top: 0,
-                                  left: 0,
-                                  right: 0,
-                                  bottom: 0,
-                                  backgroundImage: `url(${colorConfig.cellBackgroundImage})`,
-                                  backgroundSize: 'cover',
-                                  backgroundPosition: 'center',
-                                  opacity: colorConfig.cellBackgroundImageOpacity ?? 1,
-                                  zIndex: 1,
-                                  borderRadius: '4px',
-                                  pointerEvents: 'none',
-                                }}
-                              />
-                            )}
-                            {/* Cell resources container - simulates .cell-resources with padding */}
-                            <div style={{ position: 'relative', zIndex: 2, padding: '16px' }}>
-                              {/* Resource background for heading */}
-                              <div style={{ position: 'relative', marginBottom: '8px' }}>
-                                {colorConfig.resourceBackgroundColor && (
-                                  <div
-                                    style={{
-                                      position: 'absolute',
-                                      top: 0,
-                                      left: 0,
-                                      right: 0,
-                                      bottom: 0,
-                                      backgroundColor: hexToRgba(colorConfig.resourceBackgroundColor, colorConfig.resourceBackgroundColorOpacity ?? 1),
-                                      zIndex: 0,
-                                      borderRadius: '4px',
-                                    }}
-                                  />
-                                )}
-                                {colorConfig.resourceBackgroundImage && (
-                                  <div
-                                    style={{
-                                      position: 'absolute',
-                                      top: 0,
-                                      left: 0,
-                                      right: 0,
-                                      bottom: 0,
-                                      backgroundImage: `url(${colorConfig.resourceBackgroundImage})`,
-                                      backgroundSize: 'cover',
-                                      backgroundPosition: 'center',
-                                      opacity: colorConfig.resourceBackgroundImageOpacity ?? 1,
-                                      zIndex: 1,
-                                      borderRadius: '4px',
-                                    }}
-                                  />
-                                )}
-                                <h3 style={{ color: colorConfig.headingColor, position: 'relative', zIndex: 2, padding: colorConfig.resourceBackgroundColor || colorConfig.resourceBackgroundImage ? '8px' : '0' }}>This is a theme preview.</h3>
-                              </div>
-                              {/* Resource background for paragraph */}
-                              <div style={{ position: 'relative', marginBottom: '16px' }}>
-                                {colorConfig.resourceBackgroundColor && (
-                                  <div
-                                    style={{
-                                      position: 'absolute',
-                                      top: 0,
-                                      left: 0,
-                                      right: 0,
-                                      bottom: 0,
-                                      backgroundColor: hexToRgba(colorConfig.resourceBackgroundColor, colorConfig.resourceBackgroundColorOpacity ?? 1),
-                                      zIndex: 0,
-                                      borderRadius: '4px',
-                                    }}
-                                  />
-                                )}
-                                {colorConfig.resourceBackgroundImage && (
-                                  <div
-                                    style={{
-                                      position: 'absolute',
-                                      top: 0,
-                                      left: 0,
-                                      right: 0,
-                                      bottom: 0,
-                                      backgroundImage: `url(${colorConfig.resourceBackgroundImage})`,
-                                      backgroundSize: 'cover',
-                                      backgroundPosition: 'center',
-                                      opacity: colorConfig.resourceBackgroundImageOpacity ?? 1,
-                                      zIndex: 1,
-                                      borderRadius: '4px',
-                                    }}
-                                  />
-                                )}
-                                <p style={{ color: colorConfig.paragraphColor, position: 'relative', zIndex: 2, padding: colorConfig.resourceBackgroundColor || colorConfig.resourceBackgroundImage ? '8px' : '0' }}>
-                                  Here's an example of body text. You can change its font and the color. Your accent color will be used for links. It will also be used for layouts and buttons.
-                                </p>
-                              </div>
-                              {/* Resource background for button */}
-                              <div style={{ display: 'flex', gap: '8px', marginTop: '16px', position: 'relative' }}>
-                                {colorConfig.resourceBackgroundColor && (
-                                  <div
-                                    style={{
-                                      position: 'absolute',
-                                      top: 0,
-                                      left: 0,
-                                      right: 0,
-                                      bottom: 0,
-                                      backgroundColor: hexToRgba(colorConfig.resourceBackgroundColor, colorConfig.resourceBackgroundColorOpacity ?? 1),
-                                      zIndex: 0,
-                                      borderRadius: '4px',
-                                    }}
-                                  />
-                                )}
-                                {colorConfig.resourceBackgroundImage && (
-                                  <div
-                                    style={{
-                                      position: 'absolute',
-                                      top: 0,
-                                      left: 0,
-                                      right: 0,
-                                      bottom: 0,
-                                      backgroundImage: `url(${colorConfig.resourceBackgroundImage})`,
-                                      backgroundSize: 'cover',
-                                      backgroundPosition: 'center',
-                                      opacity: colorConfig.resourceBackgroundImageOpacity ?? 1,
-                                      zIndex: 1,
-                                      borderRadius: '4px',
-                                    }}
-                                  />
-                                )}
-                                <button
-                                  style={{
-                                    backgroundColor: colorConfig.primaryColor,
-                                    color: '#ffffff',
-                                    border: 'none',
-                                    borderRadius: '4px',
-                                    padding: '8px 16px',
-                                    cursor: 'pointer',
-                                    position: 'relative',
-                                    zIndex: 2,
-                                  }}
-                                >
-                                  Primary button
-                                </button>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
+                        />
+                      )}
+                      {/* Cell background image layer */}
+                      {colorConfig.cellBackgroundImage && (
+                        <div
+                          style={{
+                            position: 'absolute',
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+                            backgroundImage: `url(${colorConfig.cellBackgroundImage})`,
+                            backgroundSize: getBackgroundSize(colorConfig.cellBackgroundImageType),
+                            backgroundPosition: 'center',
+                            opacity: colorConfig.cellBackgroundImageOpacity ?? 1,
+                            zIndex: 1,
+                            borderRadius: '4px',
+                            pointerEvents: 'none',
+                          }}
+                        />
+                      )}
+                      {/* Cell resources container - simulates .cell-resources with padding */}
+                      <div style={{ position: 'relative', zIndex: 2, padding: '16px' }}>
+                    {/* Resource background for heading */}
+                    <div style={{ position: 'relative', marginBottom: '8px' }}>
+                      {colorConfig.resourceBackgroundColor && (
+                        <div
+                          style={{
+                            position: 'absolute',
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+                            backgroundColor: hexToRgba(colorConfig.resourceBackgroundColor, colorConfig.resourceBackgroundColorOpacity ?? 1),
+                            zIndex: 0,
+                            borderRadius: '4px',
+                          }}
+                        />
+                      )}
+                      {colorConfig.resourceBackgroundImage && (
+                        <div
+                          style={{
+                            position: 'absolute',
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+                            backgroundImage: `url(${colorConfig.resourceBackgroundImage})`,
+                            backgroundSize: getBackgroundSize(colorConfig.resourceBackgroundImageType),
+                            backgroundPosition: 'center',
+                            opacity: colorConfig.resourceBackgroundImageOpacity ?? 1,
+                            zIndex: 1,
+                            borderRadius: '4px',
+                          }}
+                        />
+                      )}
+                      <h3 style={{ color: colorConfig.headingColor, position: 'relative', zIndex: 2, padding: colorConfig.resourceBackgroundColor || colorConfig.resourceBackgroundImage ? '8px' : '0' }}>This is a theme preview.</h3>
+                    </div>
+                    {/* Resource background for paragraph */}
+                    <div style={{ position: 'relative', marginBottom: '16px' }}>
+                      {colorConfig.resourceBackgroundColor && (
+                        <div
+                          style={{
+                            position: 'absolute',
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+                            backgroundColor: hexToRgba(colorConfig.resourceBackgroundColor, colorConfig.resourceBackgroundColorOpacity ?? 1),
+                            zIndex: 0,
+                            borderRadius: '4px',
+                          }}
+                        />
+                      )}
+                      {colorConfig.resourceBackgroundImage && (
+                        <div
+                          style={{
+                            position: 'absolute',
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+                            backgroundImage: `url(${colorConfig.resourceBackgroundImage})`,
+                            backgroundSize: getBackgroundSize(colorConfig.resourceBackgroundImageType),
+                            backgroundPosition: 'center',
+                            opacity: colorConfig.resourceBackgroundImageOpacity ?? 1,
+                            zIndex: 1,
+                            borderRadius: '4px',
+                          }}
+                        />
+                      )}
+                      <p style={{ color: colorConfig.paragraphColor, position: 'relative', zIndex: 2, padding: colorConfig.resourceBackgroundColor || colorConfig.resourceBackgroundImage ? '8px' : '0' }}>
+                    Here's an example of body text. You can change its font and the color. Your accent color will be used for links. It will also be used for layouts and buttons.
+                  </p>
+                    </div>
+                    {/* Resource background for button */}
+                    <div style={{ display: 'flex', gap: '8px', marginTop: '16px', position: 'relative' }}>
+                      {colorConfig.resourceBackgroundColor && (
+                        <div
+                          style={{
+                            position: 'absolute',
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+                            backgroundColor: hexToRgba(colorConfig.resourceBackgroundColor, colorConfig.resourceBackgroundColorOpacity ?? 1),
+                            zIndex: 0,
+                            borderRadius: '4px',
+                          }}
+                        />
+                      )}
+                      {colorConfig.resourceBackgroundImage && (
+                        <div
+                          style={{
+                            position: 'absolute',
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+                            backgroundImage: `url(${colorConfig.resourceBackgroundImage})`,
+                            backgroundSize: getBackgroundSize(colorConfig.resourceBackgroundImageType),
+                            backgroundPosition: 'center',
+                            opacity: colorConfig.resourceBackgroundImageOpacity ?? 1,
+                            zIndex: 1,
+                            borderRadius: '4px',
+                          }}
+                        />
+                      )}
+                    <button
+                      style={{
+                        backgroundColor: colorConfig.primaryColor,
+                        color: '#ffffff',
+                        border: 'none',
+                        borderRadius: '4px',
+                        padding: '8px 16px',
+                        cursor: 'pointer',
+                          position: 'relative',
+                          zIndex: 2,
+                      }}
+                    >
+                      Primary button
+                    </button>
+                    </div>
+                      </div>
+                    </div>
+                  </div>
                       </>
                     );
                   })()}
                 </div>
+                ) : (
+                  // Current page - render actual canvas content with preview theme CSS variables
+                  <div 
+                    style={{ 
+                      position: 'relative', 
+                      zIndex: 1, 
+                      padding: '16px', 
+                      overflowY: 'auto', 
+                      height: '100%',
+                      ...(themeToCSSVariables(previewTheme) as React.CSSProperties)
+                    }}
+                  >
+                    {rows && rows.length > 0 ? (
+                      rows.map((row) => (
+                        <RowView
+                          key={row.id}
+                          row={row}
+                          onUpdateRow={() => {}}
+                          onUpdateCell={() => {}}
+                          onUpdateBlock={() => {}}
+                          onDeleteRow={() => {}}
+                          onDeleteCell={() => {}}
+                          onDeleteBlock={() => {}}
+                          selectedBlockId={null}
+                          selectedRowId={null}
+                          selectedCellId={null}
+                          renderResource={(resource) => {
+                            // Render blocks using the same logic as PreviewStage
+                            if (resource.type === 'text' || resource.type === 'header') {
+                              return (
+                                <TextBlockView
+                                  key={resource.id}
+                                  block={resource}
+                                  isSelected={false}
+                                  isEditing={false}
+                                  isPreview={true}
+                                  onUpdate={() => {}}
+                                />
+                              );
+                            }
+                            if (resource.type === 'image') {
+                              return (
+                                <ImageBlockView
+                                  key={resource.id}
+                                  block={resource}
+                                  isSelected={false}
+                                  isPreview={true}
+                                  onUpdate={() => {}}
+                                />
+                              );
+                            }
+                            if (resource.type === 'quiz') {
+                              return (
+                                <QuizBlockView
+                                  key={resource.id}
+                                  block={resource}
+                                  isSelected={false}
+                                  isEditing={false}
+                                  isPreview={true}
+                                  onUpdate={() => {}}
+                                />
+                              );
+                            }
+                            if (resource.type === 'columns') {
+                              return (
+                                <ColumnsBlockView
+                                  key={resource.id}
+                                  block={resource}
+                                  isSelected={false}
+                                  isPreview={true}
+                                  onUpdate={() => {}}
+                                  allBlocks={[]}
+                                  showStructureStrokes={false}
+                                />
+                              );
+                            }
+                            if (resource.type === 'button') {
+                              return (
+                                <ButtonBlockView
+                                  key={resource.id}
+                                  block={resource}
+                                  isSelected={false}
+                                  isPreview={true}
+                                  onUpdate={() => {}}
+                                  allBlocks={[]}
+                                  showStructureStrokes={false}
+                                />
+                              );
+                            }
+                            return null;
+                          }}
+                          activeId={undefined}
+                          allBlocks={[]}
+                          showStructureStrokes={false}
+                        />
+                      ))
+                    ) : (
+                      <div style={{ padding: '32px', textAlign: 'center', color: '#6B6B6B' }}>
+                        No content on the page yet. Add some content to see it here.
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           </div>
         </div>
-      </div>
     );
   }
 
@@ -1889,9 +2180,213 @@ interface CustomizeTabProps {
   customStyleProperties: Partial<ThemeSpecificRowProps>;
   setCustomStyleProperties: (props: Partial<ThemeSpecificRowProps>) => void;
   themeColors: { accent: string; surface: string; border: string };
+  colorConfig: {
+    rowBackgroundColor?: string;
+    rowBackgroundColorOpacity?: number;
+    rowBackgroundImage?: string;
+    rowBackgroundImageOpacity?: number;
+  };
 }
 
-function CustomizeTab({ customStyleProperties = {}, setCustomStyleProperties, themeColors }: CustomizeTabProps) {
+// Style Preview Component - matches StylePopover's StylePreview
+interface StylePreviewInlineProps {
+  properties: Partial<ThemeSpecificRowProps>;
+  themeColors: { accent: string; surface: string; border: string };
+  pageBackground?: {
+    backgroundColor?: string;
+    backgroundColorOpacity?: number;
+    backgroundImage?: string;
+    backgroundImageOpacity?: number;
+  };
+  textColors?: {
+    headingColor?: string;
+    paragraphColor?: string;
+    primaryColor?: string;
+  };
+}
+
+function StylePreviewInline({ properties, themeColors, pageBackground, textColors }: StylePreviewInlineProps) {
+  const hexToRgba = (hex: string, opacity: number = 1): string => {
+    const r = parseInt(hex.substring(1, 3), 16);
+    const g = parseInt(hex.substring(3, 5), 16);
+    const b = parseInt(hex.substring(5, 7), 16);
+    return `rgba(${r}, ${g}, ${b}, ${opacity})`;
+  };
+
+  const getBoxShadow = (shadow: typeof properties.shadow): string => {
+    if (!shadow) return '';
+    const { x, y, blur, spread, color, opacity } = shadow;
+    const rgbaColor = (() => {
+      const hex = color.replace('#', '');
+      const r = parseInt(hex.substring(0, 2), 16);
+      const g = parseInt(hex.substring(2, 4), 16);
+      const b = parseInt(hex.substring(4, 6), 16);
+      return `rgba(${r}, ${g}, ${b}, ${opacity})`;
+    })();
+    const inset = shadow.position === 'inside' ? 'inset ' : '';
+    return `${inset}${x}px ${y}px ${blur}px ${spread}px ${rgbaColor}`;
+  };
+
+  const getBorder = (): string => {
+    const border = properties.border;
+    if (!border) return 'none';
+    const borderWidth = border.width?.mode === 'uniform' ? (border.width?.uniform ?? 0) : 0;
+    if (borderWidth > 0) {
+      return `${borderWidth}px solid ${border.color || themeColors.border}`;
+    }
+    return 'none';
+  };
+
+  const getBorderRadius = (): string => {
+    const borderRadius = properties.borderRadius;
+    if (borderRadius?.mode === 'uniform') {
+      return `${borderRadius.uniform ?? 0}px`;
+    }
+    return '8px';
+  };
+
+  const rowStyleProps = properties;
+  const pageBgColor = pageBackground?.backgroundColor || '#ffffff';
+  const pageBgOpacity = pageBackground?.backgroundColorOpacity ?? 1;
+  const pageBgImage = pageBackground?.backgroundImage;
+  const pageBgImageOpacity = pageBackground?.backgroundImageOpacity ?? 1;
+  const pageBgImageType = pageBackground?.backgroundImageType ?? 'fill';
+  const headingColor = textColors?.headingColor || '#000000';
+  const paragraphColor = textColors?.paragraphColor || '#272525';
+  const primaryColor = textColors?.primaryColor || themeColors.accent;
+
+  return (
+    <div
+      className="style-preview-box"
+      style={{
+        position: 'relative',
+        width: '100%',
+        height: '100%',
+        overflow: 'hidden',
+        borderRadius: '4px',
+        backgroundColor: hexToRgba(pageBgColor, pageBgOpacity),
+      }}
+    >
+      {pageBgImage && (
+        <div
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundImage: `url(${pageBgImage})`,
+            backgroundSize: getBackgroundSize(pageBgImageType),
+            backgroundPosition: 'center',
+            opacity: pageBgImageOpacity,
+            zIndex: 0,
+          }}
+        />
+      )}
+      <div 
+        style={{ 
+          position: 'absolute',
+          top: '16px',
+          left: '16px',
+          right: '16px',
+          bottom: '16px',
+          zIndex: 1,
+          transform: 'scale(0.9)',
+          transformOrigin: 'center center',
+          padding: '8px',
+          borderRadius: getBorderRadius(),
+          border: getBorder(),
+          boxShadow: rowStyleProps.shadow ? getBoxShadow(rowStyleProps.shadow) : undefined,
+          backdropFilter: rowStyleProps.bgBlur ? `blur(${rowStyleProps.bgBlur}px)` : undefined,
+          WebkitBackdropFilter: rowStyleProps.bgBlur ? `blur(${rowStyleProps.bgBlur}px)` : undefined,
+        }}
+      >
+        {(rowStyleProps.backgroundColor) && (
+          <div
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: hexToRgba(
+                rowStyleProps.backgroundColor || '#ffffff',
+                rowStyleProps.backgroundColorOpacity ?? 1
+              ),
+              zIndex: 0,
+              borderRadius: getBorderRadius(),
+              pointerEvents: 'none',
+            }}
+          />
+        )}
+        {(rowStyleProps.backgroundImage) && (
+          <div
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundImage: `url(${rowStyleProps.backgroundImage})`,
+              backgroundSize: getBackgroundSize(rowStyleProps.backgroundImageType),
+              backgroundPosition: 'center',
+              opacity: rowStyleProps.backgroundImageOpacity ?? 1,
+              zIndex: 1,
+              borderRadius: getBorderRadius(),
+              pointerEvents: 'none',
+            }}
+          />
+        )}
+        <div style={{ position: 'relative', zIndex: 2, display: 'flex', alignItems: 'center', height: '100%' }}>
+          <div style={{ position: 'relative', zIndex: 2, padding: '10px', width: '100%' }}>
+            <h3 style={{ 
+              color: headingColor, 
+              position: 'relative', 
+              zIndex: 2, 
+              margin: 0, 
+              marginBottom: '6px', 
+              fontSize: '11px', 
+              fontWeight: 600,
+              lineHeight: '1.2',
+            }}>
+              This is a theme preview.
+            </h3>
+            <p style={{ 
+              color: paragraphColor, 
+              position: 'relative', 
+              zIndex: 2, 
+              margin: 0, 
+              marginBottom: '8px', 
+              fontSize: '9px', 
+              fontWeight: 400,
+              lineHeight: '1.3',
+            }}>
+              Here's an example of body text. You can change its font and the color. Your accent color will be used for links.
+            </p>
+            <button
+              style={{
+                backgroundColor: primaryColor,
+                color: '#ffffff',
+                border: 'none',
+                borderRadius: '4px',
+                padding: '4px 8px',
+                cursor: 'pointer',
+                position: 'relative',
+                zIndex: 2,
+                fontSize: '9px',
+                fontWeight: 500,
+              }}
+            >
+              Primary button
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CustomizeTab({ customStyleProperties = {}, setCustomStyleProperties, themeColors, colorConfig }: CustomizeTabProps) {
   // Ensure customStyleProperties is always an object
   const safeCustomStyleProperties = customStyleProperties || {};
   
@@ -1909,12 +2404,13 @@ function CustomizeTab({ customStyleProperties = {}, setCustomStyleProperties, th
   const borderInitializedRef = useRef(false);
   const shadowInitializedRef = useRef(false);
 
-  // Extract current values
-  const backgroundColor = safeCustomStyleProperties.backgroundColor;
-  const backgroundColorOpacity = safeCustomStyleProperties.backgroundColorOpacity ?? 1;
-  const backgroundImage = safeCustomStyleProperties.backgroundImage;
-  const backgroundImageOpacity = safeCustomStyleProperties.backgroundImageOpacity ?? 1;
-  const hasExplicitBackground = backgroundColor !== undefined || backgroundImage !== undefined;
+  // Extract current values - inherit from Step 1 (colorConfig) if not set in customStyleProperties
+  const backgroundColor = safeCustomStyleProperties.backgroundColor ?? colorConfig.rowBackgroundColor;
+  const backgroundColorOpacity = safeCustomStyleProperties.backgroundColorOpacity ?? colorConfig.rowBackgroundColorOpacity ?? 1;
+  const backgroundImage = safeCustomStyleProperties.backgroundImage ?? colorConfig.rowBackgroundImage;
+  const backgroundImageOpacity = safeCustomStyleProperties.backgroundImageOpacity ?? colorConfig.rowBackgroundImageOpacity ?? 1;
+  // Check if background is explicitly set in customStyleProperties (not just inherited from colorConfig)
+  const hasExplicitBackground = safeCustomStyleProperties.backgroundColor !== undefined || safeCustomStyleProperties.backgroundImage !== undefined;
 
   const borderRadius = safeCustomStyleProperties.borderRadius || { mode: 'uniform' as const, uniform: 0 };
   const borderRadiusMode = borderRadius?.mode || 'uniform';
@@ -2060,17 +2556,10 @@ function CustomizeTab({ customStyleProperties = {}, setCustomStyleProperties, th
   }
 
   return (
-    <div>
-      <p style={{ fontSize: '13px', color: '#6B6B6B', marginBottom: '16px' }}>
-        Define a custom default style for this theme.
-      </p>
-
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+    <div className="ui-properties-panel">
+      <PanelSection title="Style">
         {/* Fill */}
-        <div>
-          <label style={{ display: 'block', fontSize: '14px', fontWeight: 500, color: '#6B6B6B', marginBottom: '8px' }}>
-            Fill
-          </label>
+        <PropertyRow label="Fill">
           <div
             ref={fillPopoverAnchorRef}
             onClick={() => {
@@ -2078,11 +2567,12 @@ function CustomizeTab({ customStyleProperties = {}, setCustomStyleProperties, th
               setShadowPopoverOpen(false);
               setFillPopoverOpen(true);
             }}
-            style={{ width: '100%' }}
+            style={{ width: '100%', flex: 1 }}
           >
             <PillSelect
               thumbnail={backgroundImage}
               swatchColor={backgroundColor}
+              swatchOpacity={backgroundColorOpacity}
               text={backgroundImage ? 'Image' : backgroundColor ? backgroundColor.toUpperCase() : 'Add...'}
               onClick={() => {}}
               onClear={(e) => {
@@ -2093,14 +2583,11 @@ function CustomizeTab({ customStyleProperties = {}, setCustomStyleProperties, th
               showClear={hasExplicitBackground}
             />
           </div>
-        </div>
+        </PropertyRow>
 
         {/* Radius */}
-        <div>
-          <label style={{ display: 'block', fontSize: '14px', fontWeight: 500, color: '#6B6B6B', marginBottom: '8px' }}>
-            Radius
-          </label>
-          <div style={{ display: 'flex', gap: '8px', alignItems: 'center', width: '100%' }}>
+        <PropertyRow label="Radius">
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center', width: '100%', flex: 1 }}>
             <NumberPillInput
               value={uniformBorderRadius}
               onChange={handleUniformBorderRadiusChange}
@@ -2115,13 +2602,10 @@ function CustomizeTab({ customStyleProperties = {}, setCustomStyleProperties, th
               onButtonClick={(value) => handleBorderRadiusModeChange(value as 'uniform' | 'individual')}
             />
           </div>
-        </div>
+        </PropertyRow>
 
         {/* Border */}
-        <div>
-          <label style={{ display: 'block', fontSize: '14px', fontWeight: 500, color: '#6B6B6B', marginBottom: '8px' }}>
-            Border
-          </label>
+        <PropertyRow label="Border">
           <div
             ref={borderPopoverAnchorRef}
             onClick={() => {
@@ -2139,7 +2623,7 @@ function CustomizeTab({ customStyleProperties = {}, setCustomStyleProperties, th
               }
               setBorderPopoverOpen(true);
             }}
-            style={{ width: '100%' }}
+            style={{ width: '100%', flex: 1 }}
           >
             <PillSelect
               swatchColor={hasVisibleBorder || borderPopoverOpen ? (borderColor || themeColors.accent) : '#CBCBCB'}
@@ -2153,13 +2637,10 @@ function CustomizeTab({ customStyleProperties = {}, setCustomStyleProperties, th
               showClear={hasVisibleBorder || borderPopoverOpen}
             />
           </div>
-        </div>
+        </PropertyRow>
 
         {/* Shadow */}
-        <div>
-          <label style={{ display: 'block', fontSize: '14px', fontWeight: 500, color: '#6B6B6B', marginBottom: '8px' }}>
-            Shadow
-          </label>
+        <PropertyRow label="Shadow">
           <div
             ref={shadowPopoverAnchorRef}
             onClick={() => {
@@ -2180,7 +2661,7 @@ function CustomizeTab({ customStyleProperties = {}, setCustomStyleProperties, th
               }
               setShadowPopoverOpen(true);
             }}
-            style={{ width: '100%' }}
+            style={{ width: '100%', flex: 1 }}
           >
             <PillSelect
               swatchColor={hasShadow ? (shadow?.color || '#000000') : '#CBCBCB'}
@@ -2193,14 +2674,11 @@ function CustomizeTab({ customStyleProperties = {}, setCustomStyleProperties, th
               showClear={hasShadow}
             />
           </div>
-        </div>
+        </PropertyRow>
 
         {/* BG Blur */}
-        <div>
-          <label style={{ display: 'block', fontSize: '14px', fontWeight: 500, color: '#6B6B6B', marginBottom: '8px' }}>
-            BG Blur
-          </label>
-          <div style={{ display: 'flex', gap: '8px', alignItems: 'center', width: '100%' }}>
+        <PropertyRow label="BG Blur">
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center', width: '100%', flex: 1 }}>
             <NumberSliderInput
               value={bgBlur}
               onChange={handleBgBlurChange}
@@ -2234,8 +2712,8 @@ function CustomizeTab({ customStyleProperties = {}, setCustomStyleProperties, th
               </button>
             )}
           </div>
-        </div>
-      </div>
+        </PropertyRow>
+      </PanelSection>
 
       {/* Popovers */}
       <FillPopover

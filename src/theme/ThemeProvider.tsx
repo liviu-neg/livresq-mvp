@@ -20,15 +20,78 @@ interface ThemeProviderProps {
 
 const STORAGE_KEY = 'livresq-custom-themes';
 
+// Migrate old themes to include new properties (backgroundImageType)
+function migrateTheme(theme: any): Theme {
+  // Create a copy to avoid mutating the original
+  const migrated = { ...theme };
+  
+  // Ensure all background properties have backgroundImageType
+  if (migrated.pageBackground) {
+    migrated.pageBackground = {
+      ...migrated.pageBackground,
+      backgroundImageType: migrated.pageBackground.backgroundImageType || 'fill',
+    };
+  }
+  if (migrated.rowBackground) {
+    migrated.rowBackground = {
+      ...migrated.rowBackground,
+      backgroundImageType: migrated.rowBackground.backgroundImageType || 'fill',
+    };
+  }
+  if (migrated.cellBackground) {
+    migrated.cellBackground = {
+      ...migrated.cellBackground,
+      backgroundImageType: migrated.cellBackground.backgroundImageType || 'fill',
+    };
+  }
+  if (migrated.resourceBackground) {
+    migrated.resourceBackground = {
+      ...migrated.resourceBackground,
+      backgroundImageType: migrated.resourceBackground.backgroundImageType || 'fill',
+    };
+  }
+  
+  // Ensure theme has a name (fallback to ID if missing)
+  if (!migrated.name && migrated.id) {
+    migrated.name = migrated.id;
+  } else if (!migrated.name) {
+    migrated.name = 'Custom Theme';
+  }
+  
+  return migrated as Theme;
+}
+
 // Load custom themes from localStorage
 function loadCustomThemes(): Record<string, Theme> {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored) {
-      return JSON.parse(stored);
+      const parsed = JSON.parse(stored);
+      // Migrate all themes to ensure they have the new properties
+      const migrated: Record<string, Theme> = {};
+      for (const [id, theme] of Object.entries(parsed)) {
+        if (theme && typeof theme === 'object') {
+          try {
+            migrated[id] = migrateTheme(theme);
+          } catch (themeError) {
+            console.warn(`Failed to migrate theme "${id}":`, themeError);
+            // Still try to include it, even if migration partially fails
+            migrated[id] = theme as Theme;
+          }
+        }
+      }
+      console.log(`Loaded ${Object.keys(migrated).length} custom themes from localStorage:`, Object.keys(migrated));
+      return migrated;
     }
   } catch (error) {
     console.error('Failed to load custom themes:', error);
+    // If parsing fails, try to recover by clearing corrupted data
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+      console.warn('Cleared corrupted theme data from localStorage');
+    } catch (clearError) {
+      console.error('Failed to clear corrupted theme data:', clearError);
+    }
   }
   return {};
 }
@@ -52,17 +115,38 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
   const [customThemes, setCustomThemes] = useState<Record<string, Theme>>(() => {
     // Load themes from localStorage
     const loaded = loadCustomThemes();
-    // Return all loaded themes without filtering - allow all themes to be saved and loaded
-    return loaded;
+    // Ensure we have valid themes - filter out any invalid entries
+    const validated: Record<string, Theme> = {};
+    for (const [id, theme] of Object.entries(loaded)) {
+      if (theme && typeof theme === 'object' && theme.name) {
+        validated[id] = theme;
+      }
+    }
+    console.log(`Initialized with ${Object.keys(validated).length} valid custom themes`);
+    return validated;
   });
 
   // Save custom themes to localStorage whenever they change
+  // Always save, even if empty (to persist migrations)
   useEffect(() => {
     saveCustomThemes(customThemes);
   }, [customThemes]);
 
   const updateCustomThemes = (themes: Record<string, Theme>) => {
-    setCustomThemes(themes);
+    // Validate and migrate themes before updating
+    const validated: Record<string, Theme> = {};
+    for (const [id, theme] of Object.entries(themes)) {
+      if (theme && typeof theme === 'object') {
+        try {
+          validated[id] = migrateTheme(theme);
+        } catch (error) {
+          console.warn(`Failed to validate theme "${id}":`, error);
+          // Still include it if migration fails
+          validated[id] = theme as Theme;
+        }
+      }
+    }
+    setCustomThemes(validated);
   };
 
   // Get current theme (built-in or custom)

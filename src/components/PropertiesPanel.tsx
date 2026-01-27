@@ -62,6 +62,13 @@ function getCellThemeProps(cell: Cell, themeId: ThemeId, theme: any): ThemeSpeci
   const themeProps = cell.props?.themes?.[themeId];
   const defaultBackground = theme?.cellBackground || { backgroundColor: undefined, backgroundColorOpacity: 1, backgroundImage: undefined, backgroundImageOpacity: 1 };
   
+  // Get theme defaults for padding
+  // CSS default is 8px for .row-cells, so use that if theme padding is 0 or undefined
+  const themePadding = theme?.cellPadding;
+  const defaultPadding = (themePadding && themePadding.uniform !== undefined && themePadding.uniform !== 0)
+    ? themePadding
+    : { mode: 'uniform' as const, uniform: 8 }; // CSS default is 8px
+  
   // If theme-specific props exist, merge with theme defaults for missing background properties
   if (themeProps) {
     return {
@@ -71,13 +78,15 @@ function getCellThemeProps(cell: Cell, themeId: ThemeId, theme: any): ThemeSpeci
       backgroundColorOpacity: themeProps.backgroundColorOpacity ?? defaultBackground.backgroundColorOpacity ?? 1,
       backgroundImage: themeProps.backgroundImage ?? defaultBackground.backgroundImage,
       backgroundImageOpacity: themeProps.backgroundImageOpacity ?? defaultBackground.backgroundImageOpacity ?? 1,
+      // Merge padding defaults if not explicitly set
+      padding: themeProps.padding || defaultPadding,
     };
   }
   
   // Fallback to legacy props for backward compatibility
   const legacyProps = {
     verticalAlign: cell.props?.verticalAlign,
-    padding: cell.props?.padding,
+    padding: cell.props?.padding || defaultPadding,
     backgroundColor: cell.props?.backgroundColor,
     backgroundColorOpacity: cell.props?.backgroundColorOpacity,
     backgroundImage: cell.props?.backgroundImage,
@@ -138,15 +147,26 @@ function getRowThemeProps(row: Row, themeId: ThemeId, theme: any): ThemeSpecific
     };
   }
   
-  // If theme-specific props exist, use them
+  // Get theme defaults for padding
+  // CSS default is 8px for .row-cells, so use that if theme padding is 0 or undefined
+  const themePadding = theme?.rowPadding;
+  const defaultPadding = (themePadding && themePadding.uniform !== undefined && themePadding.uniform !== 0)
+    ? themePadding
+    : { mode: 'uniform' as const, uniform: 8 }; // CSS default is 8px
+  
+  // If theme-specific props exist, merge with theme defaults for missing properties
   if (themeProps) {
-    return themeProps;
+    return {
+      ...themeProps,
+      // Merge padding defaults if not explicitly set
+      padding: themeProps.padding || defaultPadding,
+    };
   }
   
   // Fallback to legacy props for backward compatibility
   return {
     verticalAlign: row.props?.verticalAlign,
-    padding: row.props?.padding,
+    padding: row.props?.padding || defaultPadding,
     backgroundColor: row.props?.backgroundColor,
     backgroundColorOpacity: row.props?.backgroundColorOpacity,
     backgroundImage: row.props?.backgroundImage,
@@ -396,7 +416,7 @@ export function PropertiesPanel({
 
   // Page properties panel - shown when page is selected (and not a row, cell, or block)
   if (isPageSelected && !selectedRow && !selectedCell && !selectedBlock && onUpdatePageProps) {
-    const defaultPageBackground = theme.pageBackground || { backgroundColor: '#ffffff', backgroundColorOpacity: 1, backgroundImage: undefined, backgroundImageOpacity: 1 };
+    const defaultPageBackground = theme.pageBackground || { backgroundColor: '#ffffff', backgroundColorOpacity: 1, backgroundImage: undefined, backgroundImageOpacity: 1, backgroundImageType: 'fill' };
     
     // Get theme-specific page properties
     const themePageProps = pageProps?.themes?.[themeId] || {};
@@ -404,6 +424,7 @@ export function PropertiesPanel({
     const backgroundColorOpacity = themePageProps.backgroundColorOpacity ?? defaultPageBackground.backgroundColorOpacity ?? 1;
     const backgroundImage = themePageProps.backgroundImage ?? defaultPageBackground.backgroundImage;
     const backgroundImageOpacity = themePageProps.backgroundImageOpacity ?? defaultPageBackground.backgroundImageOpacity ?? 1;
+    const backgroundImageType = themePageProps.backgroundImageType ?? defaultPageBackground.backgroundImageType ?? 'fill';
     // Check if color/image is explicitly set (can be removed) vs just theme default
     const hasExplicitBackground = themePageProps.backgroundColor !== undefined || themePageProps.backgroundImage !== undefined;
     // maxRowWidth: null = full width, 1024 = 1024px max width, undefined = default (1024)
@@ -447,6 +468,11 @@ export function PropertiesPanel({
       } else {
         handleUpdatePageThemeProps({ backgroundImage: undefined });
       }
+    };
+
+    const handleBackgroundImageTypeChange = (type: string) => {
+      const imageType = type === 'Fill' ? 'fill' : type === 'Fit' ? 'fit' : type === 'Stretch' ? 'stretch' : 'fill';
+      handleUpdatePageThemeProps({ backgroundImageType: imageType as 'fill' | 'fit' | 'stretch' });
     };
 
     const handleBackgroundImageOpacityChange = (opacity: number) => {
@@ -528,12 +554,12 @@ export function PropertiesPanel({
                 anchorElement={pageFillPopoverAnchor}
                 fillType={backgroundImage ? 'image' : backgroundColor ? 'color' : 'color'}
                 imageUrl={backgroundImage}
-                imageType="Fill"
+                imageType={backgroundImageType === 'fill' ? 'Fill' : backgroundImageType === 'fit' ? 'Fit' : 'Stretch'}
                 color={backgroundColor}
                 onImageUrlChange={(url) => {
                   handleBackgroundImageChange(url);
                 }}
-                onImageTypeChange={() => {}}
+                onImageTypeChange={handleBackgroundImageTypeChange}
                 onImageDescriptionChange={() => {}}
                 onColorChange={(color) => {
                   handleBackgroundColorChange(color);
@@ -550,8 +576,12 @@ export function PropertiesPanel({
   // Row properties mirror cell properties: vertical alignment, padding, and background
   // All properties are theme-level configurable with defaults
   if (selectedRow && !selectedCell && !selectedBlock && !isColumnsBlockRow && onUpdateRow) {
-    const defaultPadding = theme.rowPadding || { mode: 'uniform', uniform: 0 };
-    const defaultBackground = theme.rowBackground || { backgroundColor: '#ffffff', backgroundColorOpacity: 1, backgroundImage: undefined, backgroundImageOpacity: 1 };
+    // CSS default is 8px for .row-cells, so use that if theme padding is 0 or undefined
+    const themePadding = theme.rowPadding;
+    const defaultPadding = (themePadding && themePadding.uniform !== undefined && themePadding.uniform !== 0)
+      ? themePadding
+      : { mode: 'uniform' as const, uniform: 8 }; // CSS default is 8px
+    const defaultBackground = theme.rowBackground || { backgroundColor: '#ffffff', backgroundColorOpacity: 1, backgroundImage: undefined, backgroundImageOpacity: 1, backgroundImageType: 'fill' };
     const defaultBorder = theme.rowBorder || { color: undefined, width: { mode: 'uniform', uniform: 0 }, style: 'solid' };
     const defaultBorderRadius = theme.rowBorderRadius || { mode: 'uniform', uniform: 0 };
     
@@ -560,11 +590,16 @@ export function PropertiesPanel({
     const rowThemeProps = selectedRow.props?.themes?.[themeId];
     
     const verticalAlign = themeProps.verticalAlign || 'top';
-    const padding = themeProps.padding || defaultPadding;
+    // Use padding from themeProps if it exists and has a non-zero value, otherwise use defaultPadding (8px)
+    const padding = (themeProps.padding && (
+      (themeProps.padding.mode === 'uniform' && themeProps.padding.uniform !== undefined && themeProps.padding.uniform !== 0) ||
+      (themeProps.padding.mode === 'individual' && (themeProps.padding.top || themeProps.padding.right || themeProps.padding.bottom || themeProps.padding.left))
+    )) ? themeProps.padding : defaultPadding;
     const backgroundColor = themeProps.backgroundColor ?? defaultBackground.backgroundColor;
     const backgroundColorOpacity = themeProps.backgroundColorOpacity ?? defaultBackground.backgroundColorOpacity ?? 1;
     const backgroundImage = themeProps.backgroundImage ?? defaultBackground.backgroundImage;
     const backgroundImageOpacity = themeProps.backgroundImageOpacity ?? defaultBackground.backgroundImageOpacity ?? 1;
+    const backgroundImageType = themeProps.backgroundImageType ?? defaultBackground.backgroundImageType ?? 'fill';
     // Check if color/image is explicitly set (can be removed) vs just theme default
     const hasExplicitBackground = rowThemeProps?.backgroundColor !== undefined || rowThemeProps?.backgroundImage !== undefined || 
                                    selectedRow.props?.backgroundColor !== undefined || selectedRow.props?.backgroundImage !== undefined;
@@ -605,21 +640,38 @@ export function PropertiesPanel({
     const bgBlur = themeProps.bgBlur ?? 0;
     const hasShadow = shadow !== null;
     
-    // Style
-    const styleId = themeProps.styleId; // null = default, string = style ID, undefined = no style (individual properties)
+    // Style - use rowThemeProps directly for styleId to get the actual stored value
+    // themeProps might be computed and could override the stored styleId
+    const actualStyleId = rowThemeProps?.styleId; // Get styleId directly from row props
+    const styleId = actualStyleId !== undefined ? actualStyleId : themeProps.styleId; // Fallback to computed if not set
     const hasStyle = styleId !== undefined; // true if a style is applied (default or custom)
     const isDefaultStyle = styleId === null; // true if default style is applied
     const isCustomStyle = styleId !== null && styleId !== undefined; // true if curated/custom style is applied
+    
+    // Get default style name if it's a curated style
+    const getDefaultStyleName = (): string => {
+      if (!theme?.defaultRowStyle) return 'Default';
+      const defaultStyle = theme.defaultRowStyle;
+      if (defaultStyle.type === 'curated' && defaultStyle.curatedId) {
+        const curatedStyle = curatedStyles.find(s => s.id === defaultStyle.curatedId);
+        return curatedStyle?.name || 'Default';
+      }
+      return 'Default';
+    };
+    const defaultStyleName = getDefaultStyleName();
 
     // Helper to update theme-specific row properties
     const handleUpdateRowThemeProps = (updates: Partial<ThemeSpecificRowProps>) => {
       if (!onUpdateRow || !selectedRow || !isMountedRef.current) return;
       try {
         const currentThemeProps = selectedRow.props?.themes?.[themeId] || {};
-        // Preserve styleId from computed themeProps (which includes default style detection)
+        // If updates contains styleId, use it (for style selection)
+        // Otherwise, preserve styleId from computed themeProps or current props
         // This ensures that when updating properties like verticalAlign, padding, etc.,
         // the styleId is not lost (especially important for default styles where styleId: null)
-        const preservedStyleId = themeProps.styleId !== undefined ? themeProps.styleId : currentThemeProps.styleId;
+        const styleIdToUse = updates.styleId !== undefined 
+          ? updates.styleId 
+          : (themeProps.styleId !== undefined ? themeProps.styleId : currentThemeProps.styleId);
         onUpdateRow({
           ...selectedRow,
           props: {
@@ -629,8 +681,8 @@ export function PropertiesPanel({
               [themeId]: {
                 ...currentThemeProps,
                 ...updates,
-                // Preserve styleId if it exists in computed themeProps or current props
-                ...(preservedStyleId !== undefined ? { styleId: preservedStyleId } : {}),
+                // Use the determined styleId
+                ...(styleIdToUse !== undefined ? { styleId: styleIdToUse } : {}),
               },
             },
           },
@@ -718,6 +770,11 @@ export function PropertiesPanel({
           backgroundImage: undefined,
         });
       }
+    };
+
+    const handleBackgroundImageTypeChange = (type: string) => {
+      const imageType = type === 'Fill' ? 'fill' : type === 'Fit' ? 'fit' : type === 'Stretch' ? 'stretch' : 'fill';
+      handleUpdateRowThemeProps({ backgroundImageType: imageType as 'fill' | 'fit' | 'stretch' });
     };
 
     const handleClearBackground = () => {
@@ -1056,7 +1113,7 @@ export function PropertiesPanel({
                 <PillSelect
                   thumbnail={undefined}
                   swatchColor={hasStyle ? '#326CF6' : '#CBCBCB'}
-                  text={isDefaultStyle ? 'Default' : isCustomStyle ? (curatedStyles.find(s => s.id === styleId)?.name || 'Style') : 'Select...'}
+                  text={isDefaultStyle ? defaultStyleName : isCustomStyle ? (curatedStyles.find(s => s.id === styleId)?.name || 'Style') : 'Select...'}
                   onClick={() => {}}
                   onClear={(e) => {
                     e.stopPropagation();
@@ -1291,13 +1348,13 @@ export function PropertiesPanel({
                 anchorElement={rowFillPopoverAnchor}
                 fillType={backgroundImage ? 'image' : backgroundColor ? 'color' : 'color'}
                 imageUrl={backgroundImage}
-                imageType="Fill"
+                imageType={backgroundImageType === 'fill' ? 'Fill' : backgroundImageType === 'fit' ? 'Fit' : 'Stretch'}
                 color={backgroundColor}
                 opacity={backgroundColorOpacity}
                 onImageUrlChange={(url) => {
                   handleBackgroundImageChange(url);
                 }}
-                onImageTypeChange={() => {}}
+                onImageTypeChange={handleBackgroundImageTypeChange}
                 onImageDescriptionChange={() => {}}
                 onColorChange={(color) => {
                   handleBackgroundColorChange(color);
@@ -1459,8 +1516,12 @@ export function PropertiesPanel({
 
   // If cell is selected, show cell properties
   if (selectedCell && !selectedBlock && !isColumnsBlockRow) {
-    const defaultPadding = theme.cellPadding || { mode: 'uniform', uniform: 0 };
-    const defaultBackground = theme.cellBackground || { backgroundColor: undefined, backgroundColorOpacity: 1, backgroundImage: undefined, backgroundImageOpacity: 1 };
+    // CSS default is 8px for .row-cells, so use that if theme padding is 0 or undefined
+    const themePadding = theme.cellPadding;
+    const defaultPadding = (themePadding && themePadding.uniform !== undefined && themePadding.uniform !== 0)
+      ? themePadding
+      : { mode: 'uniform' as const, uniform: 8 }; // CSS default is 8px
+    const defaultBackground = theme.cellBackground || { backgroundColor: undefined, backgroundColorOpacity: 1, backgroundImage: undefined, backgroundImageOpacity: 1, backgroundImageType: 'fill' };
     const defaultBorder = theme.cellBorder || { color: undefined, width: { mode: 'uniform', uniform: 0 }, style: 'solid' };
     const defaultBorderRadius = theme.cellBorderRadius || { mode: 'uniform', uniform: 0 };
     
@@ -1469,11 +1530,16 @@ export function PropertiesPanel({
     const cellThemeProps = selectedCell.props?.themes?.[themeId];
     
     const verticalAlign = themeProps.verticalAlign || 'top';
-    const padding = themeProps.padding || defaultPadding;
+    // Use padding from themeProps if it exists and has a non-zero value, otherwise use defaultPadding (8px)
+    const padding = (themeProps.padding && (
+      (themeProps.padding.mode === 'uniform' && themeProps.padding.uniform !== undefined && themeProps.padding.uniform !== 0) ||
+      (themeProps.padding.mode === 'individual' && (themeProps.padding.top || themeProps.padding.right || themeProps.padding.bottom || themeProps.padding.left))
+    )) ? themeProps.padding : defaultPadding;
     const backgroundColor = themeProps.backgroundColor ?? defaultBackground.backgroundColor;
     const backgroundColorOpacity = themeProps.backgroundColorOpacity ?? defaultBackground.backgroundColorOpacity ?? 1;
     const backgroundImage = themeProps.backgroundImage ?? defaultBackground.backgroundImage;
     const backgroundImageOpacity = themeProps.backgroundImageOpacity ?? defaultBackground.backgroundImageOpacity ?? 1;
+    const backgroundImageType = themeProps.backgroundImageType ?? defaultBackground.backgroundImageType ?? 'fill';
     // Check if color/image is explicitly set (can be removed) vs just theme default
     const hasExplicitBackground = cellThemeProps?.backgroundColor !== undefined || cellThemeProps?.backgroundImage !== undefined ||
                                    selectedCell.props?.backgroundColor !== undefined || selectedCell.props?.backgroundImage !== undefined;
@@ -1617,6 +1683,11 @@ export function PropertiesPanel({
           backgroundImage: undefined,
         });
       }
+    };
+
+    const handleBackgroundImageTypeChange = (type: string) => {
+      const imageType = type === 'Fill' ? 'fill' : type === 'Fit' ? 'fit' : type === 'Stretch' ? 'stretch' : 'fill';
+      handleUpdateCellThemeProps({ backgroundImageType: imageType as 'fill' | 'fit' | 'stretch' });
     };
 
     const handleClearBackground = () => {
@@ -2079,13 +2150,13 @@ export function PropertiesPanel({
                 anchorElement={cellFillPopoverAnchor}
                 fillType={backgroundImage ? 'image' : backgroundColor ? 'color' : 'color'}
                 imageUrl={backgroundImage}
-                imageType="Fill"
+                imageType={backgroundImageType === 'fill' ? 'Fill' : backgroundImageType === 'fit' ? 'Fit' : 'Stretch'}
                 color={backgroundColor}
                 opacity={backgroundColorOpacity}
                 onImageUrlChange={(url) => {
                   handleBackgroundImageChange(url);
                 }}
-                onImageTypeChange={() => {}}
+                onImageTypeChange={handleBackgroundImageTypeChange}
                 onImageDescriptionChange={() => {}}
                 onColorChange={(color) => {
                   handleBackgroundColorChange(color);

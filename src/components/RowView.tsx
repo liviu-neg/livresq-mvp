@@ -285,13 +285,62 @@ export function RowView({
           data-row-id={row.id}
           onClick={handleRowClick}
           style={{
-            ...(shadow ? { boxShadow: getBoxShadow(shadow) } : {}),
+            backgroundColor: 'transparent', // Ensure empty state row-view background is transparent
+            // Shadow moved to row-background-color-layer (if it exists) to align with background
             ...(bgBlur > 0 ? {
               backdropFilter: `blur(${bgBlur}px)`,
               WebkitBackdropFilter: `blur(${bgBlur}px)`,
             } : {}),
           }}
         >
+          {/* Background color layer for empty state rows - apply shadow here to align with background */}
+          {themeProps.backgroundColor && (
+            <div 
+              className="row-background-color-layer"
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                backgroundColor: hexToRgba(themeProps.backgroundColor, themeProps.backgroundColorOpacity ?? 1),
+                zIndex: 0,
+                pointerEvents: 'none',
+                borderRadius: themeProps.borderRadius?.mode === 'uniform' && themeProps.borderRadius.uniform !== undefined
+                  ? `${themeProps.borderRadius.uniform}px`
+                  : themeProps.borderRadius?.mode === 'individual'
+                  ? `${themeProps.borderRadius.topLeft || 0}px ${themeProps.borderRadius.topRight || 0}px ${themeProps.borderRadius.bottomRight || 0}px ${themeProps.borderRadius.bottomLeft || 0}px`
+                  : undefined,
+                // Apply shadow to background layer to align with background and eliminate edge effect
+                ...(shadow ? { boxShadow: getBoxShadow(shadow) } : {}),
+              }}
+            />
+          )}
+          {/* Background image layer for empty state rows */}
+          {themeProps.backgroundImage && (
+            <div 
+              className="row-background-image-layer"
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                backgroundImage: `url(${themeProps.backgroundImage})`,
+                backgroundSize: themeProps.backgroundImageType === 'fit' ? 'contain' : themeProps.backgroundImageType === 'stretch' ? '100% 100%' : 'cover',
+                backgroundPosition: 'center',
+                backgroundRepeat: 'no-repeat',
+                opacity: themeProps.backgroundImageOpacity ?? 1,
+                zIndex: 1,
+                pointerEvents: 'none',
+                borderRadius: themeProps.borderRadius?.mode === 'uniform' && themeProps.borderRadius.uniform !== undefined
+                  ? `${themeProps.borderRadius.uniform}px`
+                  : themeProps.borderRadius?.mode === 'individual'
+                  ? `${themeProps.borderRadius.topLeft || 0}px ${themeProps.borderRadius.topRight || 0}px ${themeProps.borderRadius.bottomRight || 0}px ${themeProps.borderRadius.bottomLeft || 0}px`
+                  : undefined,
+              }}
+            />
+          )}
           <div ref={rowCellsRef} className="row-cells">
             {row.cells.map((cell) => (
               <CellView
@@ -355,6 +404,7 @@ export function RowView({
             '--column-count': row.props.columns || 2,
           } as React.CSSProperties : {}),
           position: 'relative',
+          backgroundColor: 'transparent', // Ensure row-view background is transparent
           ...(isFullWidth ? {
             width: '100%',
           } : {
@@ -362,7 +412,7 @@ export function RowView({
             marginLeft: 'auto',
             marginRight: 'auto',
           }),
-          ...(shadow ? { boxShadow: getBoxShadow(shadow) } : {}),
+          // Shadow moved to row-background-color-layer to align with background and eliminate edge effect
           ...(bgBlur > 0 ? {
             backdropFilter: `blur(${bgBlur}px)`,
             WebkitBackdropFilter: `blur(${bgBlur}px)`,
@@ -390,6 +440,8 @@ export function RowView({
                 : themeProps.borderRadius?.mode === 'individual'
                 ? `${themeProps.borderRadius.topLeft || 0}px ${themeProps.borderRadius.topRight || 0}px ${themeProps.borderRadius.bottomRight || 0}px ${themeProps.borderRadius.bottomLeft || 0}px`
                 : undefined,
+              // Apply shadow to background layer to align with background and eliminate edge effect
+              ...(shadow ? { boxShadow: getBoxShadow(shadow) } : {}),
             }}
           />
         )}
@@ -404,7 +456,7 @@ export function RowView({
               right: 0,
               bottom: 0,
               backgroundImage: `url(${themeProps.backgroundImage})`,
-              backgroundSize: 'cover',
+              backgroundSize: themeProps.backgroundImageType === 'fit' ? 'contain' : themeProps.backgroundImageType === 'stretch' ? '100% 100%' : 'cover',
               backgroundPosition: 'center',
               backgroundRepeat: 'no-repeat',
               opacity: themeProps.backgroundImageOpacity ?? 1,

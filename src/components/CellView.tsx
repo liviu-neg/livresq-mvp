@@ -225,7 +225,7 @@ export function CellView({
               right: 0,
               bottom: 0,
               backgroundImage: `url(${themeProps.backgroundImage})`,
-              backgroundSize: 'cover',
+              backgroundSize: themeProps.backgroundImageType === 'fit' ? 'contain' : themeProps.backgroundImageType === 'stretch' ? '100% 100%' : 'cover',
               backgroundPosition: 'center',
               backgroundRepeat: 'no-repeat',
               opacity: themeProps.backgroundImageOpacity !== undefined ? themeProps.backgroundImageOpacity : 1,

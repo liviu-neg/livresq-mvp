@@ -28,6 +28,23 @@ const PaletteIcon = () => (
 export function TopBar({ isPreview, onTogglePreview, isRightSidebarOpen, onToggleRightSidebar, showStructureStrokes, onToggleStructureStrokes, onOpenThemeEditor }: TopBarProps) {
   const { themeId, setThemeId, customThemes } = useThemeSwitcher();
 
+  // Get all custom themes, excluding the preview theme and built-in overrides
+  const displayThemes = Object.entries(customThemes || {})
+    .filter(([id]) => {
+      // Exclude preview theme and built-in theme IDs (plain/neon) if they're custom overrides
+      return id !== '__preview__' && id !== 'plain' && id !== 'neon';
+    })
+    .filter(([id, theme]) => {
+      // Ensure theme has required properties
+      return theme && typeof theme === 'object' && theme.name;
+    })
+    .sort(([idA, themeA], [idB, themeB]) => {
+      // Sort by name for consistency
+      const nameA = themeA?.name || '';
+      const nameB = themeB?.name || '';
+      return nameA.localeCompare(nameB);
+    });
+
   return (
     <div className="top-bar">
       <h1 className="top-bar-title">Lesson Builder</h1>
@@ -49,23 +66,17 @@ export function TopBar({ isPreview, onTogglePreview, isRightSidebarOpen, onToggl
           >
             Neon
           </button>
-          {Object.entries(customThemes)
-            .filter(([id]) => id !== 'plain' && id !== 'neon') // Don't show custom 'plain' or 'neon' as separate buttons
-            .sort(([idA, themeA], [idB, themeB]) => {
-              // Sort by name for consistency with dialog
-              return themeA.name.localeCompare(themeB.name);
-            })
-            .map(([id, theme]) => (
-              <button
-                key={id}
-                type="button"
-                className={`theme-option ${themeId === id ? 'active' : ''}`}
-                onClick={() => setThemeId(id)}
-                aria-label={`${theme.name} theme`}
-              >
-                {theme.name}
-              </button>
-            ))}
+          {displayThemes.map(([id, theme]) => (
+            <button
+              key={id}
+              type="button"
+              className={`theme-option ${themeId === id ? 'active' : ''}`}
+              onClick={() => setThemeId(id)}
+              aria-label={`${theme.name} theme`}
+            >
+              {theme.name}
+            </button>
+          ))}
         </div>
         <button
           className="preview-toggle"

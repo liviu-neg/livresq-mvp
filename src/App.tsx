@@ -1573,6 +1573,7 @@ function App() {
                 blocks={blocks}
                 deviceType={selectedDevice}
                 deviceConfig={deviceConfigs[selectedDevice]}
+                pageProps={pageProps}
               />
             </div>
           </>
@@ -1592,6 +1593,8 @@ function App() {
               onClose={() => setIsThemeEditorOpen(false)}
               onThemeUpdate={updateCustomThemes}
               customThemes={customThemes}
+              rows={rows}
+              blocks={blocks}
             />
             <div className="app-content">
               <aside className="sidebar sidebar-left">

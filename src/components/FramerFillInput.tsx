@@ -109,7 +109,24 @@ export function FramerFillInput({
           ) : fillType === 'color' && value?.color ? (
             <div
               className="fill-input-swatch"
-              style={{ backgroundColor: value.color }}
+              style={{
+                backgroundColor: value.color ? (() => {
+                  const hex = value.color.replace('#', '');
+                  const r = parseInt(hex.substring(0, 2), 16);
+                  const g = parseInt(hex.substring(2, 4), 16);
+                  const b = parseInt(hex.substring(4, 6), 16);
+                  const opacity = value.opacity ?? 1;
+                  return `rgba(${r}, ${g}, ${b}, ${opacity})`;
+                })() : value.color,
+                backgroundImage: (value.opacity ?? 1) < 1 ? `
+                  linear-gradient(45deg, #ccc 25%, transparent 25%),
+                  linear-gradient(-45deg, #ccc 25%, transparent 25%),
+                  linear-gradient(45deg, transparent 75%, #ccc 75%),
+                  linear-gradient(-45deg, transparent 75%, #ccc 75%)
+                ` : undefined,
+                backgroundSize: (value.opacity ?? 1) < 1 ? '8px 8px' : undefined,
+                backgroundPosition: (value.opacity ?? 1) < 1 ? '0 0, 0 4px, 4px -4px, -4px 0px' : undefined,
+              }}
             />
           ) : (
             <div className="fill-input-placeholder">Add...</div>
@@ -139,10 +156,12 @@ export function FramerFillInput({
         imageType={value?.imageType}
         imageDescription={value?.imageDescription}
         color={value?.color}
+        opacity={value?.opacity}
         onImageUrlChange={handleImageUrlChange}
         onImageTypeChange={handleImageTypeChange}
         onImageDescriptionChange={handleImageDescriptionChange}
         onColorChange={handleColorChange}
+        onOpacityChange={handleOpacityChange}
         onEditImage={onEditImage}
         onOpenColorPicker={handleOpenColorPicker}
       />

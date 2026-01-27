@@ -14,6 +14,7 @@ interface ColorPickerPopoverProps {
   onBack?: () => void;
   title?: string;
   hideImageTab?: boolean;
+  hideThemeColors?: boolean;
 }
 
 // Helper to convert hex to RGB
@@ -124,6 +125,7 @@ export function ColorPickerPopover({
   onBack,
   title,
   hideImageTab = false,
+  hideThemeColors = false,
 }: ColorPickerPopoverProps) {
   const theme = useTheme();
   const [color, setColor] = useState(initialColor || '#000000');
@@ -138,12 +140,17 @@ export function ColorPickerPopover({
   const hueSliderRef = useRef<HTMLDivElement>(null);
   const opacitySliderRef = useRef<HTMLDivElement>(null);
   
-  // Hex input state for free typing/pasting
-  const [hexInputValue, setHexInputValue] = useState(initialColor || '#000000');
+  // Hex input state for free typing/pasting (stored without # prefix for display)
+  const [hexInputValue, setHexInputValue] = useState((initialColor || '#000000').replace('#', '').toUpperCase());
+  const [opacityInputValue, setOpacityInputValue] = useState(`${Math.round((initialOpacity ?? 1) * 100)}%`);
   const isTypingHexRef = useRef(false);
+  const isTypingOpacityRef = useRef(false);
   const prevIsOpenRef = useRef(false);
 
   // Initialize from color only when popover first opens (to prevent flickering)
+  const prevInitialColorRef = useRef(initialColor);
+  const userChangedColorRef = useRef(false); // Track if user changed color internally
+  
   useEffect(() => {
     if (isOpen && !prevIsOpenRef.current) {
       // Popover just opened - initialize HSL from initialColor
@@ -157,25 +164,56 @@ export function ColorPickerPopover({
         }
       }
       setColor(initialColor || '#000000');
-      setHexInputValue(initialColor || '#000000');
+      setHexInputValue((initialColor || '#000000').replace('#', '').toUpperCase());
+      setOpacity(initialOpacity ?? 1);
+      setOpacityInputValue(`${Math.round((initialOpacity ?? 1) * 100)}%`);
+      prevInitialColorRef.current = initialColor;
+      userChangedColorRef.current = false; // Reset when popover opens
+    }
+    // CRITICAL: Only sync if initialColor changes EXTERNALLY while popover is open
+    // AND user hasn't changed color internally (to prevent feedback loops)
+    // AND user is not typing
+    else if (isOpen && initialColor && initialColor !== prevInitialColorRef.current && !userChangedColorRef.current && !isTypingHexRef.current) {
+      const rgb = hexToRgb(initialColor);
+      if (rgb) {
+        const hsl = rgbToHsl(rgb.r, rgb.g, rgb.b);
+        setHue(hsl.h);
+        setSaturation(hsl.s);
+        setLightness(hsl.l);
+        setColor(initialColor);
+        setHexInputValue(initialColor.replace('#', '').toUpperCase());
+        prevInitialColorRef.current = initialColor;
+      }
+    }
+    // If popover closes, reset the flag
+    if (!isOpen && prevIsOpenRef.current) {
+      userChangedColorRef.current = false;
+      prevInitialColorRef.current = initialColor; // Update ref when closing
     }
     prevIsOpenRef.current = isOpen;
-  }, [isOpen, initialColor]);
+  }, [isOpen, initialColor, initialOpacity]);
 
   // Update color when HSL changes (only if popover is open and user is not typing hex)
+  // NEVER update hexInputValue while user is typing - this is critical!
   useEffect(() => {
     if (!isOpen) return;
-    if (isTypingHexRef.current) return;
+    if (isTypingHexRef.current) return; // CRITICAL: Don't update hex input while typing
     const rgb = hslToRgb(hue, saturation, lightness);
     const hex = rgbToHex(rgb.r, rgb.g, rgb.b);
     setColor(hex);
-    setHexInputValue(hex);
+    // Only update hexInputValue if user is NOT typing
+    if (!isTypingHexRef.current) {
+      setHexInputValue(hex.replace('#', '').toUpperCase());
+    }
+    // Mark that user changed color internally to prevent sync feedback loop
+    userChangedColorRef.current = true;
     onColorChange(hex);
   }, [hue, saturation, lightness, onColorChange, isOpen]);
 
-  // Update opacity (only if popover is open)
+  // Update opacity (only if popover is open and user is not typing)
   useEffect(() => {
     if (!isOpen) return;
+    if (isTypingOpacityRef.current) return;
     onOpacityChange(opacity);
   }, [opacity, onOpacityChange, isOpen]);
 
@@ -186,6 +224,8 @@ export function ColorPickerPopover({
     const y = ((e.clientY - rect.top) / rect.height) * 100;
     setSaturation(Math.max(0, Math.min(100, x)));
     setLightness(Math.max(0, Math.min(100, 100 - y)));
+    // Mark that user changed color internally to prevent sync feedback loop
+    userChangedColorRef.current = true;
   };
 
   const handleHueSliderClick = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -193,13 +233,17 @@ export function ColorPickerPopover({
     const rect = hueSliderRef.current.getBoundingClientRect();
     const x = ((e.clientX - rect.left) / rect.width) * 100;
     setHue(Math.max(0, Math.min(360, x * 3.6)));
+    // Mark that user changed color internally to prevent sync feedback loop
+    userChangedColorRef.current = true;
   };
 
   const handleOpacitySliderClick = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!opacitySliderRef.current) return;
     const rect = opacitySliderRef.current.getBoundingClientRect();
     const x = ((e.clientX - rect.left) / rect.width) * 100;
-    setOpacity(Math.max(0, Math.min(1, x / 100)));
+    const newOpacity = Math.max(0, Math.min(1, x / 100));
+    setOpacity(newOpacity);
+    setOpacityInputValue(`${Math.round(newOpacity * 100)}%`);
   };
 
   // Get theme colors
@@ -285,40 +329,66 @@ export function ColorPickerPopover({
         <div className="color-picker-inputs">
           <input
             type="text"
-            value={hexInputValue.toUpperCase()}
+            value={hexInputValue}
             onChange={(e) => {
+              // CRITICAL: Set typing flag FIRST, before any state updates
               isTypingHexRef.current = true;
               let newValue = e.target.value;
-              // Remove # prefix for processing
+              // Remove # prefix if user types it
               if (newValue.startsWith('#')) {
                 newValue = newValue.substring(1);
               }
               // Filter out non-hex characters and limit to 6 digits
-              newValue = newValue.replace(/[^0-9A-Fa-f]/g, '').substring(0, 6);
-              // Add # prefix back for display
-              const displayValue = newValue.length > 0 ? `#${newValue}` : '#';
-              setHexInputValue(displayValue);
+              newValue = newValue.replace(/[^0-9A-Fa-f]/g, '').substring(0, 6).toUpperCase();
+              setHexInputValue(newValue);
               
-              // Only update color if we have a complete 6-character hex
+              // CRITICAL: If we have a valid 6-character hex, IMMEDIATELY save it
+              // This ensures the color is persisted even if user closes popover
               if (newValue.length === 6) {
                 const fullHex = `#${newValue}`;
                 const rgb = hexToRgb(fullHex);
                 if (rgb) {
+                  // Update internal state
                   const hsl = rgbToHsl(rgb.r, rgb.g, rgb.b);
                   setHue(hsl.h);
                   setSaturation(hsl.s);
                   setLightness(hsl.l);
                   setColor(fullHex);
+                  // CRITICAL: Save to parent immediately - this persists the color
                   onColorChange(fullHex);
-                  isTypingHexRef.current = false;
+                  // DO NOT set isTypingHexRef.current = false here!
+                  // Keep it true until onBlur so effects don't overwrite the input
                 }
               }
             }}
             onBlur={(e) => {
               isTypingHexRef.current = false;
-              let newValue = e.target.value.replace('#', '');
+              let newValue = e.target.value.replace('#', '').toUpperCase();
+              
+              // If empty, restore current color (don't change anything)
+              if (newValue.length === 0) {
+                setHexInputValue(color.replace('#', '').toUpperCase());
+                return;
+              }
+              
+              // If already 6 characters and valid, it was already saved in onChange
+              // Just normalize the display
+              if (newValue.length === 6) {
+                const fullHex = `#${newValue}`;
+                const rgb = hexToRgb(fullHex);
+                if (rgb) {
+                  // Already saved in onChange, just ensure display is correct
+                  setHexInputValue(newValue);
+                  return;
+                }
+              }
+              
               // Normalize: pad with zeros if less than 6 digits, limit to 6
-              newValue = newValue.padEnd(6, '0').substring(0, 6);
+              if (newValue.length < 6) {
+                newValue = newValue.padEnd(6, '0').substring(0, 6);
+              } else {
+                newValue = newValue.substring(0, 6);
+              }
               const fullHex = `#${newValue}`;
               const rgb = hexToRgb(fullHex);
               if (rgb) {
@@ -327,27 +397,58 @@ export function ColorPickerPopover({
                 setSaturation(hsl.s);
                 setLightness(hsl.l);
                 setColor(fullHex);
-                setHexInputValue(fullHex);
+                setHexInputValue(newValue);
+                // Save to parent
                 onColorChange(fullHex);
               } else {
                 // Reset to current color if invalid
-                setHexInputValue(color);
+                setHexInputValue(color.replace('#', '').toUpperCase());
               }
             }}
             onFocus={(e) => {
               e.target.select();
             }}
             className="color-picker-hex-input"
-            placeholder="#000000"
+            placeholder="000000"
           />
           <input
             type="text"
-            value={`${Math.round(opacity * 100)}%`}
+            value={opacityInputValue}
             onChange={(e) => {
-              const value = parseInt(e.target.value.replace('%', ''), 10);
-              if (!isNaN(value)) {
-                setOpacity(Math.max(0, Math.min(100, value)) / 100);
+              isTypingOpacityRef.current = true;
+              let newValue = e.target.value;
+              // Remove % and any non-numeric characters except decimal point
+              newValue = newValue.replace(/[^0-9.]/g, '');
+              // Parse as number
+              const numValue = parseFloat(newValue);
+              if (!isNaN(numValue)) {
+                // Clamp between 0 and 100
+                const clamped = Math.max(0, Math.min(100, numValue));
+                setOpacity(clamped / 100);
+                setOpacityInputValue(`${clamped}%`);
+                onOpacityChange(clamped / 100);
+                isTypingOpacityRef.current = false;
+              } else if (newValue === '' || newValue === '.') {
+                // Allow empty or just decimal point while typing
+                setOpacityInputValue(newValue);
               }
+            }}
+            onBlur={(e) => {
+              isTypingOpacityRef.current = false;
+              let newValue = e.target.value.replace(/[^0-9.]/g, '');
+              const numValue = parseFloat(newValue);
+              if (!isNaN(numValue)) {
+                const clamped = Math.max(0, Math.min(100, numValue));
+                setOpacity(clamped / 100);
+                setOpacityInputValue(`${clamped}%`);
+                onOpacityChange(clamped / 100);
+              } else {
+                // Reset to current opacity if invalid
+                setOpacityInputValue(`${Math.round(opacity * 100)}%`);
+              }
+            }}
+            onFocus={(e) => {
+              e.target.select();
             }}
             className="color-picker-opacity-input"
             placeholder="100%"
@@ -355,27 +456,36 @@ export function ColorPickerPopover({
         </div>
 
         {/* Theme Colors */}
-        <div className="color-picker-theme-colors">
-          {themeColors.map((themeColor, index) => (
-            <div key={index} className="color-picker-theme-color-item">
-              <div
-                className="color-picker-theme-color-swatch"
-                style={{ backgroundColor: themeColor.color }}
-                onClick={() => {
-                  setColor(themeColor.color);
-                  const rgb = hexToRgb(themeColor.color);
-                  if (rgb) {
-                    const hsl = rgbToHsl(rgb.r, rgb.g, rgb.b);
-                    setHue(hsl.h);
-                    setSaturation(hsl.s);
-                    setLightness(hsl.l);
-                  }
-                }}
-              />
-              <span className="color-picker-theme-color-label">{themeColor.name}</span>
-            </div>
-          ))}
-        </div>
+        {!hideThemeColors && (
+          <div className="color-picker-theme-colors">
+            {themeColors.map((themeColor, index) => (
+              <div key={index} className="color-picker-theme-color-item">
+                <div
+                  className="color-picker-theme-color-swatch"
+                  style={{ backgroundColor: themeColor.color }}
+                  onClick={() => {
+                    // Only update hex input if user is NOT typing
+                    if (!isTypingHexRef.current) {
+                      setColor(themeColor.color);
+                      setHexInputValue(themeColor.color.replace('#', '').toUpperCase());
+                      const rgb = hexToRgb(themeColor.color);
+                      if (rgb) {
+                        const hsl = rgbToHsl(rgb.r, rgb.g, rgb.b);
+                        setHue(hsl.h);
+                        setSaturation(hsl.s);
+                        setLightness(hsl.l);
+                      }
+                      // Mark that user changed color internally to prevent sync feedback loop
+                      userChangedColorRef.current = true;
+                      onColorChange(themeColor.color);
+                    }
+                  }}
+                />
+                <span className="color-picker-theme-color-label">{themeColor.name}</span>
+              </div>
+            ))}
+          </div>
+        )}
 
         {/* New Style Button */}
         <button type="button" className="color-picker-new-style-button">

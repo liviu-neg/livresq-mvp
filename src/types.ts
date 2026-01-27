@@ -63,6 +63,7 @@ export interface Lesson {
         backgroundColorOpacity?: number;
         backgroundImage?: string;
         backgroundImageOpacity?: number;
+        backgroundImageType?: 'fill' | 'fit' | 'stretch';
         maxRowWidth?: number | null; // null = full width, number = max width in pixels (default: 1024px)
       };
       neon?: {
@@ -70,6 +71,7 @@ export interface Lesson {
         backgroundColorOpacity?: number;
         backgroundImage?: string;
         backgroundImageOpacity?: number;
+        backgroundImageType?: 'fill' | 'fit' | 'stretch';
         maxRowWidth?: number | null; // null = full width, number = max width in pixels (default: 1024px)
       };
       [key: string]: {
@@ -77,6 +79,7 @@ export interface Lesson {
         backgroundColorOpacity?: number;
         backgroundImage?: string;
         backgroundImageOpacity?: number;
+        backgroundImageType?: 'fill' | 'fit' | 'stretch';
         maxRowWidth?: number | null; // null = full width, number = max width in pixels (default: 1024px)
       } | undefined;
     };
@@ -119,6 +122,7 @@ export interface ThemeSpecificCellProps {
   backgroundColorOpacity?: number;
   backgroundImage?: string;
   backgroundImageOpacity?: number;
+  backgroundImageType?: 'fill' | 'fit' | 'stretch';
   border?: {
     color?: string;
     width?: {
@@ -212,6 +216,7 @@ export interface ThemeSpecificRowProps {
   backgroundColorOpacity?: number;
   backgroundImage?: string;
   backgroundImageOpacity?: number;
+  backgroundImageType?: 'fill' | 'fit' | 'stretch';
   border?: {
     color?: string;
     width?: {
@@ -428,7 +433,8 @@ export function createBlock(type: BlockType): Block {
     case 'image':
       return { 
         ...base, 
-        imageUrl: '', 
+        // Default placeholder landscape image - replace with your image URL or local asset
+        imageUrl: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=1200&h=800&fit=crop', 
         caption: '',
         imageResolution: 'auto',
         imageType: 'fill',

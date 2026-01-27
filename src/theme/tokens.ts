@@ -68,6 +68,7 @@ export interface CellBackgroundDefaults {
   backgroundColorOpacity?: number; // Default opacity for background color (0-1)
   backgroundImage?: string; // Default background image URL for cells
   backgroundImageOpacity?: number; // Default opacity for background image (0-1)
+  backgroundImageType?: 'fill' | 'fit' | 'stretch'; // How the background image should be sized
 }
 
 // Resource (block) property defaults - theme-level configuration for resource backgrounds
@@ -76,6 +77,7 @@ export interface ResourceBackgroundDefaults {
   backgroundColorOpacity?: number; // Default opacity for background color (0-1)
   backgroundImage?: string; // Default background image URL for resources
   backgroundImageOpacity?: number; // Default opacity for background image (0-1)
+  backgroundImageType?: 'fill' | 'fit' | 'stretch'; // How the background image should be sized
 }
 
 // Row property defaults - theme-level configuration for row padding
@@ -96,6 +98,7 @@ export interface RowBackgroundDefaults {
   backgroundColorOpacity?: number; // Default opacity for background color (0-1)
   backgroundImage?: string; // Default background image URL for rows
   backgroundImageOpacity?: number; // Default opacity for background image (0-1)
+  backgroundImageType?: 'fill' | 'fit' | 'stretch'; // How the background image should be sized
 }
 
 // Border property defaults - theme-level configuration for cell/row borders
@@ -128,6 +131,7 @@ export interface PageBackgroundDefaults {
   backgroundColorOpacity?: number; // Default opacity for background color (0-1)
   backgroundImage?: string; // Default background image URL for the page
   backgroundImageOpacity?: number; // Default opacity for background image (0-1)
+  backgroundImageType?: 'fill' | 'fit' | 'stretch'; // How the background image should be sized
 }
 
 export interface Theme {
