@@ -138,11 +138,25 @@ function getRowThemeProps(row: Row, themeId: ThemeId, theme: any): ThemeSpecific
       defaultStyleProperties = defaultStyle.customProperties;
     }
     
+    // Get theme defaults for background (fallback if default style doesn't include it)
+    const defaultBackground = theme?.rowBackground ? {
+      backgroundColor: theme.rowBackground.backgroundColor,
+      backgroundColorOpacity: theme.rowBackground.backgroundColorOpacity ?? 1,
+      backgroundImage: theme.rowBackground.backgroundImage,
+      backgroundImageOpacity: theme.rowBackground.backgroundImageOpacity ?? 1,
+    } : { backgroundColor: '#ffffff', backgroundColorOpacity: 1, backgroundImage: undefined, backgroundImageOpacity: 1 };
+    
     // Merge default style properties with any existing theme props
     // Always include styleId: null to mark this as default style
+    // If default style doesn't include backgroundColor, fall back to theme.rowBackground
     return {
       ...defaultStyleProperties,
       ...themeProps, // Allow theme-specific props to override default style
+      // Fall back to theme.rowBackground if backgroundColor is not in default style or themeProps
+      backgroundColor: themeProps?.backgroundColor ?? defaultStyleProperties.backgroundColor ?? defaultBackground.backgroundColor,
+      backgroundColorOpacity: themeProps?.backgroundColorOpacity ?? defaultStyleProperties.backgroundColorOpacity ?? defaultBackground.backgroundColorOpacity ?? 1,
+      backgroundImage: themeProps?.backgroundImage ?? defaultStyleProperties.backgroundImage ?? defaultBackground.backgroundImage,
+      backgroundImageOpacity: themeProps?.backgroundImageOpacity ?? defaultStyleProperties.backgroundImageOpacity ?? defaultBackground.backgroundImageOpacity ?? 1,
       styleId: null, // Ensure styleId is set to null to indicate default style
     };
   }
@@ -534,7 +548,7 @@ export function PropertiesPanel({
               >
                 <PillSelect
                   thumbnail={backgroundImage}
-                  swatchColor={backgroundColor}
+                  swatchColor={backgroundImage || backgroundColor || hasExplicitBackground || pageFillPopoverOpen ? (backgroundColor || undefined) : '#CBCBCB'}
                   text={backgroundImage ? 'Image' : backgroundColor ? backgroundColor.toUpperCase() : 'Add...'}
                   onClick={() => {}}
                   onClear={(e) => {
@@ -1158,7 +1172,7 @@ export function PropertiesPanel({
                 >
                 <PillSelect
                   thumbnail={backgroundImage}
-                  swatchColor={backgroundColor}
+                  swatchColor={backgroundImage || backgroundColor || hasExplicitBackground || rowFillPopoverOpen ? (backgroundColor || undefined) : '#CBCBCB'}
                   text={backgroundImage ? 'Image' : backgroundColor ? backgroundColor.toUpperCase() : 'Add...'}
                   onClick={() => {}}
                   onClear={(e) => {
@@ -1962,7 +1976,7 @@ export function PropertiesPanel({
                 >
                 <PillSelect
                   thumbnail={backgroundImage}
-                  swatchColor={backgroundColor}
+                  swatchColor={backgroundImage || backgroundColor || hasExplicitBackground || cellFillPopoverOpen ? (backgroundColor || undefined) : '#CBCBCB'}
                   text={backgroundImage ? 'Image' : backgroundColor ? backgroundColor.toUpperCase() : 'Add...'}
                   onClick={() => {}}
                   onClear={(e) => {

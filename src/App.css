@@ -2557,15 +2557,15 @@ body {
 
 /* Apply vertical alignment to cell-resources */
 .cell-resources[data-vertical-align="top"] {
-  justify-content: flex-start;
+  justify-content: flex-start !important;
 }
 
 .cell-resources[data-vertical-align="middle"] {
-  justify-content: center;
+  justify-content: center !important;
 }
 
 .cell-resources[data-vertical-align="bottom"] {
-  justify-content: flex-end;
+  justify-content: flex-end !important;
 }
 
 /* Row vertical alignment */
@@ -4446,6 +4446,8 @@ body {
   height: 100%; /* Ensure cell-resources fills full height of cell-view */
   min-height: 80px; /* Minimum height for empty cells */
   outline: none; /* Ensure no outline by default */
+  /* Ensure vertical alignment works by making sure content doesn't fill entire height */
+  justify-content: flex-start; /* Default, will be overridden by data-vertical-align */
 }
 
 /* Explicitly prevent background color on cells containing columns blocks - must come first */
@@ -4643,10 +4645,94 @@ body {
 
 .theme-editor-container.theme-editor-step1 {
   max-width: 1400px;
-  display: grid;
-  grid-template-columns: auto 1fr;
-  grid-template-rows: auto 1fr;
+  display: flex;
+  flex-direction: column;
   height: 90vh;
+}
+
+.theme-editor-main-content {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.theme-editor-left-panel {
+  display: flex;
+  flex-direction: row;
+  width: 500px;
+  min-width: 500px;
+  max-width: 500px;
+  flex-shrink: 0;
+  border-right: 1px solid #e5e5e5;
+  background: #ffffff;
+}
+
+.theme-editor-sidebar {
+  width: 174px;
+  min-width: 174px;
+  max-width: 174px;
+  background: #ffffff;
+  border-right: 1px solid #e5e5e5;
+  display: flex;
+  flex-direction: column;
+  padding: 16px 0;
+  flex-shrink: 0;
+}
+
+.theme-editor-sidebar-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 20px;
+  background: transparent;
+  border: none;
+  color: #666;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 0.15s;
+  text-align: left;
+  width: 100%;
+}
+
+.theme-editor-sidebar-item:hover {
+  background: #f5f5f5;
+}
+
+.theme-editor-sidebar-item.active {
+  background: #E8F0FE;
+  color: #326CF6;
+}
+
+.theme-editor-sidebar-item svg {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
+.theme-editor-config-wrapper {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.theme-editor-config-panel {
+  flex: 1;
+  padding: 32px;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.theme-editor-footer-sticky {
+  background: #ffffff;
+  border-top: 1px solid #e5e5e5;
+  padding: 16px 32px;
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  flex-shrink: 0;
 }
 
 .theme-editor-header {
@@ -4780,24 +4866,11 @@ body {
 
 /* Step 1 Configuration Panel */
 .theme-editor-step-content {
-  display: contents;
-  overflow-y: auto;
-}
-
-.theme-editor-config-panel {
-  padding: 32px;
-  overflow-y: auto;
-  border-right: 1px solid #e5e5e5;
-  width: 500px;
-  max-width: 500px;
-  min-width: 500px;
-  flex-shrink: 0;
+  /* Removed - no longer needed with new structure */
 }
 
 .theme-editor-config-panel.ui-properties-panel {
-  width: 500px;
-  max-width: 500px;
-  min-width: 500px;
+  /* Styles moved to .theme-editor-config-panel above */
 }
 
 .theme-editor-config-panel h3 {
@@ -4809,6 +4882,10 @@ body {
 
 .theme-config-section {
   margin-bottom: 32px;
+}
+
+.theme-editor-config-panel.ui-properties-panel .theme-config-section {
+  padding: 0 !important;
 }
 
 .theme-config-section-header {
@@ -4900,9 +4977,7 @@ body {
 }
 
 .theme-editor-actions {
-  margin-top: 32px;
-  padding-top: 24px;
-  border-top: 1px solid #e5e5e5;
+  /* Replaced by .theme-editor-footer-sticky */
 }
 
 .theme-editor-button-primary {
@@ -4928,8 +5003,8 @@ body {
   flex-direction: column;
   background: #f5f5f5;
   overflow: hidden;
-  min-width: 0; /* Allow flex item to shrink below content size */
-  flex: 1; /* Take all remaining space */
+  min-width: 0;
+  flex: 1;
 }
 
 .theme-preview-header {
@@ -4943,29 +5018,47 @@ body {
 
 .theme-preview-tabs {
   display: flex;
-  gap: 4px;
-  background: #f5f5f5;
-  border: 1px solid #e0e0e0;
-  border-radius: 6px;
+  height: 32px;
+  background: #EEEEEE;
+  border-radius: 8px;
   padding: 2px;
+  gap: 2px;
+  width: 100%;
+  max-width: 320px;
+  min-width: 0;
+  box-sizing: border-box;
+  flex-shrink: 0;
 }
 
 .theme-preview-tab {
-  padding: 6px 12px;
-  background: transparent;
+  flex: 1;
+  height: 28px;
+  border-radius: 6px;
   border: none;
-  border-radius: 4px;
-  font-size: 13px;
-  font-weight: 500;
-  color: #666;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
-  transition: all 0.15s;
+  padding: 0;
+  transition: all 0.2s ease;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+  color: #6B6B6B;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.theme-preview-tab:hover {
+  color: #111111;
 }
 
 .theme-preview-tab.active {
-  background: #ffffff;
-  color: #1a1a1a;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  background: #FFFFFF;
+  box-shadow: 0px 2px 6px rgba(0, 0, 0, 0.18);
+  color: #111111;
+  font-weight: 600;
 }
 
 .theme-preview-close {
@@ -4994,6 +5087,7 @@ body {
   display: flex;
   align-items: flex-start;
   justify-content: center;
+  background-color: #F2F2F2;
 }
 
 .theme-preview-card-preview {
@@ -5429,33 +5523,48 @@ body {
 
 .color-picker-tabs {
   display: flex;
-  gap: 0;
-  border-bottom: 1px solid #e6e6e6;
+  height: 32px;
+  background: #EEEEEE;
+  border-radius: 8px;
+  padding: 2px;
+  gap: 2px;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  flex-shrink: 0;
   margin: -16px -16px 16px -16px;
-  padding: 0 16px;
+  padding: 2px 16px;
 }
 
 .color-picker-tab {
-  background: none;
+  flex: 1;
+  height: 28px;
+  border-radius: 6px;
   border: none;
-  padding: 12px 16px;
-  font-size: 13px;
-  color: #666;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
-  border-bottom: 2px solid transparent;
-  transition: all 0.2s;
-  position: relative;
-  top: 1px;
+  padding: 0;
+  transition: all 0.2s ease;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+  color: #6B6B6B;
+  white-space: nowrap;
+  min-width: 0;
 }
 
 .color-picker-tab:hover {
-  color: #1a1a1a;
+  color: #111111;
 }
 
 .color-picker-tab.active {
-  color: #326CF6;
-  border-bottom-color: #326CF6;
-  font-weight: 500;
+  background: #FFFFFF;
+  box-shadow: 0px 2px 6px rgba(0, 0, 0, 0.18);
+  color: #111111;
+  font-weight: 600;
 }
 
 .color-picker-content {
@@ -6006,6 +6115,12 @@ body {
   overflow-y: auto;
   overflow-x: hidden;
   max-height: 100%;
+}
+
+/* All SVG icons in ui-properties-panel should be 18px x 18px */
+.ui-properties-panel svg {
+  width: 18px;
+  height: 18px;
 }
 
 /* Section Container */
@@ -6652,22 +6767,35 @@ body {
 
 .style-popover-tabs {
   display: flex;
-  gap: 0;
-  border-bottom: 1px solid #EAEAEA;
+  height: 32px;
+  background: #EEEEEE;
+  border-radius: 8px;
+  padding: 2px;
+  gap: 2px;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  flex-shrink: 0;
 }
 
 .style-popover-tab {
   flex: 1;
-  padding: 8px 12px;
+  height: 28px;
+  border-radius: 6px;
   border: none;
   background: transparent;
-  text-align: center;
-  font-size: 13px;
-  font-weight: 500;
-  color: #6B6B6B;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
-  border-bottom: 2px solid transparent;
-  transition: all 0.2s;
+  padding: 0;
+  transition: all 0.2s ease;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+  color: #6B6B6B;
+  white-space: nowrap;
+  min-width: 0;
 }
 
 .style-popover-tab:hover {
@@ -6675,8 +6803,10 @@ body {
 }
 
 .style-popover-tab.active {
+  background: #FFFFFF;
+  box-shadow: 0px 2px 6px rgba(0, 0, 0, 0.18);
   color: #111111;
-  border-bottom-color: #326CF6;
+  font-weight: 600;
 }
 
 .style-popover-tab-content {
@@ -6691,16 +6821,15 @@ body {
   gap: 8px;
 }
 
-/* When used in Theme Editor, show 2 per line */
+/* When used in Theme Editor, show 1 per line */
 .theme-editor-config-panel .style-popover-list {
   display: flex;
-  flex-wrap: wrap;
-  flex-direction: row;
+  flex-direction: column;
   gap: 8px;
 }
 
 .theme-editor-config-panel .style-popover-item {
-  width: calc(50% - 4px);
+  width: 100%;
 }
 
 .style-popover-item {

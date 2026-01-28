@@ -81,11 +81,25 @@ function getRowThemeProps(row: Row, themeId: string, theme: any): ThemeSpecificR
       defaultStyleProperties = defaultStyle.customProperties;
     }
     
+    // Get theme defaults for background (fallback if default style doesn't include it)
+    const defaultBackground = theme?.rowBackground ? {
+      backgroundColor: theme.rowBackground.backgroundColor,
+      backgroundColorOpacity: theme.rowBackground.backgroundColorOpacity ?? 1,
+      backgroundImage: theme.rowBackground.backgroundImage,
+      backgroundImageOpacity: theme.rowBackground.backgroundImageOpacity ?? 1,
+    } : { backgroundColor: '#ffffff', backgroundColorOpacity: 1, backgroundImage: undefined, backgroundImageOpacity: 1 };
+    
     // Merge default style properties with any existing theme props
     // Always include styleId: null to mark this as default style
+    // If default style doesn't include backgroundColor, fall back to theme.rowBackground
     return {
       ...defaultStyleProperties,
       ...themeProps, // Allow theme-specific props to override default style
+      // Fall back to theme.rowBackground if backgroundColor is not in default style or themeProps
+      backgroundColor: themeProps?.backgroundColor ?? defaultStyleProperties.backgroundColor ?? defaultBackground.backgroundColor,
+      backgroundColorOpacity: themeProps?.backgroundColorOpacity ?? defaultStyleProperties.backgroundColorOpacity ?? defaultBackground.backgroundColorOpacity ?? 1,
+      backgroundImage: themeProps?.backgroundImage ?? defaultStyleProperties.backgroundImage ?? defaultBackground.backgroundImage,
+      backgroundImageOpacity: themeProps?.backgroundImageOpacity ?? defaultStyleProperties.backgroundImageOpacity ?? defaultBackground.backgroundImageOpacity ?? 1,
       styleId: null, // Ensure styleId is set to null to indicate default style
     };
   }
@@ -286,61 +300,19 @@ export function RowView({
           onClick={handleRowClick}
           style={{
             backgroundColor: 'transparent', // Ensure empty state row-view background is transparent
-            // Shadow moved to row-background-color-layer (if it exists) to align with background
-            ...(bgBlur > 0 ? {
-              backdropFilter: `blur(${bgBlur}px)`,
-              WebkitBackdropFilter: `blur(${bgBlur}px)`,
-            } : {}),
+            border: 'none', // No border for empty state rows
+            boxShadow: 'none', // No shadow for empty state rows
+            position: 'relative',
+            ...(isFullWidth ? {
+              width: '100%',
+            } : {
+              maxWidth: `${effectiveMaxRowWidth}px`,
+              marginLeft: 'auto',
+              marginRight: 'auto',
+            }),
           }}
         >
-          {/* Background color layer for empty state rows - apply shadow here to align with background */}
-          {themeProps.backgroundColor && (
-            <div 
-              className="row-background-color-layer"
-              style={{
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
-                backgroundColor: hexToRgba(themeProps.backgroundColor, themeProps.backgroundColorOpacity ?? 1),
-                zIndex: 0,
-                pointerEvents: 'none',
-                borderRadius: themeProps.borderRadius?.mode === 'uniform' && themeProps.borderRadius.uniform !== undefined
-                  ? `${themeProps.borderRadius.uniform}px`
-                  : themeProps.borderRadius?.mode === 'individual'
-                  ? `${themeProps.borderRadius.topLeft || 0}px ${themeProps.borderRadius.topRight || 0}px ${themeProps.borderRadius.bottomRight || 0}px ${themeProps.borderRadius.bottomLeft || 0}px`
-                  : undefined,
-                // Apply shadow to background layer to align with background and eliminate edge effect
-                ...(shadow ? { boxShadow: getBoxShadow(shadow) } : {}),
-              }}
-            />
-          )}
-          {/* Background image layer for empty state rows */}
-          {themeProps.backgroundImage && (
-            <div 
-              className="row-background-image-layer"
-              style={{
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
-                backgroundImage: `url(${themeProps.backgroundImage})`,
-                backgroundSize: themeProps.backgroundImageType === 'fit' ? 'contain' : themeProps.backgroundImageType === 'stretch' ? '100% 100%' : 'cover',
-                backgroundPosition: 'center',
-                backgroundRepeat: 'no-repeat',
-                opacity: themeProps.backgroundImageOpacity ?? 1,
-                zIndex: 1,
-                pointerEvents: 'none',
-                borderRadius: themeProps.borderRadius?.mode === 'uniform' && themeProps.borderRadius.uniform !== undefined
-                  ? `${themeProps.borderRadius.uniform}px`
-                  : themeProps.borderRadius?.mode === 'individual'
-                  ? `${themeProps.borderRadius.topLeft || 0}px ${themeProps.borderRadius.topRight || 0}px ${themeProps.borderRadius.bottomRight || 0}px ${themeProps.borderRadius.bottomLeft || 0}px`
-                  : undefined,
-              }}
-            />
-          )}
+          {/* Empty state rows should not have theme backgrounds, shadows, or borders */}
           <div ref={rowCellsRef} className="row-cells">
             {row.cells.map((cell) => (
               <CellView

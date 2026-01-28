@@ -23,10 +23,17 @@ import { ColumnsBlockView } from './ColumnsBlockView';
 import { ButtonBlockView } from './ButtonBlockView';
 import type { Row, Block } from '../types';
 
-// Palette icon for theme editor button
+// Palette icon for Colors
 const PaletteIcon = () => (
   <svg aria-hidden="true" focusable="false" data-prefix="far" data-icon="palette" className="svg-inline--fa fa-palette" role="img" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="18" height="18">
     <path fill="currentColor" d="M464 258.2c0 2.7-1 5.2-4.2 8c-3.8 3.1-10.1 5.8-17.8 5.8H344c-53 0-96 43-96 96c0 6.8 .7 13.4 2.1 19.8c3.3 15.7 10.2 31.1 14.4 40.6l0 0c.7 1.6 1.4 3 1.9 4.3c5 11.5 5.6 15.4 5.6 17.1c0 5.3-1.9 9.5-3.8 11.8c-.9 1.1-1.6 1.6-2 1.8c-.3 .2-.8 .3-1.6 .4c-2.9 .1-5.7 .2-8.6 .2C141.1 464 48 370.9 48 256S141.1 48 256 48s208 93.1 208 208c0 .7 0 1.4 0 2.2zm48 .5c0-.9 0-1.8 0-2.7C512 114.6 397.4 0 256 0S0 114.6 0 256S114.6 512 256 512c3.5 0 7.1-.1 10.6-.2c31.8-1.3 53.4-30.1 53.4-62c0-14.5-6.1-28.3-12.1-42c-4.3-9.8-8.7-19.7-10.8-29.9c-.7-3.2-1-6.5-1-9.9c0-26.5 21.5-48 48-48h97.9c36.5 0 69.7-24.8 70.1-61.3zM160 256a32 32 0 1 0 -64 0 32 32 0 1 0 64 0zm0-64a32 32 0 1 0 0-64 32 32 0 1 0 0 64zm128-64a32 32 0 1 0 -64 0 32 32 0 1 0 64 0zm64 64a32 32 0 1 0 0-64 32 32 0 1 0 0 64z"></path>
+  </svg>
+);
+
+// Paintbrush-pencil icon for Design
+const DesignIcon = () => (
+  <svg aria-hidden="true" focusable="false" data-prefix="far" data-icon="paintbrush-pencil" className="svg-inline--fa fa-paintbrush-pencil" role="img" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512" width="18" height="18">
+    <path fill="currentColor" d="M181.3 19.3c-25-25-65.5-25-90.5 0L51.3 58.7c-3.1 3.1-5.9 6.5-8.2 10c-16.4 24.8-13.7 58.6 8.2 80.5l88.8 88.8c13.9-4 28.6-6.1 43.9-6.1l1.5 0 8.2-8.2L161 191 223 129l32.8 32.8 33.9-33.9L181.3 19.3zM414.2 320.1l37.3 37.3c.6 .6 1.2 1.2 1.7 1.8c3.9 4.4 6.7 9.6 8.4 15.2l6.9 23.4 16.1 54.8-54.8-16.1-23.4-6.9c-6.4-1.9-12.3-5.4-17-10.1l-37.3-37.3-8.1 8.1 0 1.7c0 15.2-2.1 29.9-6.1 43.9l17.6 17.6c1.3 1.3 2.6 2.6 4 3.8c9.6 8.5 21 14.8 33.4 18.4l78.1 23L513.2 511c8.4 2.5 17.5 .2 23.7-6.1s8.5-15.3 6.1-23.7L530.6 439l-23-78.1c-4.2-14.1-11.8-27-22.2-37.4l-37.3-37.3-33.9 33.9zM519 57c8.3 8.3 8.3 21.8 0 30.1L336.3 269.8l-30.1-30.1L489 57c8.3-8.3 21.8-8.3 30.1 0zM184 320c9.4 0 18.3 1.8 26.5 5L251 365.5c3.3 8.2 5 17.2 5 26.5c0 39.8-32.2 72-72 72H98.4l.7-.9c11.6-16.9 17.1-38.6 13.8-60c-.5-3.6-.8-7.3-.8-11.1c0-39.8 32.2-72 72-72zM455 23L204.3 273.7c-6.6-1.1-13.4-1.7-20.3-1.7c-66.3 0-120 53.7-120 120c0 6.2 .5 12.4 1.4 18.4C68.1 428.2 56.1 448 38 448H32c-17.7 0-32 14.3-32 32s14.3 32 32 32H184c66.3 0 120-53.7 120-120c0-6.9-.6-13.7-1.7-20.3L553 121c27-27 27-70.9 0-97.9s-70.9-27-97.9 0z"></path>
   </svg>
 );
 
@@ -816,13 +823,13 @@ export function ThemeEditor({ isOpen, onClose, onThemeUpdate, customThemes, rows
           </div>
         )}
         <div className="theme-editor-container theme-editor-step1" onClick={(e) => e.stopPropagation()}>
-            <div className="theme-editor-header" style={{ gridColumn: '1 / -1' }}>
-              <button className="theme-editor-exit" onClick={() => {
-                setStep('selection');
-                setShowSaveDialog(false);
-                setSaveAsNew(false);
-                setNewThemeName('');
-              }}>
+          <div className="theme-editor-header">
+            <button className="theme-editor-exit" onClick={() => {
+              setStep('selection');
+              setShowSaveDialog(false);
+              setSaveAsNew(false);
+              setNewThemeName('');
+            }}>
               ← Back
             </button>
             <div className="theme-editor-title">
@@ -831,8 +838,20 @@ export function ThemeEditor({ isOpen, onClose, onThemeUpdate, customThemes, rows
             </div>
             <div></div>
           </div>
-          <div className="theme-editor-step-content" style={{ gridColumn: '1' }}>
-            <div className="theme-editor-config-panel ui-properties-panel">
+          <div className="theme-editor-main-content">
+            <div className="theme-editor-left-panel">
+              <div className="theme-editor-sidebar">
+                <button className={`theme-editor-sidebar-item ${step === 'step1' ? 'active' : ''}`} onClick={() => setStep('step1')}>
+                  <PaletteIcon />
+                  <span>Colors</span>
+                </button>
+                <button className={`theme-editor-sidebar-item ${step === 'step2' ? 'active' : ''}`} onClick={() => setStep('step2')}>
+                  <DesignIcon />
+                  <span>Design</span>
+                </button>
+              </div>
+              <div className="theme-editor-config-wrapper">
+                <div className="theme-editor-config-panel ui-properties-panel">
               
               {/* Theme Palette - Primary Color */}
               <PanelSection title="Theme palette">
@@ -1222,18 +1241,19 @@ export function ThemeEditor({ isOpen, onClose, onThemeUpdate, customThemes, rows
                 onOpacityChange={(opacity) => setColorConfig({ ...colorConfig, resourceBackgroundColorOpacity: opacity })}
               />
 
-              <div className="theme-editor-actions">
-                <button 
-                  className="theme-editor-button-secondary" 
-                  onClick={() => setStep('step2')}
-                >
-                  Next: Design →
-                </button>
+                </div>
+                <div className="theme-editor-footer-sticky">
+                  <button 
+                    className="theme-editor-button-secondary" 
+                    onClick={() => setStep('step2')}
+                  >
+                    Next: Design →
+                  </button>
                 </div>
               </div>
-
+            </div>
             {/* Right Side Preview */}
-            <div className="theme-editor-preview" style={{ gridColumn: '2' }}>
+            <div className="theme-editor-preview">
               <div className="theme-preview-header">
                 <div className="theme-preview-tabs">
                   <button 
@@ -1601,42 +1621,45 @@ export function ThemeEditor({ isOpen, onClose, onThemeUpdate, customThemes, rows
     return (
       <div className="theme-editor-overlay" onClick={onClose}>
         <div className="theme-editor-container theme-editor-step1" onClick={(e) => e.stopPropagation()}>
-          <div className="theme-editor-header" style={{ gridColumn: '1 / -1' }}>
-            <button className="theme-editor-exit" onClick={onClose}>
-              ← Exit
+          <div className="theme-editor-header">
+            <button className="theme-editor-exit" onClick={() => setStep('step1')}>
+              ← Back
             </button>
             <div className="theme-editor-title">
-              <PaletteIcon />
+              <DesignIcon />
               <h2>Design</h2>
-                </div>
+            </div>
             <div></div>
+          </div>
+          <div className="theme-editor-main-content">
+            <div className="theme-editor-left-panel">
+              <div className="theme-editor-sidebar">
+                <button className={`theme-editor-sidebar-item ${step === 'step1' ? 'active' : ''}`} onClick={() => setStep('step1')}>
+                  <PaletteIcon />
+                  <span>Colors</span>
+                </button>
+                <button className={`theme-editor-sidebar-item ${step === 'step2' ? 'active' : ''}`} onClick={() => setStep('step2')}>
+                  <DesignIcon />
+                  <span>Design</span>
+                </button>
               </div>
-
-          <div className="theme-editor-step-content" style={{ gridColumn: '1' }}>
-            <div className="theme-editor-config-panel ui-properties-panel">
+              <div className="theme-editor-config-wrapper">
+                <div className="theme-editor-config-panel ui-properties-panel">
                 <div className="theme-config-section">
                 <h3 style={{ marginBottom: '16px', fontSize: '16px', fontWeight: 600 }}>Default Row Style</h3>
                 
                 {/* Tabs */}
-                <div style={{ display: 'flex', gap: '0', borderBottom: '1px solid #EAEAEA', marginBottom: '24px' }}>
+                <div className="theme-preview-tabs" style={{ marginBottom: '24px' }}>
                   <button
                     type="button"
+                    className={`theme-preview-tab ${defaultRowStyleType === 'curated' ? 'active' : ''}`}
                     onClick={() => setDefaultRowStyleType('curated')}
-                    style={{
-                      padding: '8px 16px',
-                      border: 'none',
-                      background: 'transparent',
-                      borderBottom: defaultRowStyleType === 'curated' ? '2px solid #326CF6' : '2px solid transparent',
-                      color: defaultRowStyleType === 'curated' ? '#111111' : '#6B6B6B',
-                      cursor: 'pointer',
-                      fontSize: '14px',
-                      fontWeight: 500,
-                    }}
                   >
                     Curated
                   </button>
                   <button
                     type="button"
+                    className={`theme-preview-tab ${defaultRowStyleType === 'custom' ? 'active' : ''}`}
                     onClick={() => {
                       setDefaultRowStyleType('custom');
                       // Initialize customStyleProperties with row background from Step 1 if empty
@@ -1649,16 +1672,6 @@ export function ThemeEditor({ isOpen, onClose, onThemeUpdate, customThemes, rows
                         });
                       }
                     }}
-                    style={{
-                      padding: '8px 16px',
-                      border: 'none',
-                      background: 'transparent',
-                      borderBottom: defaultRowStyleType === 'custom' ? '2px solid #326CF6' : '2px solid transparent',
-                      color: defaultRowStyleType === 'custom' ? '#111111' : '#6B6B6B',
-                      cursor: 'pointer',
-                      fontSize: '14px',
-                      fontWeight: 500,
-                    }}
                   >
                     Customize
                   </button>
@@ -1670,13 +1683,7 @@ export function ThemeEditor({ isOpen, onClose, onThemeUpdate, customThemes, rows
                     <p style={{ fontSize: '13px', color: '#6B6B6B', marginBottom: '16px' }}>
                       Select a curated style to use as the default for this theme.
                     </p>
-                    <div className="style-popover-list" style={{ 
-                      display: 'flex',
-                      flexWrap: 'wrap',
-                      gap: '8px',
-                      maxHeight: '400px',
-                      overflowY: 'auto',
-                    }}>
+                    <div className="style-popover-list">
                       {curatedStyles.map((style) => {
                         const properties = style.getProperties(themeColors);
                         const isSelected = selectedCuratedStyle === style.id;
@@ -1686,9 +1693,6 @@ export function ThemeEditor({ isOpen, onClose, onThemeUpdate, customThemes, rows
                             type="button"
                             onClick={() => setSelectedCuratedStyle(style.id as CuratedStyleId)}
                             className={`style-popover-item ${isSelected ? 'active' : ''}`}
-                            style={{
-                              width: 'calc(50% - 4px)',
-                            }}
                           >
                             <div className="style-popover-item-preview">
                               <StylePreviewInline 
@@ -1729,25 +1733,25 @@ export function ThemeEditor({ isOpen, onClose, onThemeUpdate, customThemes, rows
                 )}
               </div>
 
-              <div className="theme-editor-actions">
-                <button 
-                  className="theme-editor-button-secondary" 
-                  onClick={() => setStep('step1')}
-                >
-                  ← Back
-                </button>
-                <button 
-                  className="theme-editor-button-primary" 
-                  onClick={handleSaveTheme}
-                >
-                  {showSaveDialog && saveAsNew ? 'Create Theme' : isNewTheme ? 'Create Theme' : 'Save Changes'}
-                </button>
-              </div>
+                </div>
+                <div className="theme-editor-footer-sticky">
+                  <button 
+                    className="theme-editor-button-secondary" 
+                    onClick={() => setStep('step1')}
+                  >
+                    ← Back
+                  </button>
+                  <button 
+                    className="theme-editor-button-primary" 
+                    onClick={handleSaveTheme}
+                  >
+                    {showSaveDialog && saveAsNew ? 'Create Theme' : isNewTheme ? 'Create Theme' : 'Save Changes'}
+                  </button>
+                </div>
               </div>
             </div>
-
             {/* Right Side: Preview - Same as Step 1 but with default row style applied */}
-            <div className="theme-editor-preview" style={{ gridColumn: '2' }}>
+            <div className="theme-editor-preview">
               <div className="theme-preview-header">
                 <div className="theme-preview-tabs">
                   <button 
@@ -2169,6 +2173,7 @@ export function ThemeEditor({ isOpen, onClose, onThemeUpdate, customThemes, rows
             </div>
           </div>
         </div>
+      </div>
     );
   }
 
@@ -2556,7 +2561,7 @@ function CustomizeTab({ customStyleProperties = {}, setCustomStyleProperties, th
   }
 
   return (
-    <div className="ui-properties-panel">
+    <div>
       <PanelSection title="Style">
         {/* Fill */}
         <PropertyRow label="Fill">
